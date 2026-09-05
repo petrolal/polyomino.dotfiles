@@ -40,10 +40,7 @@ object AutotilingDaemon:
             val height = rect("height").num.toInt
             if width > 0 && height > 0 then
               val targetSplit = if width > height then "split h" else "split v"
-              val currentLayout = focused.obj.get("layout").map(_.str).getOrElse("")
-              val isAlreadyTarget = if targetSplit == "split h" then currentLayout == "splith" else currentLayout == "splitv"
-              if !isAlreadyTarget then
-                os.proc("swaymsg", targetSplit).call(check = false)
+              os.proc("swaymsg", targetSplit).call(check = false)
         }
     catch
       case _: Exception => ()
