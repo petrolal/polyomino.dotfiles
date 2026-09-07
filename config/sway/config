@@ -54,7 +54,7 @@ for_window [app_id="polyomino-lock-preview"] floating enable, resize set 1024 72
 for_window [app_id="kitty" title="bluetui"] floating enable, resize set 900 600, move position center
 for_window [app_id="kitty" title="ncpamixer"] floating enable, resize set 700 500, move position center
 
-# Tetris-themed power / exit modal (polyomino power-menu) — centered floating window.
+# Tetris-themed power / exit modal (polyomino power-menu) — centered landscape floating window.
 for_window [app_id="polyomino-power-menu"] floating enable, resize set 900 620, move position center, border pixel 2
 
 # System tray helper for network/VPN status (OpenVPN3 is CLI-only; nm-applet shows NetworkManager

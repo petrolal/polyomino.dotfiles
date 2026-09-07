@@ -173,8 +173,10 @@ object PowerMenu:
   private def termSize(): (Int, Int) =
     try
       val parts = os.proc("stty", "size").call(stdin = os.Inherit, stderr = os.Pipe).out.trim().split("\\s+")
-      (math.max(64, parts(1).toInt), math.max(22, parts(0).toInt))
-    catch case NonFatal(_) => (96, 32)
+      // use the real pty size — flooring it wider than the window makes every
+      // line wrap and the whole layout drifts off-centre
+      (math.max(34, parts(1).toInt), math.max(20, parts(0).toInt))
+    catch case NonFatal(_) => (72, 40)
 
   private def commandExists(cmd: String): Boolean =
     try os.proc("which", cmd).call(check = false).exitCode == 0
@@ -223,15 +225,27 @@ object PowerMenu:
 
       State(1, g.laneCenterX(1).toDouble, g.topY.toDouble, shape, stack, heights.max)
 
+  /** The well fills this share of the parent box; the clock + labels get the rest. */
+  private val WellFill = 0.72
+
   private final case class Geom(cols: Int, rows: Int):
-    val wellWCells = WellCols                       // interior width, in cells
-    val laneCells  = wellWCells / 3                 // cells per landing lane
-    val wellTop    = 7
-    val wellBottom = math.max(wellTop + 12, rows - 5)
-    val wellH      = wellBottom - wellTop + 1
+    // interior width: ~WellFill of the parent, snapped to a whole number of
+    // cells that divides evenly into three landing lanes
+    val laneCells  = math.max(2, ((cols * WellFill).toInt / CellW) / 3)
+    val wellWCells = laneCells * 3
     val innerW     = wellWCells * CellW
-    val wellLeft   = math.max(1, (cols - innerW) / 2 - 1)
+    // centre the whole box (interior + its two border columns) in the parent
+    val wellLeft   = math.max(1, (cols - (innerW + 2)) / 2)
     val wellRight  = wellLeft + innerW + 1
+
+    // height: ~WellFill of the parent, biased slightly upward so the lane
+    // labels/help fit below
+    private val wellRows = math.max(12, (rows * WellFill).toInt)
+    private val slack    = math.max(0, rows - wellRows)
+    val wellTop    = math.max(2, (slack * 2) / 5)
+    val wellBottom = math.min(rows - 5, wellTop + wellRows - 1)
+    val wellH      = wellBottom - wellTop + 1
+
     val interiorTopY    = wellTop + 1
     val interiorBottomY = wellBottom - 1
     def cellX(cx: Int): Int      = wellLeft + 1 + cx * CellW
@@ -298,8 +312,7 @@ object PowerMenu:
   // ── theme ─────────────────────────────────────────────────────────────────
 
   private final case class Theme(
-      bg: String, well: String, floor: String, dim: String,
-      countdown: String, warn: String, help: String,
+      bg: String, well: String, floor: String, dim: String, help: String,
       ghost: String, piece: String, blocks: Vector[String],
       reboot: String, shutdown: String, suspend: String
   ):
@@ -328,8 +341,6 @@ object PowerMenu:
         well      = fgSeq(mix(txt, base, 0.5)),
         floor     = fgSeq(mix(txt, base, 0.55)),
         dim       = fgSeq(mix(txt, base, 0.72)),
-        countdown = fgSeq(lighten(acc, 0.15)),
-        warn      = fgSeq(rgb(p.red, (239, 68, 68))),
         help      = fgSeq(mix(txt, base, 0.6)),
         ghost     = fgSeq(mix(acc, base, 0.7)),
         piece     = fgSeq(acc),
@@ -348,10 +359,6 @@ object PowerMenu:
       catch case NonFatal(_) => fallback
 
     private def clamp(i: Int): Int = math.max(0, math.min(255, i))
-    private def lighten(c: Rgb, f: Double): Rgb =
-      (clamp((c._1 + (255 - c._1) * f).toInt),
-       clamp((c._2 + (255 - c._2) * f).toInt),
-       clamp((c._3 + (255 - c._3) * f).toInt))
     private def darken(c: Rgb, f: Double): Rgb =
       (clamp((c._1 * (1 - f)).toInt), clamp((c._2 * (1 - f)).toInt), clamp((c._3 * (1 - f)).toInt))
     private def mix(a: Rgb, b: Rgb, t: Double): Rgb =
@@ -368,9 +375,6 @@ object PowerMenu:
   /** Cell size in terminal chars — 2×1 reads roughly square given font aspect. */
   private val CellW = 2
   private val CellH = 1
-
-  /** Interior width of the portrait well, in cells (divisible by 3 lanes). */
-  private val WellCols = 12
 
   /** The seven tetrominoes, one cell per glyph, `#` filled / space empty. */
   private val Tetrominoes: Vector[Vector[String]] = Vector(
@@ -393,34 +397,16 @@ object PowerMenu:
   /** Number of distinct debris block colours [[Theme.blocks]] provides. */
   private val BlockColors = 6
 
-  /** 3x5 block digits for the countdown clock. */
-  private val Digits: Map[Char, Vector[String]] = Map(
-    '0' -> Vector("███", "█ █", "█ █", "█ █", "███"),
-    '1' -> Vector("  █", "  █", "  █", "  █", "  █"),
-    '2' -> Vector("███", "  █", "███", "█  ", "███"),
-    '3' -> Vector("███", "  █", "███", "  █", "███"),
-    '4' -> Vector("█ █", "█ █", "███", "  █", "  █"),
-    '5' -> Vector("███", "█  ", "███", "  █", "███"),
-    '6' -> Vector("███", "█  ", "███", "█ █", "███"),
-    '7' -> Vector("███", "  █", "  █", "  █", "  █"),
-    '8' -> Vector("███", "█ █", "███", "█ █", "███"),
-    '9' -> Vector("███", "█ █", "███", "  █", "███")
-  )
-
   private object Renderer:
     def frame(st: State, g: Geom, th: Theme, remaining: Double): String =
       val buf       = new Buf(g.cols, g.rows)
       val spriteW   = st.sprite.map(_.length).max
       val spriteH   = st.sprite.length
       val groundY   = g.groundYFor(st.stackMaxRows, spriteH)
+      val midX      = g.wellLeft + 1 + g.innerW / 2
 
-      // countdown clock — big block digits above the well; it ticks down for as
-      // long as the piece is still falling
-      val secs    = math.ceil(remaining).toInt
-      val cdColor = if remaining <= 5.0 then th.warn else th.countdown
-      drawNumber(buf, secs, g.cols / 2, 1, cdColor)
-
-      // the portrait well — a plain rectangular box
+      // the well — a plain rectangular box. There is no separate countdown: the
+      // falling piece's height above the floor is the timer.
       drawBox(buf, g.wellLeft, g.wellTop, g.wellRight, g.wellBottom, th.well)
 
       // random debris heaped at the base, in mixed block colours
@@ -451,7 +437,7 @@ object PowerMenu:
                  math.round(st.pieceY).toInt, th.piece, '█')
 
       val help = "←/→  move        ↵  drop        esc  cancel"
-      buf.put(math.max(0, (g.cols - help.length) / 2), g.rows - 1, help, th.help)
+      buf.put(math.max(0, midX - help.length / 2), g.rows - 1, help, th.help)
 
       buf.render(th.bg)
 
@@ -464,16 +450,6 @@ object PowerMenu:
         buf.put(x0, y, "│", color)
         buf.put(x1, y, "│", color)
         y += 1
-
-    /** Draw a zero-padded two-digit number as block glyphs, centred on `cx`. */
-    private def drawNumber(buf: Buf, n: Int, cx: Int, y: Int, color: String): Unit =
-      val digits = f"${math.max(0, n)}%02d"
-      val rows = (0 until 5).map { r =>
-        digits.map(d => Digits(d)(r).flatMap(c => s"$c$c")).mkString("  ")
-      }
-      val w = rows.map(_.length).max
-      for (line, dy) <- rows.zipWithIndex do
-        buf.put(cx - w / 2, y + dy, line, color)
 
     private def drawSprite(buf: Buf, sprite: Vector[String], x: Int, y: Int,
                            color: String, fill: Char): Unit =
