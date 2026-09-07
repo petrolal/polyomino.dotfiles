@@ -246,28 +246,66 @@ object PowerMenu:
     def shape: Vector[String] = Tetrominoes(pieceIdx)
 
   private object State:
+    /** Rotate a shape 90° clockwise. */
+    private def rotCW(sh: Vector[String]): Vector[String] =
+      val h = sh.length
+      val w = sh.head.length
+      Vector.tabulate(w)(r => Vector.tabulate(h)(c => sh(h - 1 - c).charAt(r)).mkString)
+
     def initialFor(g: Geom): State =
       val rnd = new scala.util.Random()
       val idx = rnd.nextInt(Tetrominoes.length)
 
-      // a jagged Tetris pile heaped along the floor — every column a few cells,
-      // some stacked higher, each locked cell a random past-piece colour
-      val cap = math.max(2, math.min(g.rowsInner - 4, 9))
-      val heights = Vector.tabulate(g.wellCols) { _ =>
-        val r = rnd.nextInt(100)
-        val h =
-          if r < 10 then 0
-          else if r < 68 then 1 + rnd.nextInt(math.max(1, cap / 2))
-          else cap / 2 + rnd.nextInt(math.max(1, cap - cap / 2 + 1))
-        math.min(h, cap)
-      }
+      // Build the pile the honest way: drop real, randomly rotated tetrominoes
+      // into a grid and let each settle onto what's below. The heap is then
+      // made of interlocking pieces with a ragged crest, each locked chunk in
+      // its own classic colour — not a per-column bar chart.
+      val rows = g.rowsInner
+      val cols = g.wellCols
+      val grid = Array.fill(rows, cols)(-1)
+
+      def fits(sh: Vector[String], px: Int, py: Int): Boolean =
+        sh.indices.forall { cy =>
+          sh(cy).indices.forall { cx =>
+            sh(cy).charAt(cx) == ' ' || {
+              val r = py + cy
+              val c = px + cx
+              r >= 0 && r < rows && c >= 0 && c < cols && grid(r)(c) == -1
+            }
+          }
+        }
+      def colHeight(c: Int): Int =
+        var r = 0
+        while r < rows && grid(r)(c) == -1 do r += 1
+        rows - r
+
+      val target = math.max(4, rows * 45 / 100)
+      var attempts = 0
+      var crest = 0
+      while crest < target && attempts < 400 do
+        attempts += 1
+        val k = rnd.nextInt(Tetrominoes.length)
+        var sh = Tetrominoes(k)
+        var rot = rnd.nextInt(4)
+        while rot > 0 do { sh = rotCW(sh); rot -= 1 }
+        if sh.head.length <= cols then
+          val px = rnd.nextInt(cols - sh.head.length + 1)
+          if fits(sh, px, 0) then
+            var py = 0
+            while fits(sh, px, py + 1) do py += 1
+            for cy <- sh.indices; cx <- sh(cy).indices if sh(cy).charAt(cx) != ' ' do
+              grid(py + cy)(px + cx) = k
+            crest = (0 until cols).map(colHeight).max
+
       val stack =
         for
-          cx <- (0 until g.wellCols).toVector
-          cy <- 0 until heights(cx)
-        yield Debris(cx, cy, rnd.nextInt(Tetrominoes.length))
+          r <- (0 until rows).toVector
+          c <- 0 until cols
+          if grid(r)(c) >= 0
+        yield Debris(c, rows - 1 - r, grid(r)(c))
+      val maxRows = if crest > 0 then crest else 0
 
-      State(1, g.laneCenterX(1).toDouble, g.topY.toDouble, idx, stack, heights.max)
+      State(1, g.laneCenterX(1).toDouble, g.topY.toDouble, idx, stack, maxRows)
 
   /** The well takes this share of the parent's *width* — kept narrow so the
     * matrix stands upright (portrait), like a real Tetris board. Its height is
