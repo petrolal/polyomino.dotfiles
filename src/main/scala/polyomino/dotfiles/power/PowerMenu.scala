@@ -8,8 +8,14 @@ import scala.util.control.NonFatal
 
 /** `power-menu` — a Tetris-themed power / exit modal.
   *
-  * A random flat 2D tetromino falls for exactly 30 seconds down a portrait well
-  * (with a randomised debris stack heaped at the base) across three landing lanes:
+  * A random tetromino falls for exactly 30 seconds down a flat, upright
+  * rectangular matrix (portrait — narrow and tall, like a real Tetris board)
+  * onto a jagged pile of already-locked pieces heaped along the floor. The
+  * piece and every cell of the pile carry the classic Tetris colours (cyan I,
+  * yellow O, purple T, green S, red Z, blue J, orange L), drawn as solid
+  * two-wide blocks with a darker left column so the grid stays legible.
+  *
+  * The matrix is split into three landing lanes:
   *   - left   : reboot            (`systemctl reboot`)
   *   - centre : shutdown [default](`systemctl poweroff`)
   *   - right  : lock + suspend    (`swaylock -f` then `systemctl suspend`)
@@ -18,6 +24,12 @@ import scala.util.control.NonFatal
   * (run the selected action immediately); `Esc` or `q` cancels and runs nothing. Down
   * arrow is deliberately unbound so a stray mouse-wheel scroll can't fire it. If the
   * user never touches it, the piece lands in the centre lane and shutdown fires.
+  *
+  * There is no separate countdown: the piece's height above the pile *is* the
+  * 30 s timer. The frame, landing ghost and help line are steps on one neutral
+  * text→base ramp; gold (the palette accent) is spent only on the lane the
+  * piece is currently over — its two glowing dividers, its floor tick and its
+  * label below the well.
   *
   * Rendering is raw ANSI; the terminal is put into non-canonical mode by shelling
   * out to `stty` (via os-lib). No new dependencies, so it stays inside the
@@ -98,7 +110,7 @@ object PowerMenu:
         outcome = Outcome.Fire(Lane.values(st.laneIdx))
 
       val targetX  = g.laneCenterX(st.laneIdx).toDouble
-      val groundY  = g.groundYFor(st.stackMaxRows, st.sprite.length)
+      val groundY  = g.groundYFor(st.stackMaxRows, st.shape.length)
       val progress = 1.0 - remaining / CountdownSecs
       st = st.copy(
         pieceX = st.pieceX + (targetX - st.pieceX) * 0.35,
@@ -125,7 +137,7 @@ object PowerMenu:
   /** Short hard-drop animation before the action fires. */
   private def slam(st0: State, g: Geom, theme: Theme): Unit =
     var st = st0
-    val groundY = g.groundYFor(st.stackMaxRows, st.sprite.length)
+    val groundY = g.groundYFor(st.stackMaxRows, st.shape.length)
     var k = 0
     while k < 6 do
       st = st.copy(pieceY = st.pieceY + (groundY - st.pieceY) * 0.6)
@@ -218,67 +230,74 @@ object PowerMenu:
     case Cancelled
     case Fire(lane: Lane)
 
-  /** One settled cell of the debris stack: column/row in cell units measured
-    * from the bottom-left of the well interior, plus which block colour it uses. */
+  /** One locked cell of the pile: column and row in *cell* units, the row
+    * counted up from the well floor. `colorIdx` is which tetromino this cell
+    * came from, so the pile reads as a mosaic of past pieces. */
   private final case class Debris(cellX: Int, cellY: Int, colorIdx: Int)
 
   private final case class State(
       laneIdx: Int,
       pieceX: Double,
       pieceY: Double,
-      sprite: Vector[String],
+      pieceIdx: Int,
       stack: Vector[Debris],
       stackMaxRows: Int
-  )
+  ):
+    def shape: Vector[String] = Tetrominoes(pieceIdx)
+
   private object State:
     def initialFor(g: Geom): State =
-      val rnd   = new scala.util.Random()
-      val shape = scaleShape(Tetrominoes(rnd.nextInt(Tetrominoes.length)))
+      val rnd = new scala.util.Random()
+      val idx = rnd.nextInt(Tetrominoes.length)
 
-      // per-column debris heights (in cells) — mostly low with the odd tower and
-      // a few empty columns, so the falling piece has somewhere to slot in
-      val cap = math.max(2, (g.wellH - 4) / CellH)
-      val heights = Vector.tabulate(g.wellWCells) { _ =>
+      // a jagged Tetris pile heaped along the floor — every column a few cells,
+      // some stacked higher, each locked cell a random past-piece colour
+      val cap = math.max(2, math.min(g.rowsInner - 4, 9))
+      val heights = Vector.tabulate(g.wellCols) { _ =>
         val r = rnd.nextInt(100)
-        val h = if r < 22 then 0 else if r < 72 then 1 + rnd.nextInt(3) else 3 + rnd.nextInt(4)
+        val h =
+          if r < 10 then 0
+          else if r < 68 then 1 + rnd.nextInt(math.max(1, cap / 2))
+          else cap / 2 + rnd.nextInt(math.max(1, cap - cap / 2 + 1))
         math.min(h, cap)
       }
       val stack =
         for
-          cx <- (0 until g.wellWCells).toVector
+          cx <- (0 until g.wellCols).toVector
           cy <- 0 until heights(cx)
-        yield Debris(cx, cy, rnd.nextInt(BlockColors))
+        yield Debris(cx, cy, rnd.nextInt(Tetrominoes.length))
 
-      State(1, g.laneCenterX(1).toDouble, g.topY.toDouble, shape, stack, heights.max)
+      State(1, g.laneCenterX(1).toDouble, g.topY.toDouble, idx, stack, heights.max)
 
-  /** The well fills this share of the parent box; the clock + labels get the rest. */
-  private val WellFill = 0.72
+  /** The well takes this share of the parent's *width* — kept narrow so the
+    * matrix stands upright (portrait), like a real Tetris board. Its height is
+    * whatever's left after the lane ticks + labels + help line. */
+  private val WellFillW = 0.28
 
   private final case class Geom(cols: Int, rows: Int):
-    // interior width: ~WellFill of the parent, snapped to a whole number of
-    // cells that divides evenly into three landing lanes
-    val laneCells  = math.max(2, ((cols * WellFill).toInt / CellW) / 3)
-    val wellWCells = laneCells * 3
-    val innerW     = wellWCells * CellW
-    // centre the whole box (interior + its two border columns) in the parent
-    val wellLeft   = math.max(1, (cols - (innerW + 2)) / 2)
-    val wellRight  = wellLeft + innerW + 1
+    // one Tetris cell is CellW×CellH chars; the interior is a whole number of
+    // cells that splits evenly into three landing lanes
+    val laneCells = math.max(3, ((cols * WellFillW).toInt / CellW) / 3)
+    val wellCols  = laneCells * 3
+    val innerW    = wellCols * CellW
+    val wellLeft  = math.max(1, (cols - (innerW + 2)) / 2)
+    val wellRight = wellLeft + innerW + 1
 
-    // height: ~WellFill of the parent, biased slightly upward so the lane
-    // labels/help fit below
-    private val wellRows = math.max(12, (rows * WellFill).toInt)
-    private val slack    = math.max(0, rows - wellRows)
-    val wellTop    = math.max(2, (slack * 2) / 5)
-    val wellBottom = math.min(rows - 5, wellTop + wellRows - 1)
-    val wellH      = wellBottom - wellTop + 1
-
+    val wellTop         = 2
+    val wellBottom      = math.max(wellTop + 8, rows - 6)
     val interiorTopY    = wellTop + 1
     val interiorBottomY = wellBottom - 1
+    val rowsInner       = interiorBottomY - interiorTopY + 1
+    val wellH           = wellBottom - wellTop + 1
+
     def cellX(cx: Int): Int      = wellLeft + 1 + cx * CellW
     def laneCenterX(i: Int): Int = cellX(i * laneCells + laneCells / 2)
     val topY = interiorTopY
+
+    /** Char row for the top of a piece `pieceRows` cells tall coming to rest on
+      * a pile `stackRows` cells high. */
     def groundYFor(stackRows: Int, pieceRows: Int): Int =
-      math.max(topY + 1, interiorBottomY - stackRows * CellH - pieceRows + 1)
+      math.max(interiorTopY, interiorBottomY - (stackRows + pieceRows) * CellH + 1)
 
   // ── input parser ──────────────────────────────────────────────────────────
 
@@ -340,43 +359,52 @@ object PowerMenu:
 
   // ── theme ─────────────────────────────────────────────────────────────────
 
+  /** The frame + ghost + help are steps on one neutral text→base ramp; the
+    * seven pieces carry the classic Tetris colours (each with a darker left
+    * edge for a hint of a grid); `accent` (palette gold) marks the live lane. */
   private final case class Theme(
-      bg: String, well: String, floor: String, dim: String, help: String,
-      ghost: String, piece: String, blocks: Vector[String],
-      reboot: String, shutdown: String, suspend: String
-  ):
-    def laneColor(l: Lane): String = l match
-      case Lane.Reboot   => reboot
-      case Lane.Shutdown => shutdown
-      case Lane.Suspend  => suspend
+      bg: String,
+      wall: String, floor: String, divider: String, dividerHot: String,
+      ghost: String, dim: String, help: String, accent: String,
+      pieceFg: Vector[String], pieceEdge: Vector[String],
+      stackFg: Vector[String], stackEdge: Vector[String]
+  )
 
   private object Theme:
     private type Rgb = (Int, Int, Int)
+
+    /** Classic tetromino colours, in `Tetrominoes` order (I O T S Z J L). Kept
+      * literal so the modal reads unmistakably as Tetris — the backdrop, frame
+      * and live-lane accent still come from the system palette. */
+    private val Classic: Vector[Rgb] = Vector(
+      (0, 209, 214),   // I  cyan
+      (242, 201, 76),  // O  yellow
+      (168, 85, 247),  // T  purple
+      (39, 201, 108),  // S  green
+      (239, 68, 68),   // Z  red
+      (59, 130, 246),  // J  blue
+      (245, 158, 66)   // L  orange
+    )
 
     def from(p: Palette): Theme =
       val acc  = rgb(p.accent, (235, 180, 52))
       val base = rgb(p.base, (15, 17, 23))
       val txt  = rgb(p.text, (248, 250, 252))
-      val blockRgbs = Vector(
-        rgb(p.accent, (235, 180, 52)),
-        rgb(p.red, (239, 68, 68)),
-        rgb(p.green, (16, 185, 129)),
-        rgb(p.yellow, (245, 158, 11)),
-        rgb(p.blue, (96, 165, 250)),
-        mix(rgb(p.red, (239, 68, 68)), rgb(p.blue, (96, 165, 250)), 0.5)
-      )
+      def tone(t: Double): String = fgSeq(mix(txt, base, t))
       Theme(
-        bg        = bgSeq(base),
-        well      = fgSeq(mix(txt, base, 0.5)),
-        floor     = fgSeq(mix(txt, base, 0.55)),
-        dim       = fgSeq(mix(txt, base, 0.72)),
-        help      = fgSeq(mix(txt, base, 0.6)),
-        ghost     = fgSeq(mix(acc, base, 0.7)),
-        piece     = fgSeq(acc),
-        blocks    = blockRgbs.map(c => fgSeq(mix(c, base, 0.18))),
-        reboot    = fgSeq(rgb(p.red, (239, 68, 68))),
-        shutdown  = fgSeq(acc),
-        suspend   = fgSeq(rgb(p.green, (16, 185, 129)))
+        bg         = bgSeq(base),
+        wall       = tone(0.55),
+        floor      = tone(0.5),
+        divider    = tone(0.82),
+        dividerHot = fgSeq(mix(acc, base, 0.3)),
+        ghost      = tone(0.7),
+        dim        = tone(0.72),
+        help       = tone(0.6),
+        accent     = fgSeq(acc),
+        pieceFg    = Classic.map(c => fgSeq(mix(c, txt, 0.1))),
+        pieceEdge  = Classic.map(c => fgSeq(mix(c, base, 0.5))),
+        stackFg    = Classic.map(c => fgSeq(mix(c, base, 0.3))),
+        stackEdge  = Classic.map(c => fgSeq(mix(c, base, 0.62)))
       )
 
     private def rgb(hex: String, fallback: Rgb): Rgb =
@@ -388,8 +416,6 @@ object PowerMenu:
       catch case NonFatal(_) => fallback
 
     private def clamp(i: Int): Int = math.max(0, math.min(255, i))
-    private def darken(c: Rgb, f: Double): Rgb =
-      (clamp((c._1 * (1 - f)).toInt), clamp((c._2 * (1 - f)).toInt), clamp((c._3 * (1 - f)).toInt))
     private def mix(a: Rgb, b: Rgb, t: Double): Rgb =
       (clamp((a._1 + (b._1 - a._1) * t).toInt),
        clamp((a._2 + (b._2 - a._2) * t).toInt),
@@ -397,11 +423,10 @@ object PowerMenu:
     private def fgSeq(c: Rgb): String = s"[38;2;${c._1};${c._2};${c._3}m"
     private def bgSeq(c: Rgb): String = s"[48;2;${c._1};${c._2};${c._3}m"
 
-  // ── renderer ──────────────────────────────────────────────────────────────
-
   // ── tetrominoes ───────────────────────────────────────────────────────────
 
-  /** Cell size in terminal chars — 2×1 reads roughly square given font aspect. */
+  /** One Tetris cell is `CellW`×`CellH` chars: a solid two-wide block, one row
+    * tall, its left column drawn a shade darker so the grid stays legible. */
   private val CellW = 2
   private val CellH = 1
 
@@ -416,81 +441,98 @@ object PowerMenu:
     Vector("  #", "###")      // L
   )
 
-  /** Blow a compact shape up to `CellW`×`CellH` solid blocks. */
-  private def scaleShape(shape: Vector[String]): Vector[String] =
-    shape.flatMap { row =>
-      val wide = row.flatMap(c => (if c == ' ' then " " else "█") * CellW)
-      Vector.fill(CellH)(wide)
-    }
-
-  /** Number of distinct debris block colours [[Theme.blocks]] provides. */
-  private val BlockColors = 6
-
   private object Renderer:
     def frame(st: State, g: Geom, th: Theme, remaining: Double): String =
-      val buf       = new Buf(g.cols, g.rows)
-      val spriteW   = st.sprite.map(_.length).max
-      val spriteH   = st.sprite.length
-      val groundY   = g.groundYFor(st.stackMaxRows, spriteH)
-      val midX      = g.wellLeft + 1 + g.innerW / 2
+      val buf     = new Buf(g.cols, g.rows)
+      val shapeW  = st.shape.map(_.length).max
+      val shapeH  = st.shape.length
+      val pxW     = shapeW * CellW
+      val groundY = g.groundYFor(st.stackMaxRows, shapeH)
 
-      // the well — a plain rectangular box. There is no separate countdown: the
-      // falling piece's height above the floor is the timer.
-      drawBox(buf, g.wellLeft, g.wellTop, g.wellRight, g.wellBottom, th.well)
+      // upright rectangular matrix. There is no separate countdown: the falling
+      // piece's height above the pile is the 30 s timer.
+      drawWell(buf, g, th, st.laneIdx)
 
-      // random debris heaped at the base, in mixed block colours
+      // faint lane dividers, only in the open air above the pile; the pair
+      // bounding the live lane glow
+      val pileTopY = g.interiorBottomY - st.stackMaxRows * CellH
+      for k <- 1 to 2 do
+        val dx  = g.cellX(k * g.laneCells)
+        val hot = k == st.laneIdx || k - 1 == st.laneIdx
+        var y   = g.wellTop + 1
+        while y <= pileTopY do
+          buf.put(dx, y, "┊", if hot then th.dividerHot else th.divider)
+          y += 1
+
+      // the accumulated pile — a mosaic of past pieces heaped along the floor
       for d <- st.stack do
-        val x = g.cellX(d.cellX)
-        val y = g.interiorBottomY - d.cellY * CellH
-        buf.put(x, y, "█" * CellW, th.blocks(d.colorIdx % th.blocks.length))
+        drawBlock(buf, g.cellX(d.cellX), g.interiorBottomY - d.cellY * CellH,
+                  th.stackFg(d.colorIdx), th.stackEdge(d.colorIdx))
 
-      // lane markers + labels under the well; the lane the piece is over glows.
-      // The well is narrow, so the centre label sits on its own row to avoid
-      // colliding with the flanking two.
-      for i <- 0 to 2 do
-        val lane  = Lane.values(i)
-        val sel   = i == st.laneIdx
-        val lc    = if sel then th.laneColor(lane) else th.dim
-        val markW = g.laneCells * CellW - 2
-        buf.put(g.laneCenterX(i) - markW / 2, g.wellBottom + 1,
-                (if sel then "▀" else "·") * markW, lc)
-        val label   = s"${lane.glyph} ${lane.label}"
-        val labelRow = if i == 1 then g.wellBottom + 3 else g.wellBottom + 2
-        buf.put(g.laneCenterX(i) - label.length / 2, labelRow, label, lc)
+      // where the piece will land in the current lane
+      drawShape(buf, st.shape, g.laneCenterX(st.laneIdx) - pxW / 2, groundY,
+                th.ghost, th.ghost, "░")
 
-      // ghost of where the piece will land in the current lane
-      drawSprite(buf, st.sprite, g.laneCenterX(st.laneIdx) - spriteW / 2, groundY, th.ghost, '▒')
+      // the live piece — x is the choice, y is the clock
+      drawShape(buf, st.shape, math.round(st.pieceX).toInt - pxW / 2,
+                math.round(st.pieceY).toInt,
+                th.pieceFg(st.pieceIdx), th.pieceEdge(st.pieceIdx), "█")
 
-      // the falling piece — its x position is the choice, its y is the clock
-      drawSprite(buf, st.sprite, math.round(st.pieceX).toInt - spriteW / 2,
-                 math.round(st.pieceY).toInt, th.piece, '█')
+      drawLanes(buf, g, th, st.laneIdx)
 
-      val help = "←/→  move        ↵  drop        esc/q  cancel"
-      buf.put(math.max(0, midX - help.length / 2), g.rows - 1, help, th.help)
+      val help = "←/→  move        ↵  drop        esc / q  cancel"
+      buf.put(math.max(0, (g.cols - help.length) / 2), g.rows - 1, help, th.help)
 
       buf.render(th.bg)
 
-    /** A rectangular border box with square corners. */
-    private def drawBox(buf: Buf, x0: Int, y0: Int, x1: Int, y1: Int, color: String): Unit =
-      buf.put(x0, y0, "┌" + "─" * math.max(0, x1 - x0 - 1) + "┐", color)
-      buf.put(x0, y1, "└" + "─" * math.max(0, x1 - x0 - 1) + "┘", color)
-      var y = y0 + 1
-      while y < y1 do
-        buf.put(x0, y, "│", color)
-        buf.put(x1, y, "│", color)
+    /** The matrix: square-cornered side rails + floor, open top. */
+    private def drawWell(buf: Buf, g: Geom, th: Theme, laneIdx: Int): Unit =
+      val span = "─" * math.max(0, g.wellRight - g.wellLeft - 1)
+      buf.put(g.wellLeft, g.wellTop, "┌" + span + "┐", th.wall)
+      buf.put(g.wellLeft, g.wellBottom, "└" + span + "┘", th.wall)
+      var y = g.wellTop + 1
+      while y < g.wellBottom do
+        buf.put(g.wellLeft, y, "│", th.wall)
+        buf.put(g.wellRight, y, "│", th.wall)
         y += 1
 
-    private def drawSprite(buf: Buf, sprite: Vector[String], x: Int, y: Int,
-                           color: String, fill: Char): Unit =
-      var dy = 0
-      while dy < sprite.length do
-        val line = sprite(dy)
-        var dx = 0
-        while dx < line.length do
-          if line.charAt(dx) != ' ' then
-            buf.put(x + dx, y + dy, fill.toString, color)
-          dx += 1
-        dy += 1
+    /** Lane ticks right under the floor + the three action labels spread across
+      * the full width. The live lane is the only thing drawn in the accent. */
+    private def drawLanes(buf: Buf, g: Geom, th: Theme, laneIdx: Int): Unit =
+      for i <- 0 to 2 do
+        val sel  = i == laneIdx
+        val w    = math.max(2, g.laneCells * CellW - 2)
+        buf.put(g.laneCenterX(i) - w / 2, g.wellBottom + 1,
+                (if sel then "▀" else "─") * w, if sel then th.accent else th.dim)
+      val third = math.max(1, g.cols / 3)
+      for i <- 0 to 2 do
+        val lane  = Lane.values(i)
+        val sel   = i == laneIdx
+        val label = s"${lane.glyph} ${lane.label}"
+        val cx    = third * i + third / 2
+        buf.put(math.max(0, cx - label.length / 2), g.wellBottom + 3, label,
+                if sel then th.accent else th.dim)
+
+    /** One filled cell: a `CellW`-wide block whose leftmost column is `edge`
+      * (a shade darker) and the rest `fg`. */
+    private def drawBlock(buf: Buf, x: Int, y: Int, fg: String, edge: String): Unit =
+      buf.put(x, y, "█", edge)
+      if CellW > 1 then buf.put(x + 1, y, "█" * (CellW - 1), fg)
+
+    private def drawShape(buf: Buf, shape: Vector[String], ox: Int, oy: Int,
+                          fg: String, edge: String, glyph: String): Unit =
+      var cy = 0
+      while cy < shape.length do
+        val row = shape(cy)
+        var cx = 0
+        while cx < row.length do
+          if row.charAt(cx) != ' ' then
+            val x = ox + cx * CellW
+            val y = oy + cy * CellH
+            buf.put(x, y, glyph, edge)
+            if CellW > 1 then buf.put(x + 1, y, glyph * (CellW - 1), fg)
+          cx += 1
+        cy += 1
 
   /** Fixed-size character + foreground-colour grid, serialised to one ANSI frame. */
   private final class Buf(cols: Int, rows: Int):
