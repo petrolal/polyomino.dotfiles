@@ -157,45 +157,45 @@ object ThemeEngine:
         |    transition: none;
         |}
         |
-        |/* Enterprise CAD Floating Waybar — unified engineering HUD with screen margins */
+        |/* Enterprise CAD Waybar — three detached island segments over a transparent track */
         |window#waybar {
-        |    background-color: @mantle;
+        |    background-color: transparent;
         |    color: @text;
-        |    border: 1px solid #2A2E3D;
+        |    border: none;
         |    border-radius: 0px;
-        |    margin: 8px 12px 0 12px;
+        |    margin: 6px 10px 0 10px;
         |}
         |
         |window#waybar.hidden {
         |   opacity: 0.5;
         |}
         |
-        |/* Module containers inside the bar */
-        |#left,
-        |#center,
-        |#right,
+        |/* Transparent track — the module lists carry no background of their own */
         |.modules-left,
         |.modules-center,
         |.modules-right {
         |    background: transparent;
         |    border: none;
         |    border-radius: 0px;
+        |    padding: 0;
+        |}
+        |
+        |/* Each group segment is its own floating island */
+        |#left,
+        |#center,
+        |#right {
+        |    background-color: @mantle;
+        |    border: 1px solid #2A2E3D;
+        |    border-radius: 0px;
         |    padding: 0 4px;
-        |}
-        |
-        |.modules-left {
-        |    padding-left: 6px;
-        |}
-        |
-        |.modules-right {
-        |    padding-right: 6px;
+        |    margin: 3px 3px;
         |}
         |
         |/* CAD Dot Matrix separators */
         |#custom-matriz {
         |    color: #4A5568;
         |    font-size: 13px;
-        |    padding: 0 8px;
+        |    padding: 0 6px;
         |}
         |
         |tooltip {
@@ -221,8 +221,8 @@ object ThemeEngine:
         |/* Clean workspace indicators — flat blocks without nested border outlines */
         |#workspaces button {
         |    min-width: 20px;
-        |    padding: 2px 8px;
-        |    margin: 3px 2px;
+        |    padding: 2px 9px;
+        |    margin: 3px 3px;
         |    background-color: transparent;
         |    color: @text;
         |    border: none;
@@ -269,14 +269,14 @@ object ThemeEngine:
         |#custom-spotify,
         |#mode {
         |    background-color: transparent;
-        |    padding: 0 8px;
+        |    padding: 0 9px;
         |    color: @text;
         |    border: none;
         |    border-radius: 0px;
         |}
         |
         |#tray {
-        |    padding: 0 6px;
+        |    padding: 0 8px;
         |}
         |
         |/* Collapse the window/mode capsules when nothing is focused so the
@@ -293,7 +293,7 @@ object ThemeEngine:
         |#clock {
         |    color: @text;
         |    font-weight: bold;
-        |    padding: 0 10px;
+        |    padding: 0 11px;
         |    border: none;
         |}
         |
@@ -333,7 +333,7 @@ object ThemeEngine:
         |    color: @base;
         |    font-weight: bold;
         |    padding: 0 12px;
-        |    margin: 3px 2px;
+        |    margin: 3px -4px 3px 6px;
         |    border-radius: 0px;
         |    border: none;
         |}

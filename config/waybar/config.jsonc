@@ -15,7 +15,8 @@
 // The visible bar is split into three detached floating segments
 // (group/left, group/center, group/right) — see modules.jsonc. The bar
 // window itself is transparent with `margin: 8px 12px 0 12px`; each
-// segment carries its own 12px-radius mantle background in style.css.
+// segment (#left / #center / #right) carries its own square mantle
+// background + 1px CAD border in style.css.
 [
   {
     "output": "HDMI-A-1",
