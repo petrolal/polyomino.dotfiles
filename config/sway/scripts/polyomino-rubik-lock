@@ -438,8 +438,8 @@ class RubikEngine:
                     if x == 0 and y == 0 and z == 0:
                         continue
                     self.cubies.append(Cubie(x, y, z))
-        self.base_yaw = math.radians(-32)
-        self.base_pitch = math.radians(24)
+        self.base_yaw = math.radians(45.0)
+        self.base_pitch = math.asin(math.tan(math.radians(30.0)))
         self.yaw = self.base_yaw
         self.pitch = self.base_pitch
         self.active_turn = None
@@ -753,8 +753,8 @@ def render_rubik_lockscreen(cr, width, height, engine, preview_mode=False):
     cr.stroke()
     cr.restore()
 
-    # 4. Render 3D Rubik's Cube with authentic Tetris Piece Block styling
-    scale = min(vp_w, vp_h) * 0.54
+    # 4. Render 3D Rubik's Cube with True Isometric CAD & ANSI Block Styling
+    scale = min(vp_w, vp_h) * 0.115
     cube_cx = cx
     cube_cy = cy
 
@@ -766,7 +766,6 @@ def render_rubik_lockscreen(cr, width, height, engine, preview_mode=False):
     Rx = [[1, 0, 0], [0, math.cos(engine.pitch), -math.sin(engine.pitch)], [0, math.sin(engine.pitch), math.cos(engine.pitch)]]
     R_view = mat_mul_mat(Rx, Ry)
 
-    fov = 7.5
     lx, ly, lz = 0.35, 0.80, 0.50
     ll = math.hypot(lx, ly, lz)
     L_dir = (lx / ll, ly / ll, lz / ll)
@@ -790,6 +789,7 @@ def render_rubik_lockscreen(cr, width, height, engine, preview_mode=False):
                 c_pos = mat_mul_vec(turn_R, c_pos)
                 c_rot = mat_mul_mat(turn_R, c_rot)
 
+        # True Orthographic Isometric Projection (zero keystoning or perspective warping)
         proj_verts = []
         view_verts = []
         for lv in LOCAL_VERTS:
@@ -797,10 +797,8 @@ def render_rubik_lockscreen(cr, width, height, engine, preview_mode=False):
             pw = (c_pos[0] + wv[0], c_pos[1] + wv[1], c_pos[2] + wv[2])
             pv = mat_mul_vec(R_view, pw)
             view_verts.append(pv)
-            zc = pv[2] + fov
-            factor = scale / zc
-            sx = cube_cx + pv[0] * factor
-            sy = cube_cy - pv[1] * factor
+            sx = cube_cx + pv[0] * scale
+            sy = cube_cy - pv[1] * scale
             proj_verts.append((sx, sy))
 
         for face_idx, (v_indices, n_local) in enumerate(LOCAL_FACES):
@@ -814,85 +812,79 @@ def render_rubik_lockscreen(cr, width, height, engine, preview_mode=False):
             pts = [proj_verts[i] for i in v_indices]
 
             dot = max(0.0, n_world[0]*L_dir[0] + n_world[1]*L_dir[1] + n_world[2]*L_dir[2])
-            light = 0.86 + 0.20 * dot
+            light = 0.88 + 0.18 * dot
 
             sticker_idx = cubie.stickers.get(face_idx)
             faces_to_render.append((avg_z, pts, light, sticker_idx, is_turning, n_world))
 
     faces_to_render.sort(key=lambda item: item[0], reverse=False)
 
+    layout_glyph = PangoCairo.create_layout(cr)
+    layout_glyph.set_font_description(Pango.FontDescription("JetBrainsMono Nerd Font Bold 12"))
+
     for avg_z, pts, light, sticker_idx, is_turning, nw in faces_to_render:
+        body_col = (22 / 255, 25 / 255, 33 / 255)
+        cr.move_to(pts[0][0], pts[0][1])
+        for p in pts[1:]:
+            cr.line_to(p[0], p[1])
+        cr.close_path()
+        cr.set_source_rgb(body_col[0] * light, body_col[1] * light, body_col[2] * light)
+        cr.fill_preserve()
+        cr.set_source_rgb(*COLOR_BG)
+        cr.set_line_width(2.0)
+        cr.stroke()
+
         if sticker_idx is not None:
-            fg_col = PIECE_FG[sticker_idx]
-            edge_col = PIECE_EDGE[sticker_idx]
+            base_col = STICKER_COLORS[sticker_idx]
+            fg_col = _mix(base_col, COLOR_TEXT, 0.08)
+            edge_col = _mix(base_col, COLOR_BG, 0.45)
 
-            r_fg = min(1.0, fg_col[0] * light)
-            g_fg = min(1.0, fg_col[1] * light)
-            b_fg = min(1.0, fg_col[2] * light)
+            fc_x = sum(p[0] for p in pts) / 4.0
+            fc_y = sum(p[1] for p in pts) / 4.0
 
-            r_edge = min(1.0, edge_col[0] * light)
-            g_edge = min(1.0, edge_col[1] * light)
-            b_edge = min(1.0, edge_col[2] * light)
+            inset = 0.86
+            inset_pts = [
+                (fc_x + (p[0] - fc_x) * inset, fc_y + (p[1] - fc_y) * inset)
+                for p in pts
+            ]
+
+            sr = min(1.0, fg_col[0] * light)
+            sg = min(1.0, fg_col[1] * light)
+            sb = min(1.0, fg_col[2] * light)
 
             if engine.flash_time > 0.0:
                 fac = min(1.0, engine.flash_time / 0.4)
-                r_fg = r_fg * (1.0 - fac) + engine.flash_color[0] * fac
-                g_fg = g_fg * (1.0 - fac) + engine.flash_color[1] * fac
-                b_fg = b_fg * (1.0 - fac) + engine.flash_color[2] * fac
-                r_edge = r_edge * (1.0 - fac) + engine.flash_color[0] * fac
-                g_edge = g_edge * (1.0 - fac) + engine.flash_color[1] * fac
-                b_edge = b_edge * (1.0 - fac) + engine.flash_color[2] * fac
+                sr = sr * (1.0 - fac) + engine.flash_color[0] * fac
+                sg = sg * (1.0 - fac) + engine.flash_color[1] * fac
+                sb = sb * (1.0 - fac) + engine.flash_color[2] * fac
             elif engine.is_checking:
                 pulse = 0.5 + 0.5 * math.sin(engine.checking_time * 10.0)
-                r_fg = r_fg * (1.0 - pulse * 0.25) + COLOR_ACTIVE_GOLD[0] * pulse * 0.25
-                g_fg = g_fg * (1.0 - pulse * 0.25) + COLOR_ACTIVE_GOLD[1] * pulse * 0.25
-                b_fg = b_fg * (1.0 - pulse * 0.25) + COLOR_ACTIVE_GOLD[2] * pulse * 0.25
+                sr = sr * (1.0 - pulse * 0.25) + COLOR_ACTIVE_GOLD[0] * pulse * 0.25
+                sg = sg * (1.0 - pulse * 0.25) + COLOR_ACTIVE_GOLD[1] * pulse * 0.25
+                sb = sb * (1.0 - pulse * 0.25) + COLOR_ACTIVE_GOLD[2] * pulse * 0.25
 
-            # Outer block body (pieceEdge)
-            cr.move_to(pts[0][0], pts[0][1])
-            for p in pts[1:]:
+            cr.move_to(inset_pts[0][0], inset_pts[0][1])
+            for p in inset_pts[1:]:
                 cr.line_to(p[0], p[1])
             cr.close_path()
-            cr.set_source_rgb(r_edge, g_edge, b_edge)
+            cr.set_source_rgb(sr, sg, sb)
             cr.fill_preserve()
 
-            # Crisp black separation between cubie cells
-            cr.set_source_rgb(*COLOR_BG)
-            cr.set_line_width(1.5)
-            cr.stroke()
-
-            # Inner face tile (pieceFg) with crisp geometric inset (mirroring Tetris block bevel)
-            fc_x = sum(p[0] for p in pts) / 4.0
-            fc_y = sum(p[1] for p in pts) / 4.0
-            inset = 0.88
-            cr.move_to(fc_x + (pts[0][0] - fc_x) * inset, fc_y + (pts[0][1] - fc_y) * inset)
-            for p in pts[1:]:
-                cr.line_to(fc_x + (p[0] - fc_x) * inset, fc_y + (p[1] - fc_y) * inset)
-            cr.close_path()
-            cr.set_source_rgb(r_fg, g_fg, b_fg)
-            cr.fill()
-
-            # Subtle top-left highlight on the block face (crisp 3D bevel)
-            p0 = (fc_x + (pts[0][0] - fc_x) * inset, fc_y + (pts[0][1] - fc_y) * inset)
-            p1 = (fc_x + (pts[1][0] - fc_x) * inset, fc_y + (pts[1][1] - fc_y) * inset)
-            cr.move_to(p0[0], p0[1])
-            cr.line_to(p1[0], p1[1])
-            cr.set_source_rgba(1.0, 1.0, 1.0, 0.22)
+            er = min(1.0, edge_col[0] * light)
+            eg = min(1.0, edge_col[1] * light)
+            eb = min(1.0, edge_col[2] * light)
+            cr.set_source_rgb(er, eg, eb)
             cr.set_line_width(1.2)
             cr.stroke()
 
-        else:
-            # Internal structural cubie face
-            body_col = (25 / 255, 28 / 255, 36 / 255)
-            cr.move_to(pts[0][0], pts[0][1])
-            for p in pts[1:]:
-                cr.line_to(p[0], p[1])
-            cr.close_path()
-            cr.set_source_rgb(body_col[0] * light, body_col[1] * light, body_col[2] * light)
-            cr.fill_preserve()
-            cr.set_source_rgb(*COLOR_BG)
-            cr.set_line_width(1.5)
-            cr.stroke()
+            # Monospace ANSI Terminal Block Character (██)
+            layout_glyph.set_text("██", -1)
+            g_ink, g_log = layout_glyph.get_pixel_extents()
+            cr.save()
+            cr.move_to(fc_x - g_log.width / 2.0, fc_y - g_log.height / 2.0)
+            cr.set_source_rgba(1.0, 1.0, 1.0, 0.28)
+            PangoCairo.show_layout(cr, layout_glyph)
+            cr.restore()
 
         # Turning Slice Accent Highlight
         if is_turning:
