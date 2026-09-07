@@ -289,6 +289,7 @@ object WofiPickers:
       case a if a.contains("polyomino-wallpaper") || a.contains("wallpaper-picker") || a.contains("polyomino wallpaper") => "Wallpaper picker (active theme)"
       case a if a.contains("preview-lock") => "Preview lockscreen (Safe test window)"
       case a if a.contains("rubik-lock") || a.contains("polyomino-lock") || a.contains("lock") => "Lock screen (3D Rubik's Cube Lock)"
+      case a if a.contains("power-menu") || a.contains("powermenu") => "Power menu (Tetris drop)"
       case a if a.contains("systemctl suspend") => "Suspend system"
       case a if a.contains("systemctl poweroff") => "Shutdown system"
       case a if a.contains("systemctl reboot") => "Reboot system"

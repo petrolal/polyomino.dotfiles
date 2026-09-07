@@ -53,6 +53,7 @@ object Main:
       case "preview-lock" | "lock-preview" => polyomino.dotfiles.sysutils.SysUtils.runLockPreview(ctx, args)
       case "idle" => polyomino.dotfiles.sysutils.SysUtils.runIdle(ctx)
       case "screenshot" => polyomino.dotfiles.sysutils.SysUtils.runScreenshot(ctx, args)
+      case "power-menu" | "powermenu" => polyomino.dotfiles.power.PowerMenu.run(ctx, args)
       case "draw-window" | "sway-draw-window" => polyomino.dotfiles.sysutils.SysUtils.runDrawWindow(ctx, args)
       case "calendar" => polyomino.dotfiles.calendar.CalendarPopup.run(ctx, args)
       case "theme" => polyomino.dotfiles.theme.ThemeEngine.run(ctx, args)
@@ -89,6 +90,7 @@ object Main:
       |  preview-lock     preview and test lock screen safely without locking session
       |  idle             run the swayidle daemon (auto-lock, dpms, suspend)
       |  screenshot       capture a screenshot (full|region|window)
+      |  power-menu       Tetris-themed power/exit modal (reboot | shutdown | lock+suspend)
       |  autotiling       Fibonacci spiral autotiling daemon for Sway
       |  healthcheck      read-only health check of the deployed setup
       |  backup           snapshot managed configs to a timestamped tarball

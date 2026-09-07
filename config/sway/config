@@ -54,6 +54,9 @@ for_window [app_id="polyomino-lock-preview"] floating enable, resize set 1024 72
 for_window [app_id="kitty" title="bluetui"] floating enable, resize set 900 600, move position center
 for_window [app_id="kitty" title="ncpamixer"] floating enable, resize set 700 500, move position center
 
+# Tetris-themed power / exit modal (polyomino power-menu) — centered floating window.
+for_window [app_id="polyomino-power-menu"] floating enable, resize set 900 620, move position center, border pixel 2
+
 # System tray helper for network/VPN status (OpenVPN3 is CLI-only; nm-applet shows NetworkManager
 # connection state including VPN tunnels started via `nmcli` or the openvpn3 CLI-managed profiles).
 exec nm-applet --indicator
@@ -336,8 +339,10 @@ bindsym $mod+Escape exec ~/.local/bin/polyomino-rubik-lock
 bindsym $mod+Shift+x exec $term -e ~/.config/sway/scripts/matrix.sh # Terminal matrix screensaver
 bindsym $mod+Shift+Escape exec systemctl suspend # Suspend system
 
-bindsym $mod+Control+Escape exec systemctl poweroff # Shutdown system
-bindsym $mod+Control+Shift+Escape exec systemctl reboot # Reboot system
+# Tetris power menu: a tetromino falls for 30s over reboot / shutdown / lock+suspend
+# lanes. Left/Right or h/l switch lanes, Enter/Space/Down hard-drop, Esc cancels.
+# Untouched, it lands center and powers off.
+bindsym $mod+Control+Escape exec $term --class=polyomino-power-menu -o font_size=14 -e ~/.local/bin/polyomino power-menu # Power menu (Tetris drop)
 
 # Screenshots — saved to ~/Pictures/Screenshots and copied to clipboard
 bindsym Print exec ~/.local/bin/polyomino screenshot full
