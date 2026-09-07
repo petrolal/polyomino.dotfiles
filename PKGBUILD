@@ -17,6 +17,7 @@ depends=(
   'slurp'
   'brightnessctl'
   'libpulse'
+  'playerctl'
   'chromium'
   'docker'
   'terraform'
@@ -36,6 +37,8 @@ makedepends=(
   'git'
 )
 optdepends=(
+  'spotify_player: feature-rich Spotify terminal UI player with daemon streaming'
+  'ncspot: alternative lightweight ncurses Spotify TUI client'
   'alacritty: for terminal screenshot region selection'
   'termite: alternative terminal for screenshot'
 )
@@ -59,7 +62,7 @@ package() {
     healthcheck backup restore update sdd install deploy install-deps
     install-brew install-homebrew install-gh install-github-cli install-coursier install-cs
     install-fonts install-apps install-browser install-devops install-zsh
-    install-sdkman install-nvim install-nvim-deps install-neovim install-tools install-fastfetch full-install
+    install-sdkman install-nvim install-nvim-deps install-neovim install-tools install-spotify install-spotify-player install-fastfetch full-install
     theme-picker whichkey
   )
 

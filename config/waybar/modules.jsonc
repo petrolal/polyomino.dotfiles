@@ -105,13 +105,16 @@
   // waybar-spotify
   "custom/spotify": {
     "exec": "~/.config/waybar/spotify.sh",
-    "interval": 1,
+    "return-type": "json",
+    "interval": 2,
     "format": "{}",
     "tooltip": true,
-    "max-length": 30,
-    "on-click": "playerctl -p spotify_player playback play-pause",
-    "on-click-middle": "playerctl -p spotify_player playback previous",
-    "on-click-right": "playerctl -p spotify_player playback next",
+    "max-length": 35,
+    "on-click": "playerctl -p spotify_player,spotify play-pause",
+    "on-click-middle": "playerctl -p spotify_player,spotify previous",
+    "on-click-right": "playerctl -p spotify_player,spotify next",
+    "on-scroll-up": "playerctl -p spotify_player,spotify volume 0.05+",
+    "on-scroll-down": "playerctl -p spotify_player,spotify volume 0.05-",
     "smooth-scrolling-threshold": 1,
   },
   // waybar-mpd

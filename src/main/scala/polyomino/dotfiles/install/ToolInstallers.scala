@@ -32,6 +32,7 @@ object ToolInstallers:
       case "install-node" | "install-npm" | "install-npx" => installNode(ctx)
       case "install-yazi" => installYazi(ctx)
       case "install-fastfetch" => installFastfetch(ctx)
+      case "install-spotify" | "install-spotify-player" => installSpotifyPlayer(ctx)
       case "full-install" => installAll(ctx)
       case _ => Left(CommandError(s"Unknown installer task '$name'", 1))
 
@@ -363,12 +364,8 @@ object ToolInstallers:
           runPkgInstall("brew", Seq("install", "pkg-config", "openssl", "rust"))
         case _ => ()
 
-    // 1. spotify_player TUI (cargo)
-    if cargoAvailable() then
-      println("  \u001b[36m[INFO]\u001b[0m Installing/Updating spotify_player via cargo...")
-      runCargo("spotify_player", Seq("--features", "daemon,pulseaudio-backend,rodio-backend"))
-    else
-      println("  \u001b[33m[NOTE]\u001b[0m cargo not available; skipping spotify_player installation.")
+    // 1. spotify_player TUI
+    installSpotifyPlayer(ctx)
 
     // 2. bluetui Bluetooth TUI (cargo)
     if cargoAvailable() then
@@ -392,6 +389,66 @@ object ToolInstallers:
       case PackageManager.Dnf => runPkgInstall("sudo", Seq("dnf", "install", "-y", "aerc"))
       case PackageManager.Brew => runPkgInstall("brew", Seq("install", "aerc"))
       case _ => Right(println("  \u001b[33m[NOTE]\u001b[0m Manual installation of aerc required for this system."))
+
+    Right(())
+
+  private def installSpotifyPlayer(ctx: Context): Either[PolyominoError, Unit] =
+    val pm = detectPackageManager()
+    println(s"\u001b[1;36m[polyomino install-spotify]\u001b[0m Installing/Updating spotify_player TUI (PM: $pm)...")
+
+    val cargoHomeBin = ctx.home / ".cargo" / "bin"
+    def cargoAvailable(): Boolean =
+      isAvailable("cargo") || os.exists(cargoHomeBin / "cargo")
+
+    // 1. Ensure runtime & build dependencies
+    pm match
+      case PackageManager.Pacman =>
+        runPkgInstall("sudo", Seq("pacman", "-S", "--needed", "--noconfirm", "playerctl", "alsa-lib", "libpulse", "dbus", "openssl", "pkgconf", "rust", "cargo"))
+      case PackageManager.Apt =>
+        runPkgInstall("sudo", Seq("apt-get", "install", "-y", "playerctl", "cargo", "rustc", "pkg-config", "libasound2-dev", "libpulse-dev", "libdbus-1-dev", "libssl-dev"))
+      case PackageManager.Dnf =>
+        runPkgInstall("sudo", Seq("dnf", "install", "-y", "playerctl", "cargo", "rust", "alsa-lib-devel", "pulseaudio-libs-devel", "dbus-devel", "openssl-devel", "pkgconf-pkg-config"))
+      case PackageManager.Brew =>
+        runPkgInstall("brew", Seq("install", "playerctl", "pkg-config", "openssl", "rust"))
+      case _ => ()
+
+    // 2. Install spotify_player
+    val isInstalled = isAvailable("spotify_player") || os.exists(cargoHomeBin / "spotify_player")
+    if isInstalled then
+      println("  \u001b[32m[OK]\u001b[0m spotify_player is already installed.")
+    else
+      val installedViaPm = pm match
+        case PackageManager.Pacman if isAvailable("yay") =>
+          runPkgInstall("yay", Seq("-S", "--needed", "--noconfirm", "--answerclean", "None", "--answerdiff", "None", "spotify-player")).isRight
+        case PackageManager.Brew =>
+          runPkgInstall("brew", Seq("install", "spotify-player")).isRight
+        case _ => false
+
+      if !installedViaPm && cargoAvailable() then
+        val cargoExe = if isAvailable("cargo") then "cargo" else (cargoHomeBin / "cargo").toString
+        try
+          val cmd = Seq(cargoExe, "install", "spotify_player", "--locked", "--features", "daemon,pulseaudio-backend,rodio-backend,image")
+          val res = os.proc(cmd.map(s => (s: os.Shellable))*).call(check = false)
+          if res.exitCode == 0 then
+            println("  \u001b[32m[OK]\u001b[0m spotify_player installed successfully via cargo.")
+          else
+            println(s"  \u001b[33m[NOTE]\u001b[0m spotify_player cargo install exited with code ${res.exitCode}")
+        catch
+          case e: Exception =>
+            println(s"  \u001b[33m[NOTE]\u001b[0m spotify_player cargo install skipped: ${e.getMessage}")
+
+    // 3. Ensure configuration exists
+    val configDir = ctx.home / ".config" / "spotify-player"
+    val configFile = configDir / "app.toml"
+    val defaultConfigFile = ctx.dotfilesDir / "config" / "spotify-player" / "app.toml"
+    if !os.exists(configFile) && os.exists(defaultConfigFile) then
+      try
+        os.makeDir.all(configDir)
+        os.copy(defaultConfigFile, configFile)
+        println("  \u001b[32m[OK]\u001b[0m Seeded default spotify-player configuration to ~/.config/spotify-player/app.toml")
+      catch
+        case e: Exception =>
+          println(s"  \u001b[33m[NOTE]\u001b[0m Failed seeding spotify-player config: ${e.getMessage}")
 
     Right(())
 

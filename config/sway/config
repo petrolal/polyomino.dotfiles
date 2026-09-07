@@ -150,7 +150,7 @@ default_floating_border pixel 2
 gaps inner 4
 gaps outer 2
 smart_borders off
-focus_follows_mouse no
+focus_follows_mouse yes
 workspace_auto_back_and_forth yes
 
 # Enterprise CAD styling — sharp precision corners, no fuzzy drop shadows
@@ -209,6 +209,14 @@ assign [class="Thunderbird"] $ws5
 assign [app_id="telegramdesktop"] $ws5
 assign [class="TelegramDesktop"] $ws5
 
+# 8: misc/media
+assign [app_id="kitty" title="spotify"] $ws8
+assign [app_id="spotify_player"] $ws8
+assign [app_id="spotify"] $ws8
+assign [class="[sS]potify.*"] $ws8
+for_window [app_id="spotify_player"] move to workspace $ws8
+for_window [app_id="kitty" title="^spotify$"] move to workspace $ws8
+
 # 3: term
 assign [app_id="kitty"] $ws3
 
@@ -221,9 +229,6 @@ assign [class="Lens"] $ws4
 # 6: notes
 assign [app_id="obsidian"] $ws6
 assign [class="obsidian"] $ws6
-
-# 8: misc/media
-assign [app_id="kitty" title="spotify"] $ws8
 
 # bluetui/ncpamixer are quick system-status popups, not persistent work — they float on
 # whatever workspace you invoked them from instead of tiling into one (see for_window rules
@@ -239,7 +244,7 @@ bindsym $mod+Shift+q kill
 bindsym $mod+d exec $launcher
 bindsym $mod+Shift+b exec google-chrome-stable
 bindsym $mod+Shift+f exec $term -e yazi
-bindsym $mod+Shift+m exec $term --title spotify -e spotify_player
+bindsym $mod+Shift+m exec $term --app-id spotify_player --title spotify -e spotify_player
 bindsym $mod+Shift+u exec $term --title bluetui -e bluetui
 bindsym $mod+Shift+v exec $term --title ncpamixer -e ncpamixer
 bindsym $mod+Shift+a exec $term --title aerc -e aerc

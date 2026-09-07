@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 Polyomino Terminal Screen Saver:
-Falling Cigarettes with drifting smoke, Golden Euro coins with jackpot bursts,
-Java coffee cups with hot splashes, and Kotlin geometric prism bursts.
+Falling Horizontal Cigarettes with drifting smoke, Glowing Candles with warm flames,
+Golden Euro coins with jackpot bursts, Java coffee cups, and Kotlin geometric prisms.
 Features discreet drifting clouds and a clean dot-matrix background grid.
 Theme-aware (adapts dynamically to active Polyomino palette).
 Exits cleanly on any keypress.
@@ -57,16 +57,32 @@ def get_theme_colors():
 
 COLORS = get_theme_colors()
 
-# Straight vertical cigarette with clean parallel cylinder and burning ember
-CIGARETTE_ART_STRAIGHT = [
-    "   ( ~ )  ",
-    "  )  ~  ( ",
-    " .[░▒🔥░].",
-    " | :::: | ",
-    " |      | ",
-    " |      | ",
-    " [██████] ",
-    " '------' ",
+# Compact horizontal cigarette with rising Braille smoke plume, amber filter, and burning ember (15x6)
+CIGARETTE_ART_BRAILLE = [
+    "          ⠙⢿⣿⠟",
+    "           ⠹⣿⠟ ",
+    "            ⣸⠟  ",
+    "⢀⣤⡄ ⣤⣤⣤⣤⣤⣤⣤⣤ ⣄⢁",
+    "⢸⣿⡇ ⣿⣿⣿⣿⣿⣿⣿⣿ ⣿⢸",
+    "⠈⠛⠃ ⠛⠛⠛⠛⠛⠛⠛⠛ ⠋⠈",
+]
+
+# Atmospheric candle with flickering flame, molten pool, and dripping wax
+CANDLE_FLAME_FRAMES = [
+    ("  (    ", "  )\\   "),
+    ("   )   ", "  |(   "),
+    ("    )  ", "   /(  "),
+    ("  ( )  ", "  )|   "),
+]
+CANDLE_BODY = [
+    "  {_}  ",
+    " .-;-. ",
+    "|'-=-'|",
+    "|     |",
+    "|     |",
+    "|     |",
+    "|     |",
+    "'.___.'",
 ]
 
 # Compact Sun / Oracle Java Duke coffee cup generated from ~/Downloads/java.png (14x7)
@@ -144,7 +160,13 @@ class ImpactAnimation:
         for _ in range(3):
             vx = random.uniform(-0.25, 0.25)
             vy = random.uniform(-0.25, -0.05)
-            self.particles.append(Particle(self.x + 4, self.y, "·", col, vx, vy, life=random.randint(4, 7)))
+            if kind == "cigarette":
+                offset_x = random.randint(2, 12)
+            elif kind == "candle":
+                offset_x = random.randint(1, 5)
+            else:
+                offset_x = 4
+            self.particles.append(Particle(self.x + offset_x, self.y, "·", col, vx, vy, life=random.randint(4, 7)))
 
     def update(self):
         self.frame += 1
@@ -323,6 +345,10 @@ class AbstractHeap:
             # Abstract espresso density & ceramic facets
             char = random.choice(["▓", "▒", "░", "▅", "▃", "≈", "▲", "•", "■"])
             col = random.choice([accent, COLORS["coffee"], (135, 80, 40), COLORS["white"]])
+        elif kind == "candle":
+            # Abstract melted wax pools, drips & golden wick glow
+            char = random.choice(["░", "▒", "▄", "▅", "~", "•", "▪", "🕯", ")"])
+            col = random.choice([accent, (250, 240, 220), yellow, COLORS["white"]])
         else:  # kotlin
             # Abstract prismatic crystalline geode
             char = random.choice(["▲", "▼", "◆", "◇", "◈", "❖", "◤", "◢", "█", "⬢"])
@@ -396,10 +422,14 @@ class FallingEntity:
             self.w = 12
             self.h = 7
             self.vy = random.uniform(0.35, 0.55)
-        else:  # cigarette
-            self.w = 10
-            self.h = 8
-            self.vy = random.uniform(0.30, 0.48)
+        elif self.kind == "candle":
+            self.w = 7
+            self.h = 10
+            self.vy = random.uniform(0.30, 0.46)
+        else:  # cigarette (compact horizontal braille)
+            self.w = 15
+            self.h = 6
+            self.vy = random.uniform(0.32, 0.48)
         self.y = -float(self.h)
 
     def update(self, heap):
@@ -407,15 +437,15 @@ class FallingEntity:
 
         # Generate ongoing smoke/steam/sparkle trails while falling
         if self.kind == "cigarette":
-            if random.random() < 0.8:
+            if random.random() < 0.75:
                 vx = random.uniform(-0.15, 0.15)
                 vy = random.uniform(-0.45, -0.15)
                 char = random.choice(["~", "(", "◦", "°", ")"])
-                if random.random() < 0.35:
+                if random.random() < 0.30:
                     spark_col = random.choice([COLORS["cherry"], COLORS["orange"], COLORS["yellow"]])
-                    self.smoke_particles.append(Particle(self.x + 4, self.y + 2, "·", spark_col, vx * 0.5, vy * 0.5, life=10))
+                    self.smoke_particles.append(Particle(self.x + 13 + random.randint(0, 1), self.y + 4, "·", spark_col, vx * 0.5, vy * 0.5, life=10))
                 else:
-                    self.smoke_particles.append(Particle(self.x + 3 + random.randint(0, 2), self.y, char, COLORS["smoke"], vx, vy, life=14))
+                    self.smoke_particles.append(Particle(self.x + 10 + random.randint(0, 3), self.y, char, COLORS["smoke"], vx, vy, life=14))
 
         elif self.kind == "euro":
             if random.random() < 0.75:
@@ -424,6 +454,18 @@ class FallingEntity:
                 char = random.choice(["✦", "✧", "⋆", "•", "€"])
                 col = random.choice([COLORS["yellow"], COLORS["accent"]])
                 self.smoke_particles.append(Particle(self.x + random.randint(1, 10), self.y + random.randint(0, 3), char, col, vx, vy, life=10))
+
+        elif self.kind == "candle":
+            if random.random() < 0.65:
+                vx = random.uniform(-0.10, 0.10)
+                vy = random.uniform(-0.35, -0.12)
+                if random.random() < 0.40:
+                    char = random.choice(["✦", "·", "°", "⋆", "•"])
+                    col = random.choice([COLORS["yellow"], COLORS["orange"], (255, 245, 190)])
+                    self.smoke_particles.append(Particle(self.x + random.randint(2, 4), self.y - 0.5, char, col, vx, vy, life=10))
+                else:
+                    char = random.choice(["~", "(", "◦", ")"])
+                    self.smoke_particles.append(Particle(self.x + random.randint(2, 4), self.y - 1, char, COLORS["smoke"], vx, vy, life=14))
 
         elif self.kind == "java":
             if random.random() < 0.85:
@@ -462,7 +504,7 @@ class FallingEntity:
             flicker_colors = [COLORS["cherry"], COLORS["orange"], COLORS["yellow"]]
             amber = (235, 160, 60)
 
-            for row_idx, line in enumerate(CIGARETTE_ART_STRAIGHT):
+            for row_idx, line in enumerate(CIGARETTE_ART_BRAILLE):
                 target_y = iy + row_idx
                 if 0 <= target_y < h:
                     for col_idx, ch in enumerate(line):
@@ -470,29 +512,14 @@ class FallingEntity:
                             continue
                         target_x = ix + col_idx
                         if 0 <= target_x < w:
-                            if row_idx <= 1:
-                                # Smoke plume rising from cherry
+                            if row_idx <= 2:
                                 col = COLORS["smoke"]
-                            elif row_idx == 2:
-                                # Burning cherry
-                                if ch in ("░", "▒"):
-                                    col = flicker_colors[(flicker_phase + col_idx) % 3]
-                                elif ch == "🔥":
-                                    col = COLORS["yellow"]
-                                else:
-                                    col = bold(COLORS["cherry"])
-                            elif row_idx == 3:
-                                # Glowing ash
-                                if ch in (":", ";"):
-                                    col = flicker_colors[(flicker_phase + col_idx) % 3]
-                                else:
-                                    col = COLORS["white"]
-                            elif row_idx in (4, 5):
-                                # Clean white paper shaft
+                            elif col_idx <= 2:
+                                col = amber
+                            elif col_idx <= 11:
                                 col = COLORS["white"]
                             else:
-                                # Amber filter tip
-                                col = amber
+                                col = bold(flicker_colors[(flicker_phase + col_idx) % 3])
                             canvas[target_y][target_x] = (ch, col)
 
         elif self.kind == "euro":
@@ -545,6 +572,82 @@ class FallingEntity:
                         if 0 <= target_x < w:
                             canvas[target_y][target_x] = ("█", rgb)
 
+        elif self.kind == "candle":
+            # Atmospheric candle with flickering flame, molten pool, and dripping wax
+            flame_phase = int(time.time() * 7 + self.x) % len(CANDLE_FLAME_FRAMES)
+            f0, f1 = CANDLE_FLAME_FRAMES[flame_phase]
+            candle_lines = [f0, f1] + CANDLE_BODY
+
+            # Wax drip animations sliding down the candle body (rows 5 to 8)
+            drip_phase_left = int((time.time() * 2.2 + self.x * 2) % 9)
+            drip_phase_right = int((time.time() * 1.8 + self.x * 3 + 4) % 11)
+
+            wax_color = (235, 230, 218)
+            wax_highlight = (255, 250, 240)
+            wax_drip = (255, 245, 215)
+            wick_color = (120, 105, 95)
+            molten_glow = bold(COLORS["yellow"])
+
+            flame_glows = [
+                (255, 245, 190),
+                bold(COLORS["yellow"]),
+                COLORS["orange"],
+                bold(COLORS["cherry"]),
+            ]
+            tip_col = flame_glows[flame_phase]
+
+            for row_idx, line in enumerate(candle_lines):
+                target_y = iy + row_idx
+                if 0 <= target_y < h:
+                    for col_idx, ch in enumerate(line):
+                        if ch == " ":
+                            # Dynamic wax droplet dripping down the side walls
+                            if 5 <= row_idx <= 8:
+                                if col_idx == 1 and (row_idx - 5) == drip_phase_left:
+                                    target_x = ix + col_idx
+                                    if 0 <= target_x < w:
+                                        canvas[target_y][target_x] = (":", wax_drip)
+                                    continue
+                                elif col_idx == 5 and (row_idx - 5) == drip_phase_right:
+                                    target_x = ix + col_idx
+                                    if 0 <= target_x < w:
+                                        canvas[target_y][target_x] = (".", wax_drip)
+                                    continue
+                            continue
+
+                        target_x = ix + col_idx
+                        if 0 <= target_x < w:
+                            if row_idx == 0:
+                                # Top flickering flame tip
+                                col = tip_col
+                            elif row_idx == 1:
+                                # Flame base & wick
+                                if ch in ("\\", "/", "|"):
+                                    col = wick_color
+                                else:
+                                    col = bold(COLORS["yellow"]) if flame_phase % 2 == 0 else COLORS["orange"]
+                            elif row_idx == 2:
+                                # Molten wax pool {_}
+                                col = molten_glow if ch == "_" else wax_color
+                            elif row_idx == 3:
+                                # Upper rim .-;-.
+                                col = wick_color if ch == ";" else wax_highlight
+                            elif row_idx == 4:
+                                # Wax fringe |'-=-'|
+                                if ch in ("-", "="):
+                                    col = wax_highlight
+                                elif ch == "'":
+                                    col = wax_drip
+                                else:
+                                    col = wax_color
+                            elif row_idx == 9:
+                                # Pedestal base '.___.'
+                                col = (210, 205, 195)
+                            else:
+                                # Candle body side walls |
+                                col = wax_color
+                            canvas[target_y][target_x] = (ch, col)
+
 # --- Main Simulation Loop ---
 def run_screensaver():
     # Hide cursor
@@ -581,7 +684,7 @@ def run_screensaver():
         impacts = []
         heap_smoke = []
         clouds = []
-        kinds = ["cigarette", "euro", "java", "kotlin"]
+        kinds = ["cigarette", "euro", "java", "kotlin", "candle"]
         next_spawn = 0
         heap = None
 
@@ -674,7 +777,7 @@ def run_screensaver():
             if now >= next_spawn and len(entities) < max(3, w // 18):
                 kind = random.choice(kinds)
                 if kind == "cigarette":
-                    max_x = max(2, w - 12)
+                    max_x = max(2, w - 17)
                     spawn_x = random.randint(1, max_x)
                 elif kind == "java":
                     max_x = max(2, w - 16)
@@ -682,8 +785,11 @@ def run_screensaver():
                 elif kind == "kotlin":
                     max_x = max(2, w - 12)
                     spawn_x = random.randint(2, max_x)
-                else:  # euro
+                elif kind == "euro":
                     max_x = max(2, w - 14)
+                    spawn_x = random.randint(2, max_x)
+                else:  # candle
+                    max_x = max(2, w - 9)
                     spawn_x = random.randint(2, max_x)
                 entities.append(FallingEntity(spawn_x, kind, floor_y))
                 next_spawn = now + random.uniform(0.7, 1.4)

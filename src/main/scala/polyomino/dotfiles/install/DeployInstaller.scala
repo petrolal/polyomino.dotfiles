@@ -36,7 +36,7 @@ object DeployInstaller:
     "sdd", "install", "deploy", "install-deps", "install-brew", "install-homebrew",
     "install-gh", "install-github-cli", "install-coursier", "install-cs",
     "install-fonts", "install-apps", "install-swaync", "install-notifications", "install-browser", "install-devops", "install-zsh", "install-sdkman",
-    "install-tools", "install-telegram", "install-node", "install-npm", "install-npx", "install-yazi", "install-fastfetch", "full-install", "theme-picker", "wallpaper", "wallpaper-picker", "whichkey", "wichkey", "menu", "rubik-lock", "preview-lock", "power-menu", "powermenu"
+    "install-tools", "install-telegram", "install-node", "install-npm", "install-npx", "install-yazi", "install-fastfetch", "install-spotify", "install-spotify-player", "full-install", "theme-picker", "wallpaper", "wallpaper-picker", "whichkey", "wichkey", "menu", "rubik-lock", "preview-lock", "power-menu", "powermenu"
   )
 
   def run(ctx: Context, args: List[String]): Either[PolyominoError, Unit] =
@@ -70,6 +70,7 @@ object DeployInstaller:
       (ctx.configDir / "swaync", ctx.dotfilesDir / "config" / "swaync"),
       (ctx.configDir / "mako", ctx.dotfilesDir / "config" / "mako"),
       (ctx.configDir / "fastfetch", ctx.dotfilesDir / "config" / "fastfetch"),
+      (ctx.configDir / "spotify-player", ctx.dotfilesDir / "config" / "spotify-player"),
       (ctx.configDir / "systemd" / "user", ctx.dotfilesDir / "config" / "systemd" / "user")
     )
 
