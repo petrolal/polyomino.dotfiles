@@ -54,8 +54,11 @@ for_window [app_id="polyomino-lock-preview"] floating enable, resize set 1024 72
 for_window [app_id="kitty" title="bluetui"] floating enable, resize set 900 600, move position center
 for_window [app_id="kitty" title="ncpamixer"] floating enable, resize set 700 500, move position center
 
-# Tetris-themed power / exit modal (polyomino power-menu) — centered landscape floating window.
-for_window [app_id="polyomino-power-menu"] floating enable, resize set 900 620, move position center, border pixel 2
+# Tetris-themed power / exit modal (polyomino power-menu) — fullscreen translucent
+# pane so it is its own dark backdrop; the global blur frosts whatever is behind.
+# `focus` forces the keyboard grab (focus_follows_mouse is off and it may open on a
+# non-pointer output). The binary DPMS-off's every other output while it is up.
+for_window [app_id="polyomino-power-menu"] fullscreen enable, opacity 0.92, border none, focus
 
 # System tray helper for network/VPN status (OpenVPN3 is CLI-only; nm-applet shows NetworkManager
 # connection state including VPN tunnels started via `nmcli` or the openvpn3 CLI-managed profiles).
@@ -340,7 +343,7 @@ bindsym $mod+Shift+x exec $term -e ~/.config/sway/scripts/matrix.sh # Terminal m
 bindsym $mod+Shift+Escape exec systemctl suspend # Suspend system
 
 # Tetris power menu: a tetromino falls for 30s over reboot / shutdown / lock+suspend
-# lanes. Left/Right or h/l switch lanes, Enter/Space/Down hard-drop, Esc cancels.
+# lanes. Left/Right or h/l switch lanes, Enter/Space/j hard-drop, Esc cancels.
 # Untouched, it lands center and powers off.
 bindsym $mod+Control+Escape exec $term --class=polyomino-power-menu -o font_size=14 -e ~/.local/bin/polyomino power-menu # Power menu (Tetris drop)
 
