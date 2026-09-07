@@ -8,7 +8,7 @@
     background-color: #0F1117;
     color: #F8FAFC;
     border: 2px solid #EBB434;
-    border-radius: 8px;
+    border-radius: 0px;
     padding: 14px;
 }
 
@@ -28,7 +28,7 @@
 .notification {
     background-color: #191C24;
     border: 1px solid #EBB434;
-    border-radius: 6px;
+    border-radius: 0px;
     padding: 10px;
     color: #F8FAFC;
 }
@@ -41,7 +41,7 @@
 .close-button {
     background: transparent;
     color: #F8FAFC;
-    border-radius: 4px;
+    border-radius: 0px;
     padding: 4px;
 }
 
@@ -61,7 +61,7 @@
     background-color: #191C24;
     color: #F8FAFC;
     border: 1px solid #EBB434;
-    border-radius: 6px;
+    border-radius: 0px;
     padding: 4px 10px;
 }
 
@@ -73,14 +73,14 @@
 .widget-dnd {
     background-color: #191C24;
     border: 1px solid #EBB434;
-    border-radius: 6px;
+    border-radius: 0px;
     padding: 8px 12px;
     margin: 8px;
 }
 
 .widget-dnd > switch {
     background-color: #0F1117;
-    border-radius: 12px;
+    border-radius: 0px;
     border: 1px solid #EBB434;
 }
 
@@ -91,7 +91,7 @@
 .widget-mpris {
     background-color: #191C24;
     border: 1px solid #EBB434;
-    border-radius: 6px;
+    border-radius: 0px;
     padding: 8px;
     margin: 8px;
 }
@@ -109,7 +109,7 @@
 .widget-calendar {
     background-color: #191C24;
     border: 1px solid #EBB434;
-    border-radius: 8px;
+    border-radius: 0px;
     padding: 12px;
     margin: 8px;
     font-size: 14px;
@@ -125,7 +125,7 @@
 .widget-calendar > calendar:selected {
     background-color: #EBB434;
     color: #0F1117;
-    border-radius: 6px;
+    border-radius: 0px;
 }
 
 .widget-calendar > calendar.header {
@@ -138,7 +138,7 @@
 .widget-calendar > calendar.button {
     color: #F8FAFC;
     background: transparent;
-    border-radius: 4px;
+    border-radius: 0px;
     padding: 4px 8px;
 }
 

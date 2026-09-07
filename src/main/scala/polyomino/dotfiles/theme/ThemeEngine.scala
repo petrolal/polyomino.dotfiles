@@ -157,7 +157,7 @@ object ThemeEngine:
         |    transition: none;
         |}
         |
-        |/* Floating Island Waybar — 3 detached segments, 12px radii */
+        |/* Enterprise CAD Waybar — 3 detached segments, sharp machined chassis */
         |window#waybar {
         |    background-color: transparent;
         |    color: @text;
@@ -176,22 +176,23 @@ object ThemeEngine:
         |.modules-center,
         |.modules-right {
         |    background-color: @mantle;
-        |    border-radius: 12px;
-        |    padding: 2px 4px;
+        |    border: 1px solid #2A2E3D;
+        |    border-radius: 0px;
+        |    padding: 2px 6px;
         |}
         |
         |tooltip {
         |    background-color: @base;
         |    color: @text;
-        |    border: 2px solid @accent;
-        |    border-radius: 12px;
-        |    padding: 12px 16px;
+        |    border: 1px solid @accent;
+        |    border-radius: 0px;
+        |    padding: 8px 12px;
         |}
         |
         |tooltip label {
         |    color: @text;
-        |    padding: 6px 12px;
-        |    font-size: 15px;
+        |    padding: 4px 8px;
+        |    font-size: 13px;
         |}
         |
         |#workspaces {
@@ -200,14 +201,16 @@ object ThemeEngine:
         |    padding: 0;
         |}
         |
-        |/* Workspace indicators — centered glyphs in equal-width pills */
+        |/* Workspace indicators — CAD bracketed blocks */
         |#workspaces button {
-        |    min-width: 20px;
+        |    min-width: 22px;
         |    padding: 2px 8px;
-        |    margin: 2px 3px;
+        |    margin: 2px 2px;
         |    background-color: transparent;
         |    color: @text;
-        |    border-radius: 10px;
+        |    border: 1px solid #2A2E3D;
+        |    border-radius: 0px;
+        |    font-weight: 500;
         |}
         |
         |#workspaces button label {
@@ -218,17 +221,22 @@ object ThemeEngine:
         |#workspaces button.active {
         |    background-color: @accent;
         |    color: @base;
-        |    border-radius: 10px;
+        |    border: 1px solid @accent;
+        |    border-radius: 0px;
+        |    font-weight: bold;
         |}
         |
         |#workspaces button:hover {
         |    background-color: @base;
         |    color: @accent;
+        |    border: 1px solid @accent;
         |}
         |
         |#workspaces button.urgent {
         |    background-color: @red;
         |    color: @base;
+        |    border: 1px solid @red;
+        |    font-weight: bold;
         |}
         |
         |/* Capsule contents inside the segments */
@@ -248,6 +256,7 @@ object ThemeEngine:
         |    background-color: transparent;
         |    padding: 0 8px;
         |    color: @text;
+        |    border-radius: 0px;
         |}
         |
         |#tray {
@@ -264,11 +273,13 @@ object ThemeEngine:
         |    border: none;
         |}
         |
-        |/* Center navigation clock capsule */
+        |/* Center navigation clock capsule with structural dividers */
         |#clock {
         |    color: @text;
         |    font-weight: bold;
         |    padding: 0 10px;
+        |    border-left: 1px solid #2A2E3D;
+        |    border-right: 1px solid #2A2E3D;
         |}
         |
         |/* Right-side hardware capsule accents — Audio green, Wi-Fi teal, Battery gold */
@@ -306,9 +317,10 @@ object ThemeEngine:
         |    background-color: @accent;
         |    color: @base;
         |    font-weight: bold;
-        |    padding: 0 12px;
-        |    margin: 4px 0 4px 6px;
-        |    border-radius: 12px;
+        |    padding: 0 10px;
+        |    margin: 2px 2px;
+        |    border-radius: 0px;
+        |    border: 1px solid @accent;
         |}
         |
         |#clock:hover,
@@ -336,6 +348,7 @@ object ThemeEngine:
         |#mode:hover,
         |#mode.active {
         |    background-color: @base;
+        |    border-radius: 0px;
         |}
         |
         |#battery.warning {
@@ -375,7 +388,7 @@ object ThemeEngine:
          |    background-color: ${palette.mantle};
          |    color: ${palette.text};
          |    border: 2px solid ${palette.accent};
-         |    border-radius: 12px;
+         |    border-radius: 0px;
          |    font-family: "JetBrainsMono Nerd Font";
          |    font-size: 13px;
          |}
@@ -383,28 +396,30 @@ object ThemeEngine:
          |    background-color: ${palette.base};
          |    color: ${palette.text};
          |    border: 1px solid ${palette.accent};
-         |    border-radius: 8px;
+         |    border-radius: 0px;
          |    padding: 8px 12px;
-         |    margin: 12px;
+         |    margin: 10px;
          |}
          |#inner-box {
          |    background-color: transparent;
-         |    margin: 4px 8px;
+         |    margin: 4px 6px;
          |}
-         |#outer-box { padding: 4px; }
-         |#scroll { margin: 4px; }
+         |#outer-box { padding: 2px; }
+         |#scroll { margin: 2px; }
          |#entry {
          |    padding: 8px 12px;
-         |    margin: 3px 6px;
-         |    border-radius: 8px;
+         |    margin: 2px 6px;
+         |    border-radius: 0px;
          |    background-color: ${palette.base};
          |    color: ${palette.text};
+         |    border-left: 3px solid transparent;
          |}
          |#entry:selected {
          |    background-color: ${palette.accent};
          |    color: ${palette.base};
-         |    border-radius: 8px;
+         |    border-radius: 0px;
          |    outline: none;
+         |    border-left: 3px solid ${palette.text};
          |}
          |#entry:selected #text,
          |#text:selected {
@@ -444,7 +459,7 @@ object ThemeEngine:
          |    text-color: @fg;
          |    border: 2px;
          |    border-color: @border-col;
-         |    border-radius: 12px;
+         |    border-radius: 0px;
          |    padding: 12px;
          |    width: 680px;
          |}
@@ -454,15 +469,17 @@ object ThemeEngine:
          |inputbar {
          |    children: [ prompt, entry ];
          |    background-color: @mantle;
-         |    border-radius: 8px;
-         |    padding: 8px;
-         |    margin: 0 0 12px 0;
+         |    border: 1px solid @border-col;
+         |    border-radius: 0px;
+         |    padding: 6px 10px;
+         |    margin: 0 0 10px 0;
          |}
          |prompt {
          |    background-color: @accent;
          |    text-color: ${palette.base};
          |    padding: 4px 8px;
-         |    border-radius: 6px;
+         |    border-radius: 0px;
+         |    font-weight: bold;
          |}
          |entry {
          |    placeholder: "Search apps...";
@@ -476,15 +493,17 @@ object ThemeEngine:
          |    fixed-height: false;
          |}
          |element {
-         |    padding: 8px 12px;
-         |    border-radius: 8px;
+         |    padding: 6px 10px;
+         |    border-radius: 0px;
          |    background-color: @mantle;
          |    margin: 2px 4px;
+         |    border: 1px solid transparent;
          |}
          |element selected {
          |    background-color: @accent;
          |    text-color: ${palette.base};
-         |    border-radius: 8px;
+         |    border-radius: 0px;
+         |    border: 1px solid @accent;
          |}
          |element-text {
          |    text-color: inherit;
@@ -573,13 +592,13 @@ object ThemeEngine:
          |# Generated by polyomino.dotfiles theme engine — flavor=${palette.name}
          |
          |output=*
-         |width=350
+         |width=360
          |margin=10
          |padding=12
          |border-size=2
-         |border-radius=12
-         |background-color=#191C24
-         |border-color=#EBB434
+         |border-radius=0
+         |background-color=#161921
+         |border-color=${palette.accent}
          |text-color=${palette.text}
          |font=JetBrainsMono Nerd Font 10
          |format=[ ⊞ ] %s\\n%b
@@ -603,7 +622,7 @@ object ThemeEngine:
          |    background-color: ${palette.base};
          |    color: ${palette.text};
          |    border: 2px solid ${palette.accent};
-         |    border-radius: 8px;
+         |    border-radius: 0px;
          |    padding: 14px;
          |}
          |
@@ -623,7 +642,7 @@ object ThemeEngine:
          |.notification {
          |    background-color: ${palette.mantle};
          |    border: 1px solid ${palette.accent};
-         |    border-radius: 6px;
+         |    border-radius: 0px;
          |    padding: 10px;
          |    color: ${palette.text};
          |}
@@ -636,7 +655,7 @@ object ThemeEngine:
          |.close-button {
          |    background: transparent;
          |    color: ${palette.text};
-         |    border-radius: 4px;
+         |    border-radius: 0px;
          |    padding: 4px;
          |}
          |
@@ -656,7 +675,7 @@ object ThemeEngine:
          |    background-color: ${palette.mantle};
          |    color: ${palette.text};
          |    border: 1px solid ${palette.accent};
-         |    border-radius: 6px;
+         |    border-radius: 0px;
          |    padding: 4px 10px;
          |}
          |
@@ -668,14 +687,14 @@ object ThemeEngine:
          |.widget-dnd {
          |    background-color: ${palette.mantle};
          |    border: 1px solid ${palette.accent};
-         |    border-radius: 6px;
+         |    border-radius: 0px;
          |    padding: 8px 12px;
          |    margin: 8px;
          |}
          |
          |.widget-dnd > switch {
          |    background-color: ${palette.base};
-         |    border-radius: 12px;
+         |    border-radius: 0px;
          |    border: 1px solid ${palette.accent};
          |}
          |
@@ -686,7 +705,7 @@ object ThemeEngine:
          |.widget-mpris {
          |    background-color: ${palette.mantle};
          |    border: 1px solid ${palette.accent};
-         |    border-radius: 6px;
+         |    border-radius: 0px;
          |    padding: 8px;
          |    margin: 8px;
          |}
@@ -704,7 +723,7 @@ object ThemeEngine:
          |.widget-calendar {
          |    background-color: ${palette.mantle};
          |    border: 1px solid ${palette.accent};
-         |    border-radius: 8px;
+         |    border-radius: 0px;
          |    padding: 12px;
          |    margin: 8px;
          |    font-size: 14px;
@@ -720,7 +739,7 @@ object ThemeEngine:
          |.widget-calendar > calendar:selected {
          |    background-color: ${palette.accent};
          |    color: ${palette.base};
-         |    border-radius: 6px;
+         |    border-radius: 0px;
          |}
          |
          |.widget-calendar > calendar.header {
@@ -733,7 +752,7 @@ object ThemeEngine:
          |.widget-calendar > calendar.button {
          |    color: ${palette.text};
          |    background: transparent;
-         |    border-radius: 4px;
+         |    border-radius: 0px;
          |    padding: 4px 8px;
          |}
          |

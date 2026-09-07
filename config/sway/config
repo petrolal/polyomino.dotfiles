@@ -142,19 +142,18 @@ font pango:JetBrainsMono Nerd Font 10
 
 default_border pixel 2
 default_floating_border pixel 2
-gaps inner 8
-gaps outer 4
+gaps inner 4
+gaps outer 2
 smart_borders on
 focus_follows_mouse no
 workspace_auto_back_and_forth yes
 
-# SwayFX eye-candy (rounded corners, blur, shadows)
-corner_radius 12
+# Enterprise CAD styling — sharp precision corners, no fuzzy drop shadows
+corner_radius 0
 blur enable
 blur_radius 5
 blur_passes 2
-shadows enable
-shadow_blur_radius 20
+shadows disable
 
 ### ────────────────────────────────────────────────────────────────
 ### Workspace names (mapped to numbers so SUPER+1..9 still works)

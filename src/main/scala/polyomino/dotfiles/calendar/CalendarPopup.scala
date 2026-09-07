@@ -427,12 +427,12 @@ object CalendarPopup:
       |    header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
       |    
       |    header_label = Gtk.Label()
-      |    header_label.set_markup(f"<span size='115%' weight='bold'>{now.strftime('%A, %d %B %Y')}</span>")
+      |    header_label.set_markup(f"<span size='105%' weight='bold'>[ ⊞  POLYOMINO CALENDAR ]  {now.strftime('%a %d %b %Y')}</span>")
       |    header_label.set_name("calendar-header")
       |    header_label.set_xalign(0.0)
       |    header_box.pack_start(header_label, True, True, 0)
       |
-      |    close_btn = Gtk.Button(label="✕")
+      |    close_btn = Gtk.Button(label="[ ✕ ]")
       |    close_btn.set_name("calendar-close-btn")
       |    close_btn.set_relief(Gtk.ReliefStyle.NONE)
       |    close_btn.connect("clicked", lambda b: Gtk.main_quit())
@@ -468,12 +468,12 @@ object CalendarPopup:
       |    }}
       |    #calendar-card {{
       |        background-color: {mantle_color};
-      |        border: 1px solid {border_color};
-      |        border-radius: 12px;
+      |        border: 1px solid {accent_color};
+      |        border-radius: 0px;
       |        padding: 12px 14px;
-      |        min-width: 340px;
+      |        min-width: 360px;
       |        min-height: 430px;
-      |        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+      |        box-shadow: none;
       |    }}
       |    #calendar-header {{
       |        color: {accent_color};
@@ -499,7 +499,7 @@ object CalendarPopup:
       |        font-size: 12px;
       |        font-weight: bold;
       |        padding: 2px 6px;
-      |        border-radius: 4px;
+      |        border-radius: 0px;
       |        border: none;
       |    }}
       |    #calendar-close-btn:hover,
@@ -511,7 +511,7 @@ object CalendarPopup:
       |    #cal-nav {{
       |        background-color: {base_color};
       |        border: 1px solid {border_color};
-      |        border-radius: 10px;
+      |        border-radius: 0px;
       |        padding: 4px 6px;
       |    }}
       |    #month-header-label {{
@@ -528,7 +528,7 @@ object CalendarPopup:
       |        background-image: none;
       |        box-shadow: none;
       |        border: none;
-      |        border-radius: 4px;
+      |        border-radius: 0px;
       |        padding: 0 8px;
       |    }}
       |    button#nav-btn label,
@@ -552,7 +552,7 @@ object CalendarPopup:
       |    #cal-grid {{
       |        background-color: {base_color};
       |        border: 1px solid {border_color};
-      |        border-radius: 10px;
+      |        border-radius: 0px;
       |        padding: 8px;
       |    }}
       |    #weekday-header {{
@@ -571,7 +571,7 @@ object CalendarPopup:
       |    button#day-cube-range {{
       |        background-image: none;
       |        box-shadow: none;
-      |        border-radius: 8px;
+      |        border-radius: 0px;
       |        padding: 0;
       |        margin: 0;
       |        border: none;
@@ -594,7 +594,7 @@ object CalendarPopup:
       |        background: {range_bg};
       |        background-color: {range_bg};
       |        color: {accent_color};
-      |        border-radius: 8px;
+      |        border-radius: 0px;
       |    }}
       |    #day-cube-range label,
       |    button#day-cube-range label {{
@@ -640,7 +640,7 @@ object CalendarPopup:
       |    #cal-diff {{
       |        background-color: {base_color};
       |        border: 1px solid {border_color};
-      |        border-radius: 10px;
+      |        border-radius: 0px;
       |        padding: 6px 8px;
       |    }}
       |    #cal-diff-title {{

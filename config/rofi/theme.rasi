@@ -14,7 +14,7 @@ window {
     text-color: @fg;
     border: 2px;
     border-color: @border-col;
-    border-radius: 12px;
+    border-radius: 0px;
     padding: 12px;
     width: 680px;
 }
@@ -24,15 +24,17 @@ mainbox {
 inputbar {
     children: [ prompt, entry ];
     background-color: @mantle;
-    border-radius: 8px;
-    padding: 8px;
-    margin: 0 0 12px 0;
+    border: 1px solid @border-col;
+    border-radius: 0px;
+    padding: 6px 10px;
+    margin: 0 0 10px 0;
 }
 prompt {
     background-color: @accent;
     text-color: #0F1117;
     padding: 4px 8px;
-    border-radius: 6px;
+    border-radius: 0px;
+    font-weight: bold;
 }
 entry {
     placeholder: "Search apps...";
@@ -46,15 +48,17 @@ listview {
     fixed-height: false;
 }
 element {
-    padding: 8px 12px;
-    border-radius: 8px;
+    padding: 6px 10px;
+    border-radius: 0px;
     background-color: @mantle;
     margin: 2px 4px;
+    border: 1px solid transparent;
 }
 element selected {
     background-color: @accent;
     text-color: #0F1117;
-    border-radius: 8px;
+    border-radius: 0px;
+    border: 1px solid @accent;
 }
 element-text {
     text-color: inherit;
