@@ -27,7 +27,7 @@ object WofiPickers:
     val activePalette = ThemeEngine.getActivePalette(ctx)
     val themeItems = themes.map { name =>
       val pal = polyomino.dotfiles.theme.Palette.find(name, ctx)
-      val mark = if pal.name.equalsIgnoreCase(activePalette.name) then "▶ " else "  "
+      val mark = if pal.name.equalsIgnoreCase(activePalette.name) then "▶   " else "    "
       s"$mark${pal.name.padTo(10, ' ')}  ·  ${pal.label}"
     }
     val inputList = themeItems.map(escapeMarkup).mkString("\n")
@@ -43,7 +43,7 @@ object WofiPickers:
         ++ Seq(
           "--show", "dmenu",
           "--prompt", "[ ⊞ ] Theme",
-          "--width", "560",
+          "--width", "660",
           "--lines", "4",
           "--columns", "1",
           "--insensitive",
@@ -59,14 +59,14 @@ object WofiPickers:
       println(s"  \u001b[32m[OK]\u001b[0m Selected theme '$selectedTheme'")
 
       // Step 2: Select Wallpaper Mode
-      val modes = Seq("▶  Static Wallpaper", "↻  Rotate Wallpapers (30m)")
+      val modes = Seq("▶   Static Wallpaper", "↻   Rotate Wallpapers (30m)")
       val modeArgs = Seq("wofi")
         ++ outputArgs
         ++ (if os.exists(wofiConfigFile) then Seq("--conf", wofiConfigFile.toString) else Seq.empty)
         ++ Seq(
           "--show", "dmenu",
           "--prompt", s"[ ⊞ ] Mode · ${selectedTheme.capitalize}",
-          "--width", "560",
+          "--width", "660",
           "--lines", "2",
           "--columns", "1",
           "--insensitive",
@@ -92,15 +92,15 @@ object WofiPickers:
           val choices = polyomino.dotfiles.wallpaper.WallpaperEngine.wallpapersForFlavor(ctx, palName)
           if choices.size <= 1 then None
           else
-            val AutoLabel = "◆  Auto (Default)"
-            val labels = AutoLabel +: choices.map(p => s"   ${p.last}")
+            val AutoLabel = "◆   Auto (Default)"
+            val labels = AutoLabel +: choices.map(p => s"    ${p.last}")
             val wpArgs = Seq("wofi")
               ++ outputArgs
               ++ (if os.exists(wofiConfigFile) then Seq("--conf", wofiConfigFile.toString) else Seq.empty)
               ++ Seq(
                 "--show", "dmenu",
                 "--prompt", s"[ ⊞ ] Wallpaper · ${selectedTheme.capitalize}",
-                "--width", "560",
+                "--width", "660",
                 "--lines", Math.min(labels.size, 8).toString,
                 "--columns", "1",
                 "--insensitive",
@@ -111,7 +111,7 @@ object WofiPickers:
             val picked = unescapeMarkup(resWp.out.text().trim)
             if picked.isEmpty || picked == AutoLabel then None
             else
-              val name = picked.replaceFirst("^(◆  | +)", "").trim
+              val name = picked.replaceFirst("^(◆   | +)", "").trim
               choices.find(p => p.last == name || p.baseName == name).map(_.toString)
 
       ThemeEngine.applyTheme(ctx, selectedTheme, mode = mode, customWallpaper = customWallpaper, interval = interval)
@@ -144,9 +144,9 @@ object WofiPickers:
       }.getOrElse(Seq.empty)
 
     val current = WallpaperEngine.currentWallpaper(ctx)
-    val RandomLabel = "🎲  Random (Cycle)"
+    val RandomLabel = "🎲   Random (Cycle)"
     val labels = RandomLabel +: options.map { p =>
-      val mark = if current.contains(p.toString) then "▶ " else "  "
+      val mark = if current.contains(p.toString) then "▶   " else "    "
       s"$mark${p.last}"
     }
     val inputList = labels.map(escapeMarkup).mkString("\n")
@@ -161,7 +161,7 @@ object WofiPickers:
         ++ Seq(
           "--show", "dmenu",
           "--prompt", s"[ ⊞ ] Wallpaper · ${flavor.capitalize}",
-          "--width", "560",
+          "--width", "640",
           "--lines", Math.min(labels.size, 8).toString,
           "--columns", "1",
           "--insensitive",
@@ -175,7 +175,7 @@ object WofiPickers:
       if selected == RandomLabel || selected.contains("Random") then
         WallpaperEngine.run(ctx, List("random"))
       else
-        val name = selected.replaceFirst("^(▶ |  |● )", "").trim
+        val name = selected.replaceFirst("^(▶|●|◆|🎲)\\s+", "").trim
         WallpaperEngine.run(ctx, List(name))
     catch
       case e: Exception => Left(CommandError(s"Wofi wallpaper-picker failed: ${e.getMessage}"))
@@ -212,23 +212,23 @@ object WofiPickers:
       }.getOrElse(Seq.empty)
 
     val PowerMenu = "⏻   Power menu"
-    val ThemePick = "🎨  Theme and wallpaper"
+    val ThemePick = "🎨   Theme and wallpaper"
     val Wallpaper = "🖼   Wallpaper"
     val EditConf  = "⚙   Edit a config file…"
-    val Health    = "🩺  Healthcheck"
+    val Health    = "🩺   Healthcheck"
     val entries = Seq(PowerMenu, ThemePick, Wallpaper, EditConf, Health)
 
     val wofiConfigFile = ctx.configDir / "wofi" / "config"
     val wofiStyleFile = ctx.configDir / "wofi" / "style.css"
 
-    def wofiPick(prompt: String, lines: Int, input: Seq[String]): String =
+    def wofiPick(prompt: String, lines: Int, input: Seq[String], width: Int = 500): String =
       val a = Seq("wofi")
         ++ outputArgs
         ++ (if os.exists(wofiConfigFile) then Seq("--conf", wofiConfigFile.toString) else Seq.empty)
         ++ Seq(
           "--show", "dmenu",
           "--prompt", prompt,
-          "--width", "420",
+          "--width", width.toString,
           "--lines", lines.toString,
           "--columns", "1",
           "--insensitive",
@@ -250,7 +250,7 @@ object WofiPickers:
       os.proc(shellable*).spawn(stdout = os.Inherit, stderr = os.Inherit)
 
     try
-      wofiPick("[ ⊞ ] polyomino", entries.size, entries) match
+      wofiPick("[ ⊞ ] polyomino", entries.size, entries, width = 500) match
         case s if s.isEmpty => Right(())
         case s if s.contains("Power") =>
           spawn(Seq(term, "--class=polyomino-power-menu", "-o", "font_size=14", "-e", polyomino, "power-menu"))
@@ -285,7 +285,7 @@ object WofiPickers:
           if existing.isEmpty then Right(())
           else
             val labels = existing.map { case (id, _, desc) => f"$id%-22s  ·  $desc" }
-            val pick = wofiPick("[ ⊞ ] edit config", math.min(existing.size, 10), labels)
+            val pick = wofiPick("[ ⊞ ] edit config", math.min(existing.size, 10), labels, width = 680)
             val chosenId = pick.split("\\s+·\\s+", 2)(0).trim
             existing.find(_._1 == chosenId) match
               case Some((_, path, _)) =>
@@ -327,7 +327,7 @@ object WofiPickers:
       ++ Seq(
         "--show", "dmenu",
         "--prompt", "[⊞] which-key",
-        "--width", "880",
+        "--width", "1120",
         "--lines", "8",
         "--columns", "2",
         "--insensitive",

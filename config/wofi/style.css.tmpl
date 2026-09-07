@@ -6,31 +6,63 @@
  * Placeholders (@@NAME@@) are substituted with hex colors by theme.sh.
  */
 
+* {
+    font-family: "JetBrainsMono Nerd Font", monospace;
+}
+
 window {
     background-color: #191C24;
     color: @@TEXT@@;
-    border: 2px solid #2B303C;
-    border-radius: 12px;
-    font-family: "JetBrainsMono Nerd Font";
+    border: 2px solid @@ACCENT@@;
+    border-radius: 0px;
+    font-family: "JetBrainsMono Nerd Font", monospace;
     font-size: 13px;
 }
 
 #input {
     background-color: #0F1117;
     color: @@TEXT@@;
-    border: 1px solid #2B303C;
-    border-radius: 8px;
-    padding: 8px 12px;
-    margin: 12px;
+    border: 2px solid @@ACCENT@@;
+    border-radius: 0px;
+    padding: 10px 14px;
+    margin: 10px;
+    outline: none;
+    box-shadow: none;
+    caret-color: @@ACCENT@@;
+    font-family: "JetBrainsMono Nerd Font", monospace;
+    font-size: 13px;
+    min-height: 28px;
+}
+
+#input:focus {
+    background-color: #0F1117;
+    color: @@TEXT@@;
+    border: 2px solid @@ACCENT@@;
+    outline: none;
+    box-shadow: none;
+}
+
+#input placeholder {
+    color: @@ACCENT@@;
+    font-family: "JetBrainsMono Nerd Font", monospace;
+    font-size: 13px;
+    opacity: 0.85;
+}
+
+#input image {
+    color: @@ACCENT@@;
+    border: none;
+    background: transparent;
+    margin-right: 10px;
 }
 
 #inner-box {
     background-color: transparent;
-    margin: 4px 8px;
+    margin: 4px 6px;
 }
 
 #outer-box {
-    padding: 4px;
+    padding: 2px;
 }
 
 #scroll {
@@ -38,23 +70,49 @@ window {
 }
 
 #entry {
-    padding: 10px;
-    margin: 4px;
-    border-radius: 12px;
+    padding: 10px 14px;
+    margin: 3px 6px;
+    border-radius: 0px;
     background-color: #0F1117;
+    color: @@TEXT@@;
+    border-left: 3px solid transparent;
+    min-height: 36px;
 }
 
 #entry:selected {
-    background-color: #EBB434;
+    background-color: @@ACCENT@@;
     color: #0F1117;
-    border-radius: 12px;
+    border-radius: 0px;
+    outline: none;
+    border-left: 3px solid @@TEXT@@;
+}
+
+#entry:selected #text,
+#text:selected {
+    color: #0F1117;
+    font-weight: bold;
+}
+
+#img,
+#entry image {
+    margin-right: 14px;
+    margin-left: 2px;
+    vertical-align: middle;
 }
 
 #text {
     color: @@TEXT@@;
+    font-family: "JetBrainsMono Nerd Font", monospace;
+    font-size: 13px;
+    margin: auto 0;
+    padding: 2px 0;
 }
 
-#text:selected {
-    color: #0F1117;
+#prompt {
+    color: @@ACCENT@@;
+    font-family: "JetBrainsMono Nerd Font", monospace;
+    font-size: 13px;
+    font-weight: bold;
+    margin-right: 8px;
+    padding: 0 4px;
 }
-

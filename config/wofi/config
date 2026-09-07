@@ -1,8 +1,8 @@
 ### ~/.config/wofi/config
 ### Polyomino multi-column block grid launcher
 
-width=760
-height=420
+width=880
+height=460
 location=center
 show=drun
 prompt=[ ⊞ ] SEARCH APPS...
@@ -15,5 +15,6 @@ orientation=vertical
 content_halign=fill
 insensitive=true
 allow_images=true
-image_size=28
+image_size=26
+line_wrap=word
 gtk_dark=true

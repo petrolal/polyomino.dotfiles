@@ -70,6 +70,14 @@
     color: #0F1117;
 }
 
+switch,
+switch trough,
+switch slider {
+    border-radius: 0px;
+    box-shadow: none;
+    outline: none;
+}
+
 .widget-dnd {
     background-color: #191C24;
     border: 1px solid #EBB434;
@@ -78,14 +86,37 @@
     margin: 8px;
 }
 
-.widget-dnd > switch {
+.widget-dnd > switch,
+.widget-dnd > switch trough {
     background-color: #0F1117;
     border-radius: 0px;
     border: 1px solid #EBB434;
+    box-shadow: none;
 }
 
-.widget-dnd > switch:checked {
+.widget-dnd > switch:checked,
+.widget-dnd > switch:checked trough {
     background-color: #EBB434;
+    border: 1px solid #EBB434;
+    box-shadow: none;
+}
+
+.widget-dnd > switch slider,
+.widget-dnd > switch > slider {
+    background-color: #EBB434;
+    border-radius: 0px;
+    border: 1px solid #EBB434;
+    box-shadow: none;
+    outline: none;
+}
+
+.widget-dnd > switch:checked slider,
+.widget-dnd > switch:checked > slider {
+    background-color: #0F1117;
+    border-radius: 0px;
+    border: 1px solid #0F1117;
+    box-shadow: none;
+    outline: none;
 }
 
 .widget-mpris {
