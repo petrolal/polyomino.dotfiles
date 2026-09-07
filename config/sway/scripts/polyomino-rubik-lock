@@ -28,6 +28,8 @@ import threading
 import gi
 gi.require_version('Gtk', '3.0')
 gi.require_version('Gdk', '3.0')
+gi.require_version('Pango', '1.0')
+gi.require_version('PangoCairo', '1.0')
 try:
     gi.require_version('GtkSessionLock', '0.1')
     from gi.repository import GtkSessionLock
@@ -35,10 +37,30 @@ try:
 except Exception:
     HAS_SESSION_LOCK = False
 
-from gi.repository import Gtk, Gdk, GLib
+from gi.repository import Gtk, Gdk, GLib, Pango, PangoCairo
 import cairo
 
 import socket
+
+def draw_text(cr, text, x, y, font_desc_str, color, align="center"):
+    layout = PangoCairo.create_layout(cr)
+    desc = Pango.FontDescription(font_desc_str)
+    layout.set_font_description(desc)
+    layout.set_text(text, -1)
+    ink, logical = layout.get_pixel_extents()
+
+    if align == "center":
+        tx = x - logical.width / 2.0
+    elif align == "right":
+        tx = x - logical.width
+    else:
+        tx = x
+    ty = y - logical.height / 2.0
+
+    cr.move_to(tx, ty)
+    cr.set_source_rgb(*color)
+    PangoCairo.show_layout(cr, layout)
+    return logical.width, logical.height
 
 # ---------------------------------------------------------------------------
 # Linux PAM Ctypes Binding
@@ -308,18 +330,39 @@ LOCAL_FACES = [
     ((0, 4, 7, 3), (-1, 0, 0)),  # Left (-X)
 ]
 
-# Enterprise Monolith Precision Palette (Titanium, Graphite, Obsidian & Theme Accents)
+# Enterprise CAD & Precision Palette tokens matching PowerMenu.scala
 COLOR_MUTED = (110 / 255, 125 / 255, 145 / 255)   # #6E7D91 Enterprise Steel
 COLOR_SUBTLE = (65 / 255, 75 / 255, 92 / 255)      # #414B5C Structural Grid
+COLOR_WALL = (108 / 255, 110 / 255, 115 / 255)     # #6C6E73 CAD Viewport border
+COLOR_WALL_DIM = (50 / 255, 54 / 255, 68 / 255)    # #323644 Subtle border
+COLOR_DOT = (42 / 255, 46 / 255, 60 / 255)          # #2A2E3C Matrix dots
+COLOR_TEXT = (248 / 255, 250 / 255, 252 / 255)      # #F8FAFC Primary text
+COLOR_HELP = (124 / 255, 129 / 255, 148 / 255)     # #7C8194 Subtext & help
+COLOR_DIM = (85 / 255, 90 / 255, 105 / 255)         # #555A69 Dim
 
-STICKER_COLORS = [
-    COLOR_RESTING_TEAL,                 # 0: Front (+Z) Cyan / Teal
-    (245 / 255, 158 / 255, 66 / 255),   # 1: Back (-Z) Orange
-    COLOR_ACTIVE_GOLD,                  # 2: Up (+Y) Axé Gold / Yellow
-    (39 / 255, 201 / 255, 108 / 255),   # 3: Down (-Y) Green
-    COLOR_REJECT_RED,                   # 4: Right (+X) Carmine Red
-    (59 / 255, 130 / 255, 246 / 255),   # 5: Left (-X) Sapphire Blue
+def _clamp(v, lo=0.0, hi=1.0):
+    return max(lo, min(hi, v))
+
+def _mix(c1, c2, t):
+    return (
+        _clamp(c1[0] + (c2[0] - c1[0]) * t),
+        _clamp(c1[1] + (c2[1] - c1[1]) * t),
+        _clamp(c1[2] + (c2[2] - c1[2]) * t)
+    )
+
+# Classic Tetris Piece Colors from PowerMenu.scala
+PIECE_COLORS = [
+    (0 / 255, 210 / 255, 214 / 255),   # 0: Front (+Z) I - Cyan
+    (245 / 255, 158 / 255, 66 / 255),  # 1: Back (-Z)  L - Orange
+    (242 / 255, 201 / 255, 76 / 255),  # 2: Up (+Y)    O - Yellow / Gold
+    (39 / 255, 201 / 255, 108 / 255),  # 3: Down (-Y)  S - Green
+    (239 / 255, 68 / 255, 68 / 255),   # 4: Right (+X) Z - Red
+    (59 / 255, 130 / 255, 246 / 255),  # 5: Left (-X)  J - Blue
 ]
+
+PIECE_FG = [_mix(c, COLOR_TEXT, 0.1) for c in PIECE_COLORS]
+PIECE_EDGE = [_mix(c, COLOR_BG, 0.5) for c in PIECE_COLORS]
+STICKER_COLORS = PIECE_COLORS
 
 def draw_rounded_poly(cr, pts, radius=3.5):
     """Draw a polygon with rounded corners."""
@@ -634,38 +677,96 @@ def render_rubik_lockscreen(cr, width, height, engine, preview_mode=False):
     cr.set_source_rgb(*COLOR_BG)
     cr.paint()
 
-    # 2. Subtle Enterprise Backdrop Grid (Thin structural coordinates)
+    cx = width / 2.0
+    cy = height / 2.0 - 15.0
+
+    # CAD Viewport Box size
+    vp_w = min(width * 0.70, 720.0)
+    vp_h = min(height * 0.60, 500.0)
+    vp_x = cx - vp_w / 2.0
+    vp_y = cy - vp_h / 2.0
+
+    # 2. Outer Subtle Dot Matrix Grid (Background)
     cr.save()
-    cr.set_line_width(0.75)
-    cr.set_source_rgba(COLOR_SUBTLE[0], COLOR_SUBTLE[1], COLOR_SUBTLE[2], 0.12)
-    step = 48
-    for x in range(0, int(width), step):
-        cr.move_to(x, 0)
-        cr.line_to(x, height)
-    for y in range(0, int(height), step):
-        cr.move_to(0, y)
-        cr.line_to(width, y)
+    cr.set_source_rgba(COLOR_DOT[0], COLOR_DOT[1], COLOR_DOT[2], 0.35)
+    dot_step = 36
+    for x in range(dot_step // 2, int(width), dot_step):
+        for y in range(dot_step // 2, int(height), dot_step):
+            if vp_x - 12 <= x <= vp_x + vp_w + 12 and vp_y - 12 <= y <= vp_y + vp_h + 12:
+                continue
+            cr.arc(x, y, 0.75, 0, 2 * math.pi)
+            cr.fill()
+    cr.restore()
+
+    # 3. Viewport Background & Subtle CAD Grid
+    cr.save()
+    cr.set_source_rgba(18 / 255, 21 / 255, 29 / 255, 0.65)
+    cr.rectangle(vp_x, vp_y, vp_w, vp_h)
+    cr.fill()
+
+    # CAD Grid Dots inside matrix well (identical to PowerMenu well dots)
+    cr.set_source_rgb(*COLOR_DOT)
+    grid_spacing = 28
+    start_gx = int(vp_x) + (int(vp_w) % grid_spacing) // 2 + grid_spacing
+    start_gy = int(vp_y) + (int(vp_h) % grid_spacing) // 2 + grid_spacing
+    for gx in range(start_gx, int(vp_x + vp_w) - grid_spacing // 2, grid_spacing):
+        for gy in range(start_gy, int(vp_y + vp_h) - grid_spacing // 2, grid_spacing):
+            cr.arc(gx, gy, 1.0, 0, 2 * math.pi)
+            cr.fill()
+
+    # Viewport Frame
+    cr.set_line_width(1.0)
+    cr.set_source_rgb(*COLOR_WALL_DIM)
+    cr.rectangle(vp_x, vp_y, vp_w, vp_h)
+    cr.stroke()
+
+    # Corner brackets in COLOR_WALL
+    bracket_len = 18.0
+    cr.set_line_width(2.0)
+    cr.set_source_rgb(*COLOR_WALL)
+
+    # Top-Left
+    cr.move_to(vp_x, vp_y + bracket_len)
+    cr.line_to(vp_x, vp_y)
+    cr.line_to(vp_x + bracket_len, vp_y)
+    # Top-Right
+    cr.move_to(vp_x + vp_w - bracket_len, vp_y)
+    cr.line_to(vp_x + vp_w, vp_y)
+    cr.line_to(vp_x + vp_w, vp_y + bracket_len)
+    # Bottom-Right
+    cr.move_to(vp_x + vp_w, vp_y + vp_h - bracket_len)
+    cr.line_to(vp_x + vp_w, vp_y + vp_h)
+    cr.line_to(vp_x + vp_w - bracket_len, vp_y + vp_h)
+    # Bottom-Left
+    cr.move_to(vp_x + bracket_len, vp_y + vp_h)
+    cr.line_to(vp_x, vp_y + vp_h)
+    cr.line_to(vp_x, vp_y + vp_h - bracket_len)
+    cr.stroke()
+
+    # Alignment ticks
+    cr.set_line_width(1.0)
+    cr.set_source_rgb(*COLOR_WALL_DIM)
+    cr.move_to(cx, vp_y); cr.line_to(cx, vp_y + 8)
+    cr.move_to(cx, vp_y + vp_h - 8); cr.line_to(cx, vp_y + vp_h)
+    cr.move_to(vp_x, cy); cr.line_to(vp_x + 8, cy)
+    cr.move_to(vp_x + vp_w - 8, cy); cr.line_to(vp_x + vp_w, cy)
     cr.stroke()
     cr.restore()
 
-    # Apply subtle camera vibration (+-6px)
+    # 4. Render 3D Rubik's Cube with authentic Tetris Piece Block styling
+    scale = min(vp_w, vp_h) * 0.54
+    cube_cx = cx
+    cube_cy = cy
+
     cr.save()
     if engine.shake_offset != 0.0:
         cr.translate(engine.shake_offset, 0.0)
 
-    # 3. Dead-Center Positioning
-    cx = width / 2
-    cy = height / 2 - 20
-
-    # 4. Camera Transformation Setup
     Ry = [[math.cos(engine.yaw), 0, math.sin(engine.yaw)], [0, 1, 0], [-math.sin(engine.yaw), 0, math.cos(engine.yaw)]]
     Rx = [[1, 0, 0], [0, math.cos(engine.pitch), -math.sin(engine.pitch)], [0, math.sin(engine.pitch), math.cos(engine.pitch)]]
     R_view = mat_mul_mat(Rx, Ry)
 
     fov = 7.5
-    scale = min(width, height) * 0.43
-
-    # Directional Key Light (industrial studio top-left)
     lx, ly, lz = 0.35, 0.80, 0.50
     ll = math.hypot(lx, ly, lz)
     L_dir = (lx / ll, ly / ll, lz / ll)
@@ -675,8 +776,6 @@ def render_rubik_lockscreen(cr, width, height, engine, preview_mode=False):
         turn_R = rot_matrix(engine.active_turn.axis, engine.active_turn.current_angle)
 
     faces_to_render = []
-
-    # Gather 3D solid cubie faces
     for cubie in engine.cubies:
         c_pos = cubie.pos
         c_rot = cubie.rot
@@ -691,7 +790,6 @@ def render_rubik_lockscreen(cr, width, height, engine, preview_mode=False):
                 c_pos = mat_mul_vec(turn_R, c_pos)
                 c_rot = mat_mul_mat(turn_R, c_rot)
 
-        # Project 8 cubie vertices
         proj_verts = []
         view_verts = []
         for lv in LOCAL_VERTS:
@@ -701,171 +799,202 @@ def render_rubik_lockscreen(cr, width, height, engine, preview_mode=False):
             view_verts.append(pv)
             zc = pv[2] + fov
             factor = scale / zc
-            sx = cx + pv[0] * factor
-            sy = cy - pv[1] * factor
+            sx = cube_cx + pv[0] * factor
+            sy = cube_cy - pv[1] * factor
             proj_verts.append((sx, sy))
 
-        # Check each face of the cubie
         for face_idx, (v_indices, n_local) in enumerate(LOCAL_FACES):
             n_world = mat_mul_vec(c_rot, n_local)
             n_view = mat_mul_vec(R_view, n_world)
 
-            # Backface culling: only render faces pointing towards viewer
             if n_view[2] <= 0.02:
                 continue
 
             avg_z = sum(view_verts[i][2] for i in v_indices) / 4.0
             pts = [proj_verts[i] for i in v_indices]
 
-            # Diffuse lighting calculation (ambient + directional)
             dot = max(0.0, n_world[0]*L_dir[0] + n_world[1]*L_dir[1] + n_world[2]*L_dir[2])
-            light = 0.84 + 0.22 * dot
+            light = 0.86 + 0.20 * dot
 
             sticker_idx = cubie.stickers.get(face_idx)
             faces_to_render.append((avg_z, pts, light, sticker_idx, is_turning, n_world))
 
-    # 4. Painter's Algorithm: back to front (smallest view Z to largest view Z)
     faces_to_render.sort(key=lambda item: item[0], reverse=False)
 
-    # 5. Render Solid Cubie Bodies & Inset Tactile Stickers
     for avg_z, pts, light, sticker_idx, is_turning, nw in faces_to_render:
-        # 5a. Base Cubie Body (Solid dark slate mantle #191C24)
-        body_r = COLOR_GLASS[0] * light
-        body_g = COLOR_GLASS[1] * light
-        body_b = COLOR_GLASS[2] * light
-
-        # Flash tint if error or backspace/clear shockwave
-        if engine.flash_time > 0.0:
-            fac = min(1.0, engine.flash_time / 0.4)
-            body_r = body_r * (1.0 - fac) + engine.flash_color[0] * fac * 0.4
-            body_g = body_g * (1.0 - fac) + engine.flash_color[1] * fac * 0.4
-            body_b = body_b * (1.0 - fac) + engine.flash_color[2] * fac * 0.4
-
-        cr.move_to(pts[0][0], pts[0][1])
-        for p in pts[1:]:
-            cr.line_to(p[0], p[1])
-        cr.close_path()
-        cr.set_source_rgb(body_r, body_g, body_b)
-        cr.fill_preserve()
-
-        # Dark groove separator line between cubies (#0F1117)
-        cr.set_source_rgb(*COLOR_BG)
-        cr.set_line_width(2.0)
-        cr.stroke()
-
-        # 5b. Inset Tactile Color Sticker (exterior faces only)
         if sticker_idx is not None:
-            base_col = STICKER_COLORS[sticker_idx]
-            fc_x = sum(p[0] for p in pts) / 4.0
-            fc_y = sum(p[1] for p in pts) / 4.0
+            fg_col = PIECE_FG[sticker_idx]
+            edge_col = PIECE_EDGE[sticker_idx]
 
-            inset_ratio = 0.87
-            inset_pts = [
-                (fc_x + (p[0] - fc_x) * inset_ratio, fc_y + (p[1] - fc_y) * inset_ratio)
-                for p in pts
-            ]
+            r_fg = min(1.0, fg_col[0] * light)
+            g_fg = min(1.0, fg_col[1] * light)
+            b_fg = min(1.0, fg_col[2] * light)
 
-            sr = min(1.0, base_col[0] * light)
-            sg = min(1.0, base_col[1] * light)
-            sb = min(1.0, base_col[2] * light)
+            r_edge = min(1.0, edge_col[0] * light)
+            g_edge = min(1.0, edge_col[1] * light)
+            b_edge = min(1.0, edge_col[2] * light)
 
             if engine.flash_time > 0.0:
                 fac = min(1.0, engine.flash_time / 0.4)
-                sr = sr * (1.0 - fac) + engine.flash_color[0] * fac
-                sg = sg * (1.0 - fac) + engine.flash_color[1] * fac
-                sb = sb * (1.0 - fac) + engine.flash_color[2] * fac
+                r_fg = r_fg * (1.0 - fac) + engine.flash_color[0] * fac
+                g_fg = g_fg * (1.0 - fac) + engine.flash_color[1] * fac
+                b_fg = b_fg * (1.0 - fac) + engine.flash_color[2] * fac
+                r_edge = r_edge * (1.0 - fac) + engine.flash_color[0] * fac
+                g_edge = g_edge * (1.0 - fac) + engine.flash_color[1] * fac
+                b_edge = b_edge * (1.0 - fac) + engine.flash_color[2] * fac
             elif engine.is_checking:
                 pulse = 0.5 + 0.5 * math.sin(engine.checking_time * 10.0)
-                sr = sr * (1.0 - pulse * 0.2) + COLOR_ACTIVE_GOLD[0] * pulse * 0.2
-                sg = sg * (1.0 - pulse * 0.2) + COLOR_ACTIVE_GOLD[1] * pulse * 0.2
-                sb = sb * (1.0 - pulse * 0.2) + COLOR_ACTIVE_GOLD[2] * pulse * 0.2
+                r_fg = r_fg * (1.0 - pulse * 0.25) + COLOR_ACTIVE_GOLD[0] * pulse * 0.25
+                g_fg = g_fg * (1.0 - pulse * 0.25) + COLOR_ACTIVE_GOLD[1] * pulse * 0.25
+                b_fg = b_fg * (1.0 - pulse * 0.25) + COLOR_ACTIVE_GOLD[2] * pulse * 0.25
 
-            draw_rounded_poly(cr, inset_pts, radius=3.0)
-            cr.set_source_rgb(sr, sg, sb)
+            # Outer block body (pieceEdge)
+            cr.move_to(pts[0][0], pts[0][1])
+            for p in pts[1:]:
+                cr.line_to(p[0], p[1])
+            cr.close_path()
+            cr.set_source_rgb(r_edge, g_edge, b_edge)
             cr.fill_preserve()
 
-            # Precision beveled edge
-            cr.set_source_rgb(sr * 0.75, sg * 0.75, sb * 0.75)
-            cr.set_line_width(1.0)
+            # Crisp black separation between cubie cells
+            cr.set_source_rgb(*COLOR_BG)
+            cr.set_line_width(1.5)
             cr.stroke()
 
-        # 5c. Turning Slice Accent Highlights
+            # Inner face tile (pieceFg) with crisp geometric inset (mirroring Tetris block bevel)
+            fc_x = sum(p[0] for p in pts) / 4.0
+            fc_y = sum(p[1] for p in pts) / 4.0
+            inset = 0.88
+            cr.move_to(fc_x + (pts[0][0] - fc_x) * inset, fc_y + (pts[0][1] - fc_y) * inset)
+            for p in pts[1:]:
+                cr.line_to(fc_x + (p[0] - fc_x) * inset, fc_y + (p[1] - fc_y) * inset)
+            cr.close_path()
+            cr.set_source_rgb(r_fg, g_fg, b_fg)
+            cr.fill()
+
+            # Subtle top-left highlight on the block face (crisp 3D bevel)
+            p0 = (fc_x + (pts[0][0] - fc_x) * inset, fc_y + (pts[0][1] - fc_y) * inset)
+            p1 = (fc_x + (pts[1][0] - fc_x) * inset, fc_y + (pts[1][1] - fc_y) * inset)
+            cr.move_to(p0[0], p0[1])
+            cr.line_to(p1[0], p1[1])
+            cr.set_source_rgba(1.0, 1.0, 1.0, 0.22)
+            cr.set_line_width(1.2)
+            cr.stroke()
+
+        else:
+            # Internal structural cubie face
+            body_col = (25 / 255, 28 / 255, 36 / 255)
+            cr.move_to(pts[0][0], pts[0][1])
+            for p in pts[1:]:
+                cr.line_to(p[0], p[1])
+            cr.close_path()
+            cr.set_source_rgb(body_col[0] * light, body_col[1] * light, body_col[2] * light)
+            cr.fill_preserve()
+            cr.set_source_rgb(*COLOR_BG)
+            cr.set_line_width(1.5)
+            cr.stroke()
+
+        # Turning Slice Accent Highlight
         if is_turning:
             cr.move_to(pts[0][0], pts[0][1])
             for p in pts[1:]:
                 cr.line_to(p[0], p[1])
             cr.close_path()
-            cr.set_source_rgba(COLOR_ACTIVE_GOLD[0], COLOR_ACTIVE_GOLD[1], COLOR_ACTIVE_GOLD[2], 0.30)
-            cr.set_line_width(1.5)
+            cr.set_source_rgba(COLOR_ACTIVE_GOLD[0], COLOR_ACTIVE_GOLD[1], COLOR_ACTIVE_GOLD[2], 0.35)
+            cr.set_line_width(2.0)
             cr.stroke()
 
-    # ─────────────────────────────────────────────────────────────
-    # 6. HUD: Enterprise Security Badging & Status Indicators
-    # ─────────────────────────────────────────────────────────────
-    hud_y = cy + scale * 0.86
-    cr.select_font_face("JetBrainsMono Nerd Font", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+    cr.restore()
 
-    # 6a. Enterprise Security Header & Session Info
+    # 5. Header Bar (Mirrors Power Menu Header)
     try:
         username = getpass.getuser()
         hostname = socket.gethostname().split('.')[0]
     except Exception:
         username, hostname = "user", "workstation"
 
-    cr.set_font_size(11.5)
-    title = "[ ⊞  POLYOMINO DEV WORKSTATION • PREVIEW MODE ]" if preview_mode else "[ ⊞  POLYOMINO DEV WORKSTATION ]"
-    ext_title = cr.text_extents(title)
-    cr.move_to(cx - ext_title.width / 2.0, cy - scale * 0.88)
-    cr.set_source_rgb(*COLOR_MUTED)
-    cr.show_text(title)
+    header_title = "⊞  POLYOMINO SESSION LOCK" if not preview_mode else "⊞  POLYOMINO SESSION LOCK  •  PREVIEW"
+    draw_text(cr, header_title, cx, vp_y - 36.0, "JetBrainsMono Nerd Font Bold 15", COLOR_ACTIVE_GOLD)
 
-    cr.set_font_size(10.0)
-    user_info = (
-        f"SESSION PREVIEW  •  {username}@{hostname}  •  TEST MODE"
-        if preview_mode
-        else f"SESSION LOCKED  •  {username}@{hostname}  •  PAM/FIDO2"
+    status_line = (
+        f"SESSION: LOCKED  •  HOST: {hostname}  •  PAM/FIDO2 ACTIVE"
+        if not preview_mode
+        else f"SESSION: PREVIEW  •  HOST: {hostname}  •  PAM TEST HARNESS"
     )
-    ext_u = cr.text_extents(user_info)
-    cr.move_to(cx - ext_u.width / 2.0, cy - scale * 0.88 + 18)
-    cr.set_source_rgb(*COLOR_SUBTLE)
-    cr.show_text(user_info)
+    draw_text(cr, status_line, cx, vp_y - 16.0, "JetBrainsMono Nerd Font 10.5", COLOR_HELP)
 
-    # 6b. Checking status or Error / Failed Attempts Readout
+    # 6. Status Badging / Modal Overlay inside Viewport
+    modal_y = vp_y + vp_h - 76.0
     if engine.is_checking:
-        cr.set_font_size(11.0)
-        msg = "[ VERIFYING CREDENTIALS... ]"
-        ext_m = cr.text_extents(msg)
-        cr.move_to(cx - ext_m.width / 2.0, hud_y)
-        cr.set_source_rgb(*COLOR_ACTIVE_GOLD)
-        cr.show_text(msg)
+        modal_w = 360.0
+        modal_h = 56.0
+        mx = cx - modal_w / 2.0
+        my = modal_y
+
+        cr.set_source_rgba(15 / 255, 17 / 255, 23 / 255, 0.95)
+        cr.rectangle(mx, my, modal_w, modal_h)
+        cr.fill()
+
+        cr.set_source_rgb(*COLOR_RESTING_TEAL)
+        cr.set_line_width(1.5)
+        cr.rectangle(mx, my, modal_w, modal_h)
+        cr.stroke()
+        cr.set_line_width(0.75)
+        cr.rectangle(mx + 3, my + 3, modal_w - 6, modal_h - 6)
+        cr.stroke()
+
+        draw_text(cr, "▶  VERIFYING CREDENTIALS...  ◀", cx, my + 20.0, "JetBrainsMono Nerd Font Bold 12", COLOR_RESTING_TEAL)
+        draw_text(cr, "AUTHENTICATING WITH PAM ENGINE", cx, my + 38.0, "JetBrainsMono Nerd Font 9.5", COLOR_HELP)
+
     elif engine.failed_attempts > 0:
-        cr.set_font_size(11.0)
-        s = "S" if engine.failed_attempts > 1 else ""
-        err_text = f"[ ⚠  {engine.failed_attempts} FAILED ATTEMPT{s} ]"
-        ext_err = cr.text_extents(err_text)
-        cr.move_to(cx - ext_err.width / 2.0, hud_y)
+        modal_w = 380.0
+        modal_h = 56.0
+        mx = cx - modal_w / 2.0
+        my = modal_y
+
+        cr.set_source_rgba(15 / 255, 17 / 255, 23 / 255, 0.95)
+        cr.rectangle(mx, my, modal_w, modal_h)
+        cr.fill()
+
         cr.set_source_rgb(*COLOR_REJECT_RED)
-        cr.show_text(err_text)
+        cr.set_line_width(1.5)
+        cr.rectangle(mx, my, modal_w, modal_h)
+        cr.stroke()
+        cr.set_line_width(0.75)
+        cr.rectangle(mx + 3, my + 3, modal_w - 6, modal_h - 6)
+        cr.stroke()
 
-    # 6d. CapsLock Indicator
-    if getattr(engine, 'caps_lock', False):
-        cr.set_font_size(11.0)
-        caps_text = "[ ⇪  CAPS LOCK ON ]"
-        ext_caps = cr.text_extents(caps_text)
-        caps_y = cy - scale * 0.74
-        cr.move_to(cx - ext_caps.width / 2.0, caps_y)
+        s = "S" if engine.failed_attempts > 1 else ""
+        draw_text(cr, f"⚠  ACCESS DENIED — {engine.failed_attempts} FAILED ATTEMPT{s}  ⚠", cx, my + 20.0, "JetBrainsMono Nerd Font Bold 11.5", COLOR_REJECT_RED)
+        draw_text(cr, "BUFFER PURGED  •  ENTER PASSPHRASE TO RETRY", cx, my + 38.0, "JetBrainsMono Nerd Font 9.5", COLOR_HELP)
+
+    elif getattr(engine, 'caps_lock', False):
+        badge_w = 230.0
+        badge_h = 34.0
+        bx = cx - badge_w / 2.0
+        by = modal_y + 12.0
+
+        cr.set_source_rgba(15 / 255, 17 / 255, 23 / 255, 0.95)
+        cr.rectangle(bx, by, badge_w, badge_h)
+        cr.fill()
+
         cr.set_source_rgb(*COLOR_ACTIVE_GOLD)
-        cr.show_text(caps_text)
+        cr.set_line_width(1.2)
+        cr.rectangle(bx, by, badge_w, badge_h)
+        cr.stroke()
 
-    # 6e. Bottom instructions line
-    cr.set_font_size(10.5)
-    hint = "Type keys to test 3D slice shuffle  •  Esc to exit preview" if preview_mode else "Enter password to unlock session  •  Esc to clear"
-    ext_hint = cr.text_extents(hint)
-    cr.move_to(cx - ext_hint.width / 2.0, height - 44)
-    cr.set_source_rgb(*COLOR_SUBTLE)
-    cr.show_text(hint)
+        draw_text(cr, "⇪  CAPS LOCK ACTIVE", cx, by + 17.0, "JetBrainsMono Nerd Font Bold 11", COLOR_ACTIVE_GOLD)
+    else:
+        status_hud = "─── [ PAM: SECURE ] ─── [ FIDO2: READY ] ─── [ WORKSTATION: ENCRYPTED ] ───"
+        draw_text(cr, status_hud, cx, vp_y + vp_h - 22.0, "JetBrainsMono Nerd Font 10", COLOR_WALL_DIM)
 
-    cr.restore()
+    # 7. Footer Controls Line
+    help_line = (
+        "enter password to unlock  •  [enter] authenticate  •  [esc] clear buffer"
+        if not preview_mode
+        else "type keys to test 3D slice shuffle  •  [enter] test pam  •  [esc/q] exit preview"
+    )
+    draw_text(cr, help_line, cx, height - 32.0, "JetBrainsMono Nerd Font 10.5", COLOR_HELP)
 
 # ---------------------------------------------------------------------------
 # PNG Snapshot Generator
