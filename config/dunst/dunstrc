@@ -9,7 +9,7 @@
     transparency = 0
     frame_width = 2
     frame_color = "#EBB434"
-    corner_radius = 12
+    corner_radius = 0
     font = "JetBrainsMono Nerd Font 10"
     format = "[ ⊞ ] <b>%s</b>\n%b"
     separator_height = 2

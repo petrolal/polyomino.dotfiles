@@ -10,10 +10,33 @@ window {
 #input {
     background-color: #0F1117;
     color: #F8FAFC;
-    border: 1px solid #EBB434;
+    border: 2px solid #EBB434;
     border-radius: 0px;
-    padding: 8px 12px;
+    padding: 8px 14px;
     margin: 10px;
+    outline: none;
+    box-shadow: none;
+    caret-color: #EBB434;
+    font-family: "JetBrainsMono Nerd Font", monospace;
+    font-size: 13px;
+}
+#input:focus {
+    background-color: #0F1117;
+    color: #F8FAFC;
+    border: 2px solid #EBB434;
+    outline: none;
+    box-shadow: none;
+}
+#input placeholder {
+    color: #EBB434;
+    font-family: "JetBrainsMono Nerd Font", monospace;
+    font-size: 13px;
+    opacity: 0.85;
+}
+#input image {
+    color: #EBB434;
+    border: none;
+    background: transparent;
 }
 #inner-box {
     background-color: transparent;

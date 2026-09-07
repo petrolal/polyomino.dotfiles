@@ -20,6 +20,7 @@
       "battery",
       "custom/matriz",
       "tray",
+      "custom/notification",
       "custom/polyomino",
     ],
   },
@@ -29,7 +30,7 @@
   // opens on the monitor whose pill was clicked; this bare handler is the
   // fallback for any bar without an override (menu lands on the focused output).
   "custom/polyomino": {
-    "format": "POLYOMINO",
+    "format": "⊞ POLYOMINO",
     "tooltip": false,
     "on-click": "~/.local/bin/polyomino menu",
     "on-click-right": "kitty --class=polyomino-power-menu -o font_size=14 -e ~/.local/bin/polyomino power-menu",
@@ -76,7 +77,7 @@
     "tooltip": true,
     "tooltip-format-connected": "{controller_alias}\t{controller_address}\n\n{device_enumerate}",
     "tooltip-format-enumerate-connected": "{device_alias}\t{device_address}",
-    "on-click": "kitty -e bluetui",
+    "on-click": "kitty --class=bluetui -T bluetui -e bluetui",
   },
   // waybar-clock — center navigation capsule, dot matrix delimiter between time and date
   "clock": {
@@ -166,7 +167,7 @@
       "default": ["", "", ""],
     },
     "scroll-step": 5.0,
-    "on-click": "kitty -e ncpamixer",
+    "on-click": "kitty --class=ncpamixer -T ncpamixer -e ncpamixer",
     "on-click-right": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
     "smooth-scrolling-threshold": 1,
   },
@@ -218,5 +219,26 @@
   "tray": {
     "icon-size": 16,
     "spacing": 10,
+  },
+  // waybar-swaync notification control
+  "custom/notification": {
+    "tooltip": false,
+    "format": "{icon}",
+    "format-icons": {
+      "notification": "<span foreground='red'><sup></sup></span>",
+      "none": "",
+      "dnd-notification": "<span foreground='red'><sup></sup></span>",
+      "dnd-none": "",
+      "inhibited-notification": "<span foreground='red'><sup></sup></span>",
+      "inhibited-none": "",
+      "dnd-inhibited-notification": "<span foreground='red'><sup></sup></span>",
+      "dnd-inhibited-none": "",
+    },
+    "return-type": "json",
+    "exec-if": "which swaync-client",
+    "exec": "swaync-client -swb",
+    "on-click": "swaync-client -t -sw",
+    "on-click-right": "swaync-client -d -sw",
+    "escape": true,
   },
 }

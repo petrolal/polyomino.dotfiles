@@ -49,10 +49,15 @@ for_window [app_id="polyomino-calendar"] floating enable, resize set 680 440, mo
 # Floating lockscreen preview window
 for_window [app_id="polyomino-lock-preview"] floating enable, resize set 1024 720, move position center
 
-# Quick system-status TUI popups (bluetooth, audio mixer) — float centered on whatever
-# workspace they're invoked from instead of tiling into one, since they're glanced at and closed.
-for_window [app_id="kitty" title="bluetui"] floating enable, resize set 900 600, move position center
-for_window [app_id="kitty" title="ncpamixer"] floating enable, resize set 700 500, move position center
+# Quick system-status popups (bluetooth, audio mixer) — float centered with sharp 2px CAD borders
+for_window [app_id="kitty" title="bluetui"] floating enable, border pixel 2, resize set 900 600, move position center
+for_window [app_id="kitty" title="ncpamixer"] floating enable, border pixel 2, resize set 700 500, move position center
+for_window [app_id="kitty" title="(?i).*bluetui.*"] floating enable, border pixel 2, resize set 900 600, move position center
+for_window [app_id="kitty" title="(?i).*ncpamixer.*"] floating enable, border pixel 2, resize set 700 500, move position center
+for_window [app_id="bluetui"] floating enable, border pixel 2, resize set 900 600, move position center
+for_window [app_id="ncpamixer"] floating enable, border pixel 2, resize set 700 500, move position center
+for_window [app_id="pavucontrol"] floating enable, border pixel 2, resize set 750 500, move position center
+for_window [app_id="org.pulseaudio.pavucontrol"] floating enable, border pixel 2, resize set 750 500, move position center
 
 # Tetris-themed power / exit modal (polyomino power-menu). A borderless floating
 # window sized to the whole output — its own dark backdrop — rather than a real

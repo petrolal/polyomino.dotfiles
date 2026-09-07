@@ -120,7 +120,37 @@ object ThemeEngine:
          |background ${palette.base}
          |foreground ${palette.text}
          |selection_background ${palette.accent}
+         |selection_foreground ${palette.base}
          |cursor ${palette.accent}
+         |cursor_text_color ${palette.base}
+         |
+         |# Active / Inactive Tab Styling (CAD separator tabs)
+         |active_tab_foreground   ${palette.base}
+         |active_tab_background   ${palette.accent}
+         |inactive_tab_foreground #94A3B8
+         |inactive_tab_background ${palette.mantle}
+         |
+         |# Window borders
+         |active_border_color   ${palette.accent}
+         |inactive_border_color ${palette.mantle}
+         |
+         |# Standard 16 ANSI colors
+         |color0 ${palette.mantle}
+         |color8 #6c7086
+         |color1 ${palette.red}
+         |color9 ${palette.red}
+         |color2 ${palette.green}
+         |color10 ${palette.green}
+         |color3 ${palette.yellow}
+         |color11 ${palette.yellow}
+         |color4 ${palette.blue}
+         |color12 ${palette.blue}
+         |color5 ${palette.accent}
+         |color13 ${palette.accent}
+         |color6 #00D2D3
+         |color14 #55EFC4
+         |color7 ${palette.text}
+         |color15 #FFFFFF
          |""".stripMargin
     os.write.over(kittyThemeFile, kittyContent)
     os.write.over(kittyColorsFile, kittyContent)
@@ -163,7 +193,7 @@ object ThemeEngine:
         |    color: @text;
         |    border: none;
         |    border-radius: 0px;
-        |    margin: 6px 10px 0 10px;
+        |    margin: 8px 12px 0 12px;
         |}
         |
         |window#waybar.hidden {
@@ -410,10 +440,33 @@ object ThemeEngine:
          |#input {
          |    background-color: ${palette.base};
          |    color: ${palette.text};
-         |    border: 1px solid ${palette.accent};
+         |    border: 2px solid ${palette.accent};
          |    border-radius: 0px;
-         |    padding: 8px 12px;
+         |    padding: 8px 14px;
          |    margin: 10px;
+         |    outline: none;
+         |    box-shadow: none;
+         |    caret-color: ${palette.accent};
+         |    font-family: "JetBrainsMono Nerd Font", monospace;
+         |    font-size: 13px;
+         |}
+         |#input:focus {
+         |    background-color: ${palette.base};
+         |    color: ${palette.text};
+         |    border: 2px solid ${palette.accent};
+         |    outline: none;
+         |    box-shadow: none;
+         |}
+         |#input placeholder {
+         |    color: ${palette.accent};
+         |    font-family: "JetBrainsMono Nerd Font", monospace;
+         |    font-size: 13px;
+         |    opacity: 0.85;
+         |}
+         |#input image {
+         |    color: ${palette.accent};
+         |    border: none;
+         |    background: transparent;
          |}
          |#inner-box {
          |    background-color: transparent;

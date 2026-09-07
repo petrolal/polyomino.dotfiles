@@ -18,8 +18,19 @@ object WofiPickers:
       case _: Exception => ()
 
     println("\u001b[1;35m[polyomino theme-picker]\u001b[0m Launching Wofi GUI theme picker...")
+    val outputArgs: Seq[String] =
+      args.sliding(2).collectFirst {
+        case Seq("--output" | "-o", name) if name.nonEmpty => Seq("-o", name)
+      }.getOrElse(Seq.empty)
+
     val themes = polyomino.dotfiles.theme.Palette.listAll(ctx)
-    val inputList = themes.map(escapeMarkup).mkString("\n")
+    val activePalette = ThemeEngine.getActivePalette(ctx)
+    val themeItems = themes.map { name =>
+      val pal = polyomino.dotfiles.theme.Palette.find(name, ctx)
+      val mark = if pal.name.equalsIgnoreCase(activePalette.name) then "▶ " else "  "
+      s"$mark${pal.name.padTo(10, ' ')}  ·  ${pal.label}"
+    }
+    val inputList = themeItems.map(escapeMarkup).mkString("\n")
 
     val wofiConfigFile = ctx.configDir / "wofi" / "config"
     val wofiStyleFile = ctx.configDir / "wofi" / "style.css"
@@ -27,34 +38,37 @@ object WofiPickers:
     try
       // Step 1: Select Theme
       val themeArgs = Seq("wofi")
+        ++ outputArgs
         ++ (if os.exists(wofiConfigFile) then Seq("--conf", wofiConfigFile.toString) else Seq.empty)
         ++ Seq(
           "--show", "dmenu",
-          "--prompt", "Select Theme",
+          "--prompt", "[ ⊞ ] Theme",
           "--width", "560",
-          "--lines", "3",
-          "--columns", "2",
+          "--lines", "4",
+          "--columns", "1",
           "--insensitive",
           "--cache-file", "/dev/null"
         ) ++ (if os.exists(wofiStyleFile) then Seq("--style", wofiStyleFile.toString) else Seq.empty)
       val shellableThemeArgs: Seq[os.Shellable] = themeArgs.map(s => (s: os.Shellable))
       val resTheme = os.proc(shellableThemeArgs*).call(stdin = inputList, check = false)
 
-      val selectedTheme = resTheme.out.text().trim
-      if selectedTheme.isEmpty then return Right(())
+      val rawTheme = unescapeMarkup(resTheme.out.text().trim)
+      if rawTheme.isEmpty then return Right(())
+      val selectedTheme = rawTheme.replaceFirst("^[▶ ]+", "").split("\\s+·\\s+", 2)(0).trim.toLowerCase
 
       println(s"  \u001b[32m[OK]\u001b[0m Selected theme '$selectedTheme'")
 
       // Step 2: Select Wallpaper Mode
-      val modes = Seq("1. Static Wallpaper", "2. Rotate Wallpapers (30m)")
+      val modes = Seq("▶  Static Wallpaper", "↻  Rotate Wallpapers (30m)")
       val modeArgs = Seq("wofi")
+        ++ outputArgs
         ++ (if os.exists(wofiConfigFile) then Seq("--conf", wofiConfigFile.toString) else Seq.empty)
         ++ Seq(
           "--show", "dmenu",
-          "--prompt", s"Wallpaper mode for '$selectedTheme'",
+          "--prompt", s"[ ⊞ ] Mode · ${selectedTheme.capitalize}",
           "--width", "560",
           "--lines", "2",
-          "--columns", "2",
+          "--columns", "1",
           "--insensitive",
           "--cache-file", "/dev/null"
         ) ++ (if os.exists(wofiStyleFile) then Seq("--style", wofiStyleFile.toString) else Seq.empty)
@@ -78,13 +92,14 @@ object WofiPickers:
           val choices = polyomino.dotfiles.wallpaper.WallpaperEngine.wallpapersForFlavor(ctx, palName)
           if choices.size <= 1 then None
           else
-            val AutoLabel = "◆  Auto (first)"
+            val AutoLabel = "◆  Auto (Default)"
             val labels = AutoLabel +: choices.map(p => s"   ${p.last}")
             val wpArgs = Seq("wofi")
+              ++ outputArgs
               ++ (if os.exists(wofiConfigFile) then Seq("--conf", wofiConfigFile.toString) else Seq.empty)
               ++ Seq(
                 "--show", "dmenu",
-                "--prompt", s"Wallpaper for '$selectedTheme'",
+                "--prompt", s"[ ⊞ ] Wallpaper · ${selectedTheme.capitalize}",
                 "--width", "560",
                 "--lines", Math.min(labels.size, 8).toString,
                 "--columns", "1",
@@ -93,7 +108,7 @@ object WofiPickers:
               ) ++ (if os.exists(wofiStyleFile) then Seq("--style", wofiStyleFile.toString) else Seq.empty)
             val shellableWpArgs: Seq[os.Shellable] = wpArgs.map(s => (s: os.Shellable))
             val resWp = os.proc(shellableWpArgs*).call(stdin = labels.map(escapeMarkup).mkString("\n"), check = false)
-            val picked = resWp.out.text().trim
+            val picked = unescapeMarkup(resWp.out.text().trim)
             if picked.isEmpty || picked == AutoLabel then None
             else
               val name = picked.replaceFirst("^(◆  | +)", "").trim
@@ -122,11 +137,16 @@ object WofiPickers:
     if options.isEmpty then
       return Left(CommandError(s"No wallpapers for flavor '$flavor' in themes/wallpapers/"))
 
-    println(s"[1;35m[polyomino wallpaper-picker][0m Launching Wofi GUI wallpaper picker for '$flavor'...")
+    println(s"\u001b[1;35m[polyomino wallpaper-picker]\u001b[0m Launching Wofi GUI wallpaper picker for '$flavor'...")
+    val outputArgs: Seq[String] =
+      args.sliding(2).collectFirst {
+        case Seq("--output" | "-o", name) if name.nonEmpty => Seq("-o", name)
+      }.getOrElse(Seq.empty)
+
     val current = WallpaperEngine.currentWallpaper(ctx)
-    val RandomLabel = "🎲  Random"
+    val RandomLabel = "🎲  Random (Cycle)"
     val labels = RandomLabel +: options.map { p =>
-      val mark = if current.contains(p.toString) then "● " else "  "
+      val mark = if current.contains(p.toString) then "▶ " else "  "
       s"$mark${p.last}"
     }
     val inputList = labels.map(escapeMarkup).mkString("\n")
@@ -136,10 +156,11 @@ object WofiPickers:
 
     try
       val pickerArgs = Seq("wofi")
+        ++ outputArgs
         ++ (if os.exists(wofiConfigFile) then Seq("--conf", wofiConfigFile.toString) else Seq.empty)
         ++ Seq(
           "--show", "dmenu",
-          "--prompt", s"Wallpaper · $flavor",
+          "--prompt", s"[ ⊞ ] Wallpaper · ${flavor.capitalize}",
           "--width", "560",
           "--lines", Math.min(labels.size, 8).toString,
           "--columns", "1",
@@ -149,12 +170,12 @@ object WofiPickers:
       val shellablePicker: Seq[os.Shellable] = pickerArgs.map(s => (s: os.Shellable))
       val res = os.proc(shellablePicker*).call(stdin = inputList, check = false)
 
-      val selected = res.out.text().trim
+      val selected = unescapeMarkup(res.out.text().trim)
       if selected.isEmpty then return Right(())
-      if selected == RandomLabel then
+      if selected == RandomLabel || selected.contains("Random") then
         WallpaperEngine.run(ctx, List("random"))
       else
-        val name = selected.replaceFirst("^(● |  )", "").trim
+        val name = selected.replaceFirst("^(▶ |  |● )", "").trim
         WallpaperEngine.run(ctx, List(name))
     catch
       case e: Exception => Left(CommandError(s"Wofi wallpaper-picker failed: ${e.getMessage}"))
@@ -191,7 +212,7 @@ object WofiPickers:
       }.getOrElse(Seq.empty)
 
     val PowerMenu = "⏻   Power menu"
-    val ThemePick = "🎨  Theme & wallpaper"
+    val ThemePick = "🎨  Theme and wallpaper"
     val Wallpaper = "🖼   Wallpaper"
     val EditConf  = "⚙   Edit a config file…"
     val Health    = "🩺  Healthcheck"
@@ -214,7 +235,7 @@ object WofiPickers:
           "--cache-file", "/dev/null"
         ) ++ (if os.exists(wofiStyleFile) then Seq("--style", wofiStyleFile.toString) else Seq.empty)
       val shellable: Seq[os.Shellable] = a.map(s => (s: os.Shellable))
-      os.proc(shellable*).call(stdin = input.map(escapeMarkup).mkString("\n"), check = false).out.text().trim
+      unescapeMarkup(os.proc(shellable*).call(stdin = input.map(escapeMarkup).mkString("\n"), check = false).out.text().trim)
 
     // `polyomino menu` is a grandchild of waybar's `sh -c` on-click; when this
     // process exits right after spawning, that sh exits too and SIGHUPs its
@@ -229,36 +250,45 @@ object WofiPickers:
       os.proc(shellable*).spawn(stdout = os.Inherit, stderr = os.Inherit)
 
     try
-      wofiPick("polyomino", entries.size, entries) match
+      wofiPick("[ ⊞ ] polyomino", entries.size, entries) match
         case s if s.isEmpty => Right(())
-        case PowerMenu =>
+        case s if s.contains("Power") =>
           spawn(Seq(term, "--class=polyomino-power-menu", "-o", "font_size=14", "-e", polyomino, "power-menu"))
           Right(())
-        case ThemePick =>
-          spawn(Seq((binDir / "polyomino-theme-picker").toString))
+        case s if s.contains("Theme") =>
+          spawn(Seq((binDir / "polyomino-theme-picker").toString) ++ outputArgs)
           Right(())
-        case Wallpaper =>
-          spawn(Seq((binDir / "polyomino-wallpaper-picker").toString))
+        case s if s.contains("Wallpaper") =>
+          spawn(Seq((binDir / "polyomino-wallpaper-picker").toString) ++ outputArgs)
           Right(())
-        case Health =>
+        case s if s.contains("Health") =>
           spawn(Seq(term, "-e", "sh", "-c", s"'$polyomino' healthcheck; printf '\\n[enter to close] '; read _"))
           Right(())
-        case EditConf =>
+        case s if s.contains("Edit") || s.contains("config") =>
           val editor = sys.env.get("EDITOR").filter(_.nonEmpty)
             .orElse(Some("nvim").filter(e => os.proc("sh", "-c", s"command -v $e").call(check = false).exitCode == 0))
             .getOrElse("vi")
           val candidates = Seq(
-            "sway/config", "waybar/config.jsonc", "waybar/modules.jsonc",
-            "waybar/style.css.tmpl", "wofi/config", "wofi/style.css.tmpl",
-            "kitty/kitty.conf", "mako/config", "swaync/config.json"
-          ).map(rel => rel -> (ctx.configDir / os.RelPath(rel)))
-            ++ Seq("zsh/.zshrc" -> (ctx.dotfilesDir / "zsh" / ".zshrc"))
-          val existing = candidates.filter { case (_, p) => os.exists(p) }
+            ("sway/config", "sway/config", "Sway Window Manager"),
+            ("waybar/config.jsonc", "waybar/config.jsonc", "Waybar Bar Layout"),
+            ("waybar/modules.jsonc", "waybar/modules.jsonc", "Waybar Modules"),
+            ("waybar/style.css", "waybar/style.css", "Waybar Stylesheet"),
+            ("kitty/kitty.conf", "kitty/kitty.conf", "Kitty Terminal"),
+            ("wofi/config", "wofi/config", "Wofi Launcher Config"),
+            ("wofi/style.css", "wofi/style.css", "Wofi Launcher Style"),
+            ("swaync/config.json", "swaync/config.json", "SwayNC Notification Center"),
+            ("mako/config", "mako/config", "Mako Notifications"),
+            ("dunst/dunstrc", "dunst/dunstrc", "Dunst Notifications")
+          ).map { case (id, rel, desc) => (id, ctx.configDir / os.RelPath(rel), desc) }
+            ++ Seq(("zsh/.zshrc", ctx.dotfilesDir / "zsh" / ".zshrc", "Zsh Shell Config"))
+          val existing = candidates.filter { case (_, p, _) => os.exists(p) }
           if existing.isEmpty then Right(())
           else
-            val pick = wofiPick("edit", math.min(existing.size, 10), existing.map(_._1))
-            existing.find(_._1 == pick) match
-              case Some((_, path)) =>
+            val labels = existing.map { case (id, _, desc) => f"$id%-22s  ·  $desc" }
+            val pick = wofiPick("[ ⊞ ] edit config", math.min(existing.size, 10), labels)
+            val chosenId = pick.split("\\s+·\\s+", 2)(0).trim
+            existing.find(_._1 == chosenId) match
+              case Some((_, path, _)) =>
                 spawn(Seq(term, "-e", editor, path.toString))
                 Right(())
               case None => Right(())
@@ -278,6 +308,11 @@ object WofiPickers:
     catch
       case _: Exception => ()
 
+    val outputArgs: Seq[String] =
+      args.sliding(2).collectFirst {
+        case Seq("--output" | "-o", name) if name.nonEmpty => Seq("-o", name)
+      }.getOrElse(Seq.empty)
+
     println("\u001b[1;35m[polyomino whichkey]\u001b[0m Displaying Sway keybindings cheatsheet...")
     val keybindingsList = resolveSwayKeybindings(ctx)
     val entries = if keybindingsList.nonEmpty then keybindingsList else defaultKeybindings
@@ -287,6 +322,7 @@ object WofiPickers:
     val wofiStyleFile = ctx.configDir / "wofi" / "style.css"
 
     val whichkeyArgs = Seq("wofi")
+      ++ outputArgs
       ++ (if os.exists(wofiConfigFile) then Seq("--conf", wofiConfigFile.toString) else Seq.empty)
       ++ Seq(
         "--show", "dmenu",
@@ -310,6 +346,12 @@ object WofiPickers:
       .replace("&", "&amp;")
       .replace("<", "&lt;")
       .replace(">", "&gt;")
+
+  private def unescapeMarkup(str: String): String =
+    str
+      .replace("&amp;", "&")
+      .replace("&lt;", "<")
+      .replace("&gt;", ">")
 
   private def resolveSwayKeybindings(ctx: Context): Seq[String] =
     try
