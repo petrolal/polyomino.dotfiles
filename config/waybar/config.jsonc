@@ -3,10 +3,13 @@
 //
 // One bar object per physical output. Waybar runs all bars in a single
 // process (no per-output env var is available to on-click exec commands
-// for built-in modules), so the only reliable way for the calendar
-// popup's on-click to know which monitor's clock was clicked is to bake
-// the output name into that bar's own on-click command below. If you
-// change monitors/outputs, update the "output" fields (see `swaymsg -t
+// for built-in modules), so the only reliable way for an on-click to know
+// which monitor was clicked is to bake the output name into that bar's own
+// on-click command below — done here for both the calendar popup (clock)
+// and the polyomino launcher (custom/polyomino), which pass `--output
+// <name>` so the popup/menu lands on the monitor whose bar was clicked
+// instead of whichever output currently holds focus. If you change
+// monitors/outputs, update the "output" fields (see `swaymsg -t
 // get_outputs` for current names) and add/remove bar objects to match.
 //
 // The visible bar is split into three detached floating segments
@@ -14,62 +17,62 @@
 // window itself is transparent with `margin: 8px 12px 0 12px`; each
 // segment carries its own 12px-radius mantle background in style.css.
 [
-	{
-		"output": "HDMI-A-1",
-		"include": "~/.config/waybar/modules.jsonc",
-		"layer": "top",
-		"position": "top",
-		"height": 32,
-		"spacing": 6,
-		"margin-top": 8,
-		"margin-bottom": 0,
-		"margin-left": 12,
-		"margin-right": 12,
-		"modules-left": [
-			"group/left"
-		],
-		"modules-center": [
-			"group/center"
-		],
-		"modules-right": [
-			"group/right"
-		],
-		"clock": {
-			"interval": 1,
-			"align": 0,
-			"rotate": 0,
-			"tooltip": false,
-			"format": " {:%H:%M:%S   %a %d %b}",
-			"on-click": "~/.local/bin/polyomino calendar --output HDMI-A-1"
-		}
-	},
-	{
-		"output": "eDP-1",
-		"include": "~/.config/waybar/modules.jsonc",
-		"layer": "top",
-		"position": "top",
-		"height": 32,
-		"spacing": 6,
-		"margin-top": 8,
-		"margin-bottom": 0,
-		"margin-left": 12,
-		"margin-right": 12,
-		"modules-left": [
-			"group/left"
-		],
-		"modules-center": [
-			"group/center"
-		],
-		"modules-right": [
-			"group/right"
-		],
-		"clock": {
-			"interval": 1,
-			"align": 0,
-			"rotate": 0,
-			"tooltip": false,
-			"format": " {:%H:%M:%S   %a %d %b}",
-			"on-click": "~/.local/bin/polyomino calendar --output eDP-1"
-		}
-	}
+  {
+    "output": "HDMI-A-1",
+    "include": "~/.config/waybar/modules.jsonc",
+    "layer": "top",
+    "position": "top",
+    "height": 32,
+    "spacing": 6,
+    "margin-top": 8,
+    "margin-bottom": 0,
+    "margin-left": 12,
+    "margin-right": 12,
+    "modules-left": ["group/left"],
+    "modules-center": ["group/center"],
+    "modules-right": ["group/right"],
+    "clock": {
+      "interval": 1,
+      "align": 0,
+      "rotate": 0,
+      "tooltip": false,
+      "format": " {:%H:%M:%S   %a %d %b}",
+      "on-click": "~/.local/bin/polyomino calendar --output HDMI-A-1",
+    },
+    "custom/polyomino": {
+      "format": " POLYOMINO",
+      "tooltip": false,
+      "on-click": "~/.local/bin/polyomino menu --output HDMI-A-1",
+      "on-click-right": "kitty --class=polyomino-power-menu -o font_size=14 -e ~/.local/bin/polyomino power-menu",
+    },
+  },
+  {
+    "output": "eDP-1",
+    "include": "~/.config/waybar/modules.jsonc",
+    "layer": "top",
+    "position": "top",
+    "height": 32,
+    "spacing": 6,
+    "margin-top": 8,
+    "margin-bottom": 0,
+    "margin-left": 12,
+    "margin-right": 12,
+    "modules-left": ["group/left"],
+    "modules-center": ["group/center"],
+    "modules-right": ["group/right"],
+    "clock": {
+      "interval": 1,
+      "align": 0,
+      "rotate": 0,
+      "tooltip": false,
+      "format": " {:%H:%M:%S   %a %d %b}",
+      "on-click": "~/.local/bin/polyomino calendar --output eDP-1",
+    },
+    "custom/polyomino": {
+      "format": " POLYOMINO",
+      "tooltip": false,
+      "on-click": "~/.local/bin/polyomino menu --output eDP-1",
+      "on-click-right": "kitty --class=polyomino-power-menu -o font_size=14 -e ~/.local/bin/polyomino power-menu",
+    },
+  },
 ]

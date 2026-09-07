@@ -11,7 +11,7 @@ object Validator:
     "screenshot", "draw-window", "sway-draw-window", "autotiling", "healthcheck", "backup", "restore", "update",
     "sdd", "install", "deploy", "install-fonts", "install-apps", "install-browser",
     "install-devops", "install-zsh", "install-sdkman", "install-tools",
-    "theme-picker", "wallpaper", "wallpaper-picker", "whichkey", "wichkey", "rubik-lock", "preview-lock",
+    "theme-picker", "wallpaper", "wallpaper-picker", "whichkey", "wichkey", "menu", "rubik-lock", "preview-lock",
     "power-menu", "powermenu"
   )
 

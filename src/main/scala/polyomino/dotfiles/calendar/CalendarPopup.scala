@@ -235,7 +235,7 @@ object CalendarPopup:
       |            week_num = d_sel.isocalendar()[1]
       |            quarter = (d_sel.month - 1) // 3 + 1
       |            self.diff_title.set_markup(f"<span weight='bold'>{sel_fmt}</span> ({rel_str})")
-      |            self.diff_detail.set_markup(f"<span size='88%'><b>Day:</b> {day_of_year}/{total_days}  •  <b>Week:</b> {week_num}  •  <b>Quarter:</b> Q{quarter}</span>")
+      |            self.diff_detail.set_markup(f"<span size='100%'><b>Day:</b> {day_of_year}/{total_days}  •  <b>Week:</b> {week_num}  •  <b>Quarter:</b> Q{quarter}</span>")
       |            return
       |
       |        abs_days = abs(delta)
@@ -274,7 +274,7 @@ object CalendarPopup:
       |
       |        days_str = f"{abs_days}d"
       |        self.diff_title.set_markup(f"<span weight='bold'>{sel_fmt}</span> ({rel_str})")
-      |        self.diff_detail.set_markup(f"<span size='88%'><b>Days:</b> {days_str}  •  <b>Weeks:</b> {weeks_str}  •  <b>Months:</b> {months_str}</span>")
+      |        self.diff_detail.set_markup(f"<span size='100%'><b>Days:</b> {days_str}  •  <b>Weeks:</b> {weeks_str}  •  <b>Months:</b> {months_str}</span>")
       |
       |    def prev_month(self, btn):
       |        if self.view_month == 1:
@@ -375,11 +375,24 @@ object CalendarPopup:
       |        return f"rgba(255, 153, 0, {alpha})"
       |
       |    range_bg = hex_to_rgba(accent_color, 0.25)
+      |    # Muted hairline that matches the wofi menu's borders (a faint tint of the
+      |    # text colour over the opaque card) instead of a bright accent outline.
+      |    border_color = hex_to_rgba(text_color, 0.14)
       |
       |    win = Gtk.Window()
+      |    win.set_name("calendar-window")
       |    win.set_title("Polyomino Calendar")
       |    win.set_resizable(False)
       |    win.set_size_request(340, 430)
+      |    # Without an RGBA visual the GTK toplevel paints an opaque (theme-default,
+      |    # usually white) background, which shows through at the four corners left
+      |    # bare by the card's rounded border. Give the window a real alpha channel
+      |    # and let CSS paint it fully transparent so only the card is visible.
+      |    win.set_app_paintable(True)
+      |    _screen = win.get_screen()
+      |    _rgba_visual = _screen.get_rgba_visual() if _screen is not None else None
+      |    if _rgba_visual is not None:
+      |        win.set_visual(_rgba_visual)
       |
       |    GtkLayerShell.init_for_window(win)
       |    GtkLayerShell.set_layer(win, GtkLayerShell.Layer.TOP)
@@ -445,13 +458,18 @@ object CalendarPopup:
       |
       |    css_provider = Gtk.CssProvider()
       |    custom_css = f'''
-      |    window#calendar-window {{
+      |    window#calendar-window,
+      |    window#calendar-window.background,
+      |    window#calendar-window decoration {{
       |        background-color: transparent;
+      |        background-image: none;
+      |        box-shadow: none;
+      |        border: none;
       |    }}
       |    #calendar-card {{
-      |        background-color: {base_color};
-      |        border: 2px solid {accent_color};
-      |        border-radius: 8px;
+      |        background-color: {mantle_color};
+      |        border: 1px solid {border_color};
+      |        border-radius: 12px;
       |        padding: 12px 14px;
       |        min-width: 340px;
       |        min-height: 430px;
@@ -491,9 +509,9 @@ object CalendarPopup:
       |        color: {base_color};
       |    }}
       |    #cal-nav {{
-      |        background-color: {mantle_color};
-      |        border: 1px solid {accent_color};
-      |        border-radius: 6px;
+      |        background-color: {base_color};
+      |        border: 1px solid {border_color};
+      |        border-radius: 10px;
       |        padding: 4px 6px;
       |    }}
       |    #month-header-label {{
@@ -532,9 +550,9 @@ object CalendarPopup:
       |        color: {base_color};
       |    }}
       |    #cal-grid {{
-      |        background-color: {mantle_color};
-      |        border: 1px solid {accent_color};
-      |        border-radius: 6px;
+      |        background-color: {base_color};
+      |        border: 1px solid {border_color};
+      |        border-radius: 10px;
       |        padding: 8px;
       |    }}
       |    #weekday-header {{
@@ -553,7 +571,7 @@ object CalendarPopup:
       |    button#day-cube-range {{
       |        background-image: none;
       |        box-shadow: none;
-      |        border-radius: 6px;
+      |        border-radius: 8px;
       |        padding: 0;
       |        margin: 0;
       |        border: none;
@@ -576,7 +594,7 @@ object CalendarPopup:
       |        background: {range_bg};
       |        background-color: {range_bg};
       |        color: {accent_color};
-      |        border-radius: 6px;
+      |        border-radius: 8px;
       |    }}
       |    #day-cube-range label,
       |    button#day-cube-range label {{
@@ -620,20 +638,20 @@ object CalendarPopup:
       |        font-weight: bold;
       |    }}
       |    #cal-diff {{
-      |        background-color: {mantle_color};
-      |        border: 1px solid {accent_color};
-      |        border-radius: 6px;
+      |        background-color: {base_color};
+      |        border: 1px solid {border_color};
+      |        border-radius: 10px;
       |        padding: 6px 8px;
       |    }}
       |    #cal-diff-title {{
       |        color: {accent_color};
       |        font-family: "JetBrainsMono Nerd Font", monospace;
-      |        font-size: 11px;
+      |        font-size: 13px;
       |    }}
       |    #cal-diff-detail {{
       |        color: {text_color};
       |        font-family: "JetBrainsMono Nerd Font", monospace;
-      |        font-size: 11px;
+      |        font-size: 13px;
       |    }}
       |    '''
       |    css_provider.load_from_data(custom_css.encode("utf-8"))

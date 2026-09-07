@@ -28,10 +28,16 @@
 			"custom/polyomino"
 		]
 	},
-	// trailing brand pill
+	// trailing brand pill — click opens the polyomino launcher (power / theme / config),
+	// right-click jumps straight to the Tetris power menu. Each bar object in
+	// config.jsonc overrides on-click with `--output <name>` so the wofi menu
+	// opens on the monitor whose pill was clicked; this bare handler is the
+	// fallback for any bar without an override (menu lands on the focused output).
 	"custom/polyomino": {
 		"format": "POLYOMINO",
-		"tooltip": false
+		"tooltip": false,
+		"on-click": "~/.local/bin/polyomino menu",
+		"on-click-right": "kitty --class=polyomino-power-menu -o font_size=14 -e ~/.local/bin/polyomino power-menu"
 	},
 	// waybar-battery
 	"battery": {

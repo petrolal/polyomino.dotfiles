@@ -159,6 +159,105 @@ object WofiPickers:
     catch
       case e: Exception => Left(CommandError(s"Wofi wallpaper-picker failed: ${e.getMessage}"))
 
+  /** `polyomino menu` — the click target for the waybar POLYOMINO pill.
+    *
+    * A small wofi list that fans out to the desktop's own tools: the Tetris
+    * power menu, the theme/wallpaper pickers, an "edit a config file" sub-list,
+    * and the healthcheck. Everything it launches is an existing subcommand or
+    * `polyomino-*` alias — the menu is pure front-end. Re-invoking it while it
+    * is open closes it (matches the calendar / picker toggle behaviour). */
+  def runMenu(ctx: Context, args: List[String]): Either[PolyominoError, Unit] =
+    // Toggle: a second click closes the open menu.
+    try
+      val checkRes = os.proc("pgrep", "-f", "wofi.*--prompt.*polyomino").call(check = false)
+      if checkRes.exitCode == 0 then
+        val pids = checkRes.out.text().trim.split("\\s+").filter(_.nonEmpty)
+        for pid <- pids do
+          try os.proc("kill", pid).call(check = false) catch case _: Exception => ()
+        return Right(())
+    catch
+      case _: Exception => ()
+
+    val term = sys.env.get("TERMINAL").filter(_.nonEmpty).getOrElse("kitty")
+    val binDir = ctx.home / ".local" / "bin"
+    val polyomino = (binDir / "polyomino").toString
+
+    // Waybar runs one process for every bar, so an `on-click` can't tell which
+    // monitor's pill was clicked. The per-output bar objects in config.jsonc
+    // pass `--output <name>`; without it wofi falls back to the focused output.
+    val outputArgs: Seq[String] =
+      args.sliding(2).collectFirst {
+        case Seq("--output" | "-o", name) if name.nonEmpty => Seq("-o", name)
+      }.getOrElse(Seq.empty)
+
+    val PowerMenu = "⏻   Power menu"
+    val ThemePick = "🎨  Theme & wallpaper"
+    val Wallpaper = "🖼   Wallpaper"
+    val EditConf  = "⚙   Edit a config file…"
+    val Health    = "🩺  Healthcheck"
+    val entries = Seq(PowerMenu, ThemePick, Wallpaper, EditConf, Health)
+
+    val wofiConfigFile = ctx.configDir / "wofi" / "config"
+    val wofiStyleFile = ctx.configDir / "wofi" / "style.css"
+
+    def wofiPick(prompt: String, lines: Int, input: Seq[String]): String =
+      val a = Seq("wofi")
+        ++ outputArgs
+        ++ (if os.exists(wofiConfigFile) then Seq("--conf", wofiConfigFile.toString) else Seq.empty)
+        ++ Seq(
+          "--show", "dmenu",
+          "--prompt", prompt,
+          "--width", "420",
+          "--lines", lines.toString,
+          "--columns", "1",
+          "--insensitive",
+          "--cache-file", "/dev/null"
+        ) ++ (if os.exists(wofiStyleFile) then Seq("--style", wofiStyleFile.toString) else Seq.empty)
+      val shellable: Seq[os.Shellable] = a.map(s => (s: os.Shellable))
+      os.proc(shellable*).call(stdin = input.map(escapeMarkup).mkString("\n"), check = false).out.text().trim
+
+    def spawn(cmd: Seq[String]): Unit =
+      val shellable: Seq[os.Shellable] = cmd.map(s => (s: os.Shellable))
+      os.proc(shellable*).spawn(stdout = os.Inherit, stderr = os.Inherit)
+
+    try
+      wofiPick("polyomino", entries.size, entries) match
+        case s if s.isEmpty => Right(())
+        case PowerMenu =>
+          spawn(Seq(term, "--class=polyomino-power-menu", "-o", "font_size=14", "-e", polyomino, "power-menu"))
+          Right(())
+        case ThemePick =>
+          spawn(Seq((binDir / "polyomino-theme-picker").toString))
+          Right(())
+        case Wallpaper =>
+          spawn(Seq((binDir / "polyomino-wallpaper-picker").toString))
+          Right(())
+        case Health =>
+          spawn(Seq(term, "-e", "sh", "-c", s"'$polyomino' healthcheck; printf '\\n[enter to close] '; read _"))
+          Right(())
+        case EditConf =>
+          val editor = sys.env.get("EDITOR").filter(_.nonEmpty)
+            .orElse(Some("nvim").filter(e => os.proc("sh", "-c", s"command -v $e").call(check = false).exitCode == 0))
+            .getOrElse("vi")
+          val candidates = Seq(
+            "sway/config", "waybar/config.jsonc", "waybar/modules.jsonc",
+            "waybar/style.css.tmpl", "wofi/config", "wofi/style.css.tmpl",
+            "kitty/kitty.conf", "mako/config", "swaync/config.json"
+          ).map(rel => rel -> (ctx.configDir / os.RelPath(rel)))
+            ++ Seq("zsh/.zshrc" -> (ctx.dotfilesDir / "zsh" / ".zshrc"))
+          val existing = candidates.filter { case (_, p) => os.exists(p) }
+          if existing.isEmpty then Right(())
+          else
+            val pick = wofiPick("edit", math.min(existing.size, 10), existing.map(_._1))
+            existing.find(_._1 == pick) match
+              case Some((_, path)) =>
+                spawn(Seq(term, "-e", editor, path.toString))
+                Right(())
+              case None => Right(())
+        case _ => Right(())
+    catch
+      case e: Exception => Left(CommandError(s"Wofi menu failed: ${e.getMessage}"))
+
   def runWhichkey(ctx: Context, args: List[String]): Either[PolyominoError, Unit] =
     // Toggle behavior: check if whichkey wofi is already running
     try

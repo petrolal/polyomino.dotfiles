@@ -44,3 +44,8 @@ class ValidateSuite extends FunSuite:
     assert(Validator.Subcommands.contains("theme"))
     assert(Validator.Subcommands.contains("install"))
     assert(Validator.Subcommands.contains("autotiling"))
+
+  test("menu subcommand is wired into both symlink/audit lists and help"):
+    assert(Validator.Subcommands.contains("menu"))
+    assert(polyomino.dotfiles.install.DeployInstaller.Subcommands.contains("menu"))
+    assert(Main.UmbrellaHelp.contains("menu"))

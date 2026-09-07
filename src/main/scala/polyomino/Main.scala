@@ -65,6 +65,7 @@ object Main:
       case "theme-picker" => polyomino.dotfiles.pickers.WofiPickers.runThemePicker(ctx, args)
       case "wallpaper-picker" => polyomino.dotfiles.pickers.WofiPickers.runWallpaperPicker(ctx, args)
       case "whichkey" | "wichkey" => polyomino.dotfiles.pickers.WofiPickers.runWhichkey(ctx, args)
+      case "menu" => polyomino.dotfiles.pickers.WofiPickers.runMenu(ctx, args)
       case "backup" => polyomino.dotfiles.maintenance.Maintenance.runBackup(ctx, args)
       case "restore" => polyomino.dotfiles.maintenance.Maintenance.runRestore(ctx, args)
       case "update" => polyomino.dotfiles.maintenance.Maintenance.runUpdate(ctx, args)
@@ -115,6 +116,7 @@ object Main:
       |  theme-picker     wofi GUI front-end for the theme command
       |  wallpaper-picker wofi GUI to pick a wallpaper for the active flavor
       |  whichkey         wofi cheatsheet of the live sway keybindings
+      |  menu             wofi launcher for the waybar POLYOMINO pill (power / theme / config)
       |
       |Run `polyomino <command> --help` for command-specific usage.
       |""".stripMargin
