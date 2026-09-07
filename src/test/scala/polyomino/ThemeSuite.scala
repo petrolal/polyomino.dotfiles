@@ -72,10 +72,10 @@ class ThemeSuite extends FunSuite {
       val res = ThemeEngine.run(ctx, List(flavor, "--flat"))
       assert(res.isRight, s"$flavor theme apply failed: $res")
       val css = os.read(waybarStyle)
-      assert(css.contains("margin: 8px 12px 0 12px"), s"$flavor: missing floating-island bar margin")
+      assert(css.contains("window#waybar") && css.contains("margin: 8px 12px 0 12px;"), s"$flavor: missing floating CAD bar margin")
       assert(css.contains("border-radius: 0px") || css.contains("border-radius: 0;"), s"$flavor: missing CAD 0px border radius")
-      assert(css.contains("#left,") && css.contains("#center,") && css.contains("#right,"),
-        s"$flavor: missing the 3 detached segment selectors")
+      assert(css.contains("#left") && css.contains("#center") && css.contains("#right"),
+        s"$flavor: missing the 3 segment selectors")
   }
 
   test("static Sway/Waybar configs carry the CAD workstation layout invariants") {

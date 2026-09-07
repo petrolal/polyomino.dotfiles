@@ -198,6 +198,12 @@ object CalendarPopup:
       |                row_btns.append(btn)
       |            self.day_buttons.append(row_btns)
       |        
+      |        # Dot matrix divider
+      |        dot_divider = Gtk.Label()
+      |        dot_divider.set_markup("<span size='80%' alpha='35%'>·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·  ·</span>")
+      |        dot_divider.set_xalign(0.5)
+      |        self.pack_start(dot_divider, False, False, 0)
+      |
       |        # Diff / Info Box (fixed size)
       |        self.diff_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
       |        self.diff_box.set_name("cal-diff")
@@ -427,7 +433,7 @@ object CalendarPopup:
       |    header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
       |    
       |    header_label = Gtk.Label()
-      |    header_label.set_markup(f"<span size='105%' weight='bold'>[ ⊞  POLYOMINO CALENDAR ]  {now.strftime('%a %d %b %Y')}</span>")
+      |    header_label.set_markup(f"<span size='105%' weight='bold'>[ ⊞  POLYOMINO CALENDAR · · · ]  {now.strftime('%a %d %b %Y')}</span>")
       |    header_label.set_name("calendar-header")
       |    header_label.set_xalign(0.0)
       |    header_box.pack_start(header_label, True, True, 0)

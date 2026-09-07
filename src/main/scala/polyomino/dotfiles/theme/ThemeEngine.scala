@@ -157,10 +157,12 @@ object ThemeEngine:
         |    transition: none;
         |}
         |
-        |/* Enterprise CAD Waybar — 3 detached segments, sharp machined chassis */
+        |/* Enterprise CAD Floating Waybar — unified engineering HUD with screen margins */
         |window#waybar {
-        |    background-color: transparent;
+        |    background-color: @mantle;
         |    color: @text;
+        |    border: 1px solid #2A2E3D;
+        |    border-radius: 0px;
         |    margin: 8px 12px 0 12px;
         |}
         |
@@ -168,17 +170,32 @@ object ThemeEngine:
         |   opacity: 0.5;
         |}
         |
-        |/* The three detached floating segments */
+        |/* Module containers inside the bar */
         |#left,
         |#center,
         |#right,
         |.modules-left,
         |.modules-center,
         |.modules-right {
-        |    background-color: @mantle;
-        |    border: 1px solid #2A2E3D;
+        |    background: transparent;
+        |    border: none;
         |    border-radius: 0px;
-        |    padding: 2px 6px;
+        |    padding: 0 4px;
+        |}
+        |
+        |.modules-left {
+        |    padding-left: 6px;
+        |}
+        |
+        |.modules-right {
+        |    padding-right: 6px;
+        |}
+        |
+        |/* CAD Dot Matrix separators */
+        |#custom-matriz {
+        |    color: #4A5568;
+        |    font-size: 13px;
+        |    padding: 0 8px;
         |}
         |
         |tooltip {
@@ -201,16 +218,15 @@ object ThemeEngine:
         |    padding: 0;
         |}
         |
-        |/* Workspace indicators — CAD bracketed blocks */
+        |/* Clean workspace indicators — flat blocks without nested border outlines */
         |#workspaces button {
-        |    min-width: 22px;
+        |    min-width: 20px;
         |    padding: 2px 8px;
-        |    margin: 2px 2px;
+        |    margin: 3px 2px;
         |    background-color: transparent;
         |    color: @text;
-        |    border: 1px solid #2A2E3D;
+        |    border: none;
         |    border-radius: 0px;
-        |    font-weight: 500;
         |}
         |
         |#workspaces button label {
@@ -221,7 +237,7 @@ object ThemeEngine:
         |#workspaces button.active {
         |    background-color: @accent;
         |    color: @base;
-        |    border: 1px solid @accent;
+        |    border: none;
         |    border-radius: 0px;
         |    font-weight: bold;
         |}
@@ -229,14 +245,13 @@ object ThemeEngine:
         |#workspaces button:hover {
         |    background-color: @base;
         |    color: @accent;
-        |    border: 1px solid @accent;
+        |    border: none;
         |}
         |
         |#workspaces button.urgent {
         |    background-color: @red;
         |    color: @base;
-        |    border: 1px solid @red;
-        |    font-weight: bold;
+        |    border: none;
         |}
         |
         |/* Capsule contents inside the segments */
@@ -256,6 +271,7 @@ object ThemeEngine:
         |    background-color: transparent;
         |    padding: 0 8px;
         |    color: @text;
+        |    border: none;
         |    border-radius: 0px;
         |}
         |
@@ -273,13 +289,12 @@ object ThemeEngine:
         |    border: none;
         |}
         |
-        |/* Center navigation clock capsule with structural dividers */
+        |/* Center navigation clock capsule */
         |#clock {
         |    color: @text;
         |    font-weight: bold;
         |    padding: 0 10px;
-        |    border-left: 1px solid #2A2E3D;
-        |    border-right: 1px solid #2A2E3D;
+        |    border: none;
         |}
         |
         |/* Right-side hardware capsule accents — Audio green, Wi-Fi teal, Battery gold */
@@ -317,10 +332,10 @@ object ThemeEngine:
         |    background-color: @accent;
         |    color: @base;
         |    font-weight: bold;
-        |    padding: 0 10px;
-        |    margin: 2px 2px;
+        |    padding: 0 12px;
+        |    margin: 3px 2px;
         |    border-radius: 0px;
-        |    border: 1px solid @accent;
+        |    border: none;
         |}
         |
         |#clock:hover,

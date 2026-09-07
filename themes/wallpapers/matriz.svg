@@ -2,6 +2,14 @@
 	<!-- Monolith Dark Canvas -->
 	<rect width="3840" height="2160" fill="#0F1117" />
 
+	<!-- CAD Coordinate Dot Matrix Grid -->
+	<defs>
+		<pattern id="dot-matrix" x="0" y="0" width="60" height="60" patternUnits="userSpaceOnUse">
+			<circle cx="30" cy="30" r="2.2" fill="#1E2330" />
+		</pattern>
+	</defs>
+	<rect width="3840" height="2160" fill="url(#dot-matrix)" />
+
 	<!-- Geometric Grid & Wireframes -->
 	<g stroke="#1A1E27" stroke-width="3" fill="none">
 		<!-- Background Polyomino Shapes -->
