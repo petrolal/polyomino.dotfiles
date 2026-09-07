@@ -54,11 +54,13 @@ for_window [app_id="polyomino-lock-preview"] floating enable, resize set 1024 72
 for_window [app_id="kitty" title="bluetui"] floating enable, resize set 900 600, move position center
 for_window [app_id="kitty" title="ncpamixer"] floating enable, resize set 700 500, move position center
 
-# Tetris-themed power / exit modal (polyomino power-menu) — fullscreen translucent
-# pane so it is its own dark backdrop; the global blur frosts whatever is behind.
-# `focus` forces the keyboard grab (focus_follows_mouse is off and it may open on a
-# non-pointer output). The binary DPMS-off's every other output while it is up.
-for_window [app_id="polyomino-power-menu"] fullscreen enable, opacity 0.92, border none, focus
+# Tetris-themed power / exit modal (polyomino power-menu). A borderless floating
+# window sized to the whole output — its own dark backdrop — rather than a real
+# fullscreen toggle: the toggle + opacity change raced with kitty's keyboard-focus
+# setup at map time and left the modal unresponsive until clicked. The binary grabs
+# focus and sets opacity once the surface has settled. Only this output is covered;
+# other monitors are left as they are.
+for_window [app_id="polyomino-power-menu"] floating enable, border none, resize set width 100 ppt height 100 ppt, move position center
 
 # System tray helper for network/VPN status (OpenVPN3 is CLI-only; nm-applet shows NetworkManager
 # connection state including VPN tunnels started via `nmcli` or the openvpn3 CLI-managed profiles).
@@ -299,7 +301,6 @@ bindsym $mod+a focus parent
 # Draw interactive floating window with slurp
 bindsym $mod+Shift+w exec ~/.local/bin/sway-draw-window # Draw window geometry (resize current or spawn)
 bindsym $mod+Shift+Return exec ~/.local/bin/sway-draw-window --spawn # Draw and spawn new floating terminal
-bindsym $mod+Shift+g exec ~/.local/bin/sway-draw-window # Draw window geometry (alias)
 
 # Scratchpad
 bindsym $mod+Shift+minus move scratchpad, $send-notify 'Scratchpad'
@@ -309,10 +310,8 @@ bindsym $mod+minus scratchpad show
 bindsym $mod+r mode "resize"
 
 # which-key style cheatsheet — shows all bindings from this config in wofi
-bindsym $mod+question exec ~/.local/bin/polyomino-whichkey
 bindsym $mod+slash exec ~/.local/bin/polyomino-whichkey
-bindsym $mod+Shift+slash exec ~/.local/bin/polyomino-whichkey
-bindsym $mod+Shift+question exec ~/.local/bin/polyomino-whichkey
+bindsym $mod+question exec ~/.local/bin/polyomino-whichkey
 
 
 # Display configuration — wdisplays GUI for multi-monitor setup
@@ -322,10 +321,6 @@ bindsym $mod+Shift+d exec wdisplays
 # (flat color / wallpaper / rotate), front-end for polyomino-theme.
 bindsym $mod+Shift+t exec ~/.local/bin/polyomino-theme-picker
 bindsym $mod+F5 exec ~/.local/bin/polyomino-theme-cycle
-bindsym $mod+F1 exec polyomino-theme matriz
-bindsym $mod+F2 exec polyomino-theme encruza
-bindsym $mod+F3 exec polyomino-theme caravela
-bindsym $mod+F4 exec polyomino-theme aruanda
 
 # Wallpaper picker — swap the wallpaper *within* the active flavor without
 # re-theming. $mod+Shift+p opens a wofi list of that flavor's wallpapers;
@@ -334,13 +329,14 @@ bindsym $mod+F4 exec polyomino-theme aruanda
 bindsym $mod+Shift+p exec ~/.local/bin/polyomino-wallpaper
 bindsym $mod+F6 exec ~/.local/bin/polyomino wallpaper next
 
-# Lock screen, suspend, and shutdown
+# Lock screen. Suspend/reboot/shutdown live in the Tetris power menu below
+# ($mod+Ctrl+Escape); a bare $mod+Shift+Escape suspend was dropped as redundant
+# with the menu's lock+suspend lane. Automatic suspend is still handled by swayidle
+# and the lid switch.
 # Note: lock is bound to $mod+Escape (not $mod+Shift+l — that collides with $mod+Shift+$right
 # (vim-style "l" = right, see `set $right l` above), which silently wins
 # and made sway show a "there are errors in your config" banner).
 bindsym $mod+Escape exec ~/.local/bin/polyomino-rubik-lock
-bindsym $mod+Shift+x exec $term -e ~/.config/sway/scripts/matrix.sh # Terminal matrix screensaver
-bindsym $mod+Shift+Escape exec systemctl suspend # Suspend system
 
 # Tetris power menu: a tetromino falls for 30s over reboot / shutdown / lock+suspend
 # lanes. Left/Right or h/l switch lanes, Enter/Space/j hard-drop, Esc cancels.

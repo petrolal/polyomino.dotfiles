@@ -23,9 +23,11 @@ import scala.util.control.NonFatal
   * out to `stty` (via os-lib). No new dependencies, so it stays inside the
   * GraalVM `--no-fallback` / no-reflection constraints of the rest of the binary.
   *
-  * The Sway rule makes the window a fullscreen translucent pane, so it is its own
-  * dark backdrop on the output it opens on; while it is up the binary DPMS-off's
-  * every other active output and turns them back on when it exits.
+  * The Sway rule makes the window a borderless floating pane sized to the whole
+  * output — its own dark translucent backdrop on the screen it opens on. Other
+  * outputs are left alone. The binary re-grabs keyboard focus and sets opacity
+  * once the surface has settled (doing either at map time raced with kitty's
+  * focus setup and left the modal unresponsive until clicked).
   */
 object PowerMenu:
 
@@ -143,7 +145,6 @@ object PowerMenu:
 
   @volatile private var savedStty: Option[String] = None
   @volatile private var restored = true
-  @volatile private var dimmedOutputs: List[String] = Nil
 
   private def setupTerminal(): Unit =
     savedStty =
@@ -153,56 +154,31 @@ object PowerMenu:
     catch case NonFatal(_) => ()
     restored = false
     Runtime.getRuntime.addShutdownHook(new Thread(() => restoreTerminal()))
-    applyBackdrop()
     grabFocus()
     Console.out.print("[?1049h[?25l[2J")
     Console.out.flush()
 
-  /** Black out every screen except the one the modal opens on: the Sway rule
-    * makes this window a fullscreen translucent pane on its own output, so the
-    * other active outputs are DPMS-off'd for the duration and turned back on in
-    * [[clearBackdrop]] (and via the shutdown hook). No-op on plain X / if
-    * `swaymsg` is absent or there is only one active output. */
-  private def applyBackdrop(): Unit =
-    try
-      val json = os.proc("swaymsg", "-t", "get_outputs").call(check = false, stderr = os.Pipe).out.trim()
-      val others = ujson
-        .read(json)
-        .arr
-        .iterator
-        .map(_.obj)
-        .filter(o => o.get("active").exists(_.bool) && !o.get("focused").exists(_.bool))
-        .map(_("name").str)
-        .toList
-      for name <- others do
-        os.proc("swaymsg", "output", name, "dpms", "off").call(check = false, stderr = os.Pipe)
-      dimmedOutputs = others
-    catch case NonFatal(_) => ()
-
-  /** Pull the Sway keyboard focus onto this modal. The `for_window … focus` rule
-    * loses the race with the fullscreen toggle when the window opens on an output
-    * the pointer isn't over (`focus_follows_mouse no`), so ask again from inside —
-    * the window is mapped by the time this code runs — a few times as it settles. */
+  /** Pull the Sway keyboard focus onto this modal, then set its opacity.
+    *
+    * `focus_follows_mouse no` plus the pointer being on another output means the
+    * modal can map without keyboard focus; and doing the opacity change at map
+    * time (via `for_window`) churned kitty's surface enough that it dropped its
+    * initial `wl_keyboard.enter` and stayed dead until clicked. So both happen
+    * here instead, once the surface has settled — the window is already mapped by
+    * the time this runs. No-op if `swaymsg` is absent. */
   private def grabFocus(): Unit =
     var i = 0
-    while i < 3 do
+    while i < 4 do
       try os.proc("swaymsg", "[app_id=polyomino-power-menu]", "focus").call(check = false, stderr = os.Pipe)
       catch case NonFatal(_) => ()
       i += 1
-      if i < 3 then try Thread.sleep(60) catch case NonFatal(_) => ()
-
-  private def clearBackdrop(): Unit =
-    if dimmedOutputs.nonEmpty then
-      val names = dimmedOutputs
-      dimmedOutputs = Nil
-      for name <- names do
-        try os.proc("swaymsg", "output", name, "dpms", "on").call(check = false, stderr = os.Pipe)
-        catch case NonFatal(_) => ()
+      if i < 4 then try Thread.sleep(70) catch case NonFatal(_) => ()
+    try os.proc("swaymsg", "[app_id=polyomino-power-menu]", "opacity", "0.92").call(check = false, stderr = os.Pipe)
+    catch case NonFatal(_) => ()
 
   private def restoreTerminal(): Unit = synchronized {
     if !restored then
       restored = true
-      clearBackdrop()
       Console.out.print("[?25h[?1049l[0m")
       Console.out.flush()
       savedStty match
