@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 # Polyomino Terminal Matrix / Tetromino Screen Saver
 
-tetromino_rain="$(dirname "${BASH_SOURCE[0]}")/tetromino-rain.sh"
+dir="$(dirname "${BASH_SOURCE[0]}")"
+screensaver="$dir/screensaver.py"
+tetromino_rain="$dir/tetromino-rain.sh"
 
-if [[ -x "$tetromino_rain" ]]; then
+if [[ -x "$screensaver" ]] && command -v python3 >/dev/null 2>&1; then
+  exec "$screensaver"
+elif [[ -x "$tetromino_rain" ]]; then
   exec "$tetromino_rain"
 elif command -v cmatrix >/dev/null 2>&1; then
   exec cmatrix -s -C yellow

@@ -4,6 +4,11 @@
 # Tetris-style board; there is no player control, scoring, or line-clear
 # logic. Any keypress exits.
 
+screensaver="$(dirname "${BASH_SOURCE[0]}")/screensaver.py"
+if [[ -x "$screensaver" ]] && command -v python3 >/dev/null 2>&1; then
+  exec "$screensaver"
+fi
+
 cleanup() { tput cnorm; clear; }
 trap cleanup EXIT INT TERM
 
