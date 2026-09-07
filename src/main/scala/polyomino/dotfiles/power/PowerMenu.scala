@@ -15,7 +15,7 @@ import scala.util.control.NonFatal
   *   - right  : lock + suspend    (`swaylock -f` then `systemctl suspend`)
   *
   * Controls: Left/Right or `h`/`l` switch lanes; Enter / Space / `j` hard-drop
-  * (run the selected action immediately); `Esc` cancels and runs nothing. Down
+  * (run the selected action immediately); `Esc` or `q` cancels and runs nothing. Down
   * arrow is deliberately unbound so a stray mouse-wheel scroll can't fire it. If the
   * user never touches it, the piece lands in the centre lane and shutdown fires.
   *
@@ -332,6 +332,7 @@ object PowerMenu:
               case 'l' | 'L'         => out += Input.Right
               case 'j' | 'J'         => out += Input.Drop
               case '\r' | '\n' | ' ' => out += Input.Drop
+              case 'q' | 'Q'         => out += Input.Cancel
               case _                 => ()
             buf = buf.tail
             escSince = 0L
@@ -464,7 +465,7 @@ object PowerMenu:
       drawSprite(buf, st.sprite, math.round(st.pieceX).toInt - spriteW / 2,
                  math.round(st.pieceY).toInt, th.piece, '█')
 
-      val help = "←/→  move        ↵  drop        esc  cancel"
+      val help = "←/→  move        ↵  drop        esc/q  cancel"
       buf.put(math.max(0, midX - help.length / 2), g.rows - 1, help, th.help)
 
       buf.render(th.bg)
@@ -534,7 +535,7 @@ object PowerMenu:
       |
       |  left/right or h/l   switch lane
       |  enter / space / j   drop now (run the selected action immediately)
-      |  esc                 cancel, run nothing
+      |  esc / q             cancel, run nothing
       |
       |If left untouched the piece lands centre and shutdown runs.
       |

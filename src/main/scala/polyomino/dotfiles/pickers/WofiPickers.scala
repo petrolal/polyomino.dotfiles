@@ -216,8 +216,16 @@ object WofiPickers:
       val shellable: Seq[os.Shellable] = a.map(s => (s: os.Shellable))
       os.proc(shellable*).call(stdin = input.map(escapeMarkup).mkString("\n"), check = false).out.text().trim
 
+    // `polyomino menu` is a grandchild of waybar's `sh -c` on-click; when this
+    // process exits right after spawning, that sh exits too and SIGHUPs its
+    // process group. A bare child (e.g. `polyomino-theme-picker`, which then
+    // blocks on its own wofi) dies with it. `setsid` puts the child in a fresh
+    // session/process-group so it outlives us — the same detachment sway's
+    // `exec` gives the equivalent keybindings.
+    val hasSetsid = os.proc("sh", "-c", "command -v setsid").call(check = false).exitCode == 0
     def spawn(cmd: Seq[String]): Unit =
-      val shellable: Seq[os.Shellable] = cmd.map(s => (s: os.Shellable))
+      val full = if hasSetsid then "setsid" +: cmd else cmd
+      val shellable: Seq[os.Shellable] = full.map(s => (s: os.Shellable))
       os.proc(shellable*).spawn(stdout = os.Inherit, stderr = os.Inherit)
 
     try
