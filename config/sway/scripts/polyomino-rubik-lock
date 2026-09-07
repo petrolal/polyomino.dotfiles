@@ -38,6 +38,8 @@ except Exception:
 from gi.repository import Gtk, Gdk, GLib
 import cairo
 
+import socket
+
 # ---------------------------------------------------------------------------
 # Linux PAM Ctypes Binding
 # ---------------------------------------------------------------------------
@@ -306,12 +308,59 @@ LOCAL_FACES = [
     ((0, 4, 7, 3), (-1, 0, 0)),  # Left (-X)
 ]
 
+# Enterprise Monolith Precision Palette (Titanium, Graphite, Obsidian & Theme Accents)
+COLOR_MUTED = (110 / 255, 125 / 255, 145 / 255)   # #6E7D91 Enterprise Steel
+COLOR_SUBTLE = (65 / 255, 75 / 255, 92 / 255)      # #414B5C Structural Grid
+
+STICKER_COLORS = [
+    COLOR_RESTING_TEAL,                 # 0: Front (+Z) Cyan / Teal
+    (245 / 255, 158 / 255, 66 / 255),   # 1: Back (-Z) Orange
+    COLOR_ACTIVE_GOLD,                  # 2: Up (+Y) Axé Gold / Yellow
+    (39 / 255, 201 / 255, 108 / 255),   # 3: Down (-Y) Green
+    COLOR_REJECT_RED,                   # 4: Right (+X) Carmine Red
+    (59 / 255, 130 / 255, 246 / 255),   # 5: Left (-X) Sapphire Blue
+]
+
+def draw_rounded_poly(cr, pts, radius=3.5):
+    """Draw a polygon with rounded corners."""
+    n = len(pts)
+    if n < 3:
+        return
+    for i in range(n):
+        p0 = pts[(i - 1) % n]
+        p1 = pts[i]
+        p2 = pts[(i + 1) % n]
+
+        v1 = (p0[0] - p1[0], p0[1] - p1[1])
+        v2 = (p2[0] - p1[0], p2[1] - p1[1])
+        d1 = math.hypot(v1[0], v1[1])
+        d2 = math.hypot(v2[0], v2[1])
+
+        r = min(radius, d1 * 0.4, d2 * 0.4)
+        q1 = (p1[0] + v1[0] / d1 * r, p1[1] + v1[1] / d1 * r)
+        q2 = (p1[0] + v2[0] / d2 * r, p1[1] + v2[1] / d2 * r)
+
+        if i == 0:
+            cr.move_to(q1[0], q1[1])
+        else:
+            cr.line_to(q1[0], q1[1])
+        cr.curve_to(p1[0], p1[1], p1[0], p1[1], q2[0], q2[1])
+    cr.close_path()
+
 class Cubie:
     def __init__(self, cx, cy, cz):
         self.grid_pos = (cx, cy, cz)
         self.orig_pos = (cx * 1.05, cy * 1.05, cz * 1.05)
         self.pos = self.orig_pos
         self.rot = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+        # Assign stickers on exterior faces
+        self.stickers = {}
+        if cz == 1:  self.stickers[0] = 0 # Front Cyan
+        if cz == -1: self.stickers[1] = 1 # Back Orange
+        if cy == 1:  self.stickers[2] = 2 # Up Gold
+        if cy == -1: self.stickers[3] = 3 # Down Green
+        if cx == 1:  self.stickers[4] = 4 # Right Red
+        if cx == -1: self.stickers[5] = 5 # Left Blue
 
 class ActiveSliceTurn:
     def __init__(self, slice_name, clockwise, duration=0.10):
@@ -578,92 +627,56 @@ class RubikEngine:
                     self.active_turn = None
 
 # ---------------------------------------------------------------------------
-# Minimalist 3D Tron Holographic Renderer (Pure Geometry)
+# Solid Polyomino Polycube 3D Rubik Renderer
 # ---------------------------------------------------------------------------
 def render_rubik_lockscreen(cr, width, height, engine, preview_mode=False):
     # 1. Background Void: Deep Obsidian / Blackout (#0F1117)
     cr.set_source_rgb(*COLOR_BG)
     cr.paint()
 
+    # 2. Subtle Enterprise Backdrop Grid (Thin structural coordinates)
+    cr.save()
+    cr.set_line_width(0.75)
+    cr.set_source_rgba(COLOR_SUBTLE[0], COLOR_SUBTLE[1], COLOR_SUBTLE[2], 0.12)
+    step = 48
+    for x in range(0, int(width), step):
+        cr.move_to(x, 0)
+        cr.line_to(x, height)
+    for y in range(0, int(height), step):
+        cr.move_to(0, y)
+        cr.line_to(width, y)
+    cr.stroke()
+    cr.restore()
+
     # Apply subtle camera vibration (+-6px)
     cr.save()
     if engine.shake_offset != 0.0:
         cr.translate(engine.shake_offset, 0.0)
 
-    # 2. Dead-Center Positioning
+    # 3. Dead-Center Positioning
     cx = width / 2
-    cy = height / 2
+    cy = height / 2 - 20
 
-    # Subtle weightless bloom aura behind cube.
-    #
-    # Painting a cairo.RadialGradient directly across the full canvas measured
-    # ~18ms/frame at 1080p in isolation (cairo's software gradient sampler is
-    # per-pixel and this was over 70% of total frame time) — by far the
-    # single biggest cost in the renderer, dwarfing all the cube geometry.
-    # The gradient is smooth/blurry by design, so render it at a fraction of
-    # the resolution onto a small offscreen surface and scale it back up;
-    # this drops the aura's cost to ~3ms/frame with no visible difference.
-    aura_radius = min(width, height) * 0.45
-    aura_alpha = 0.09
-    if engine.is_checking:
-        pulse = 0.5 + 0.5 * math.sin(engine.checking_time * 10.0)
-        aura_radius *= (1.0 + pulse * 0.18)
-        aura_alpha = 0.08 + pulse * 0.09
-        ar = COLOR_RESTING_TEAL[0] * (1.0 - pulse) + COLOR_ACTIVE_GOLD[0] * pulse
-        ag = COLOR_RESTING_TEAL[1] * (1.0 - pulse) + COLOR_ACTIVE_GOLD[1] * pulse
-        ab = COLOR_RESTING_TEAL[2] * (1.0 - pulse) + COLOR_ACTIVE_GOLD[2] * pulse
-        stops = [(0.0, ar, ag, ab, aura_alpha), (0.45, ar, ag, ab, aura_alpha * 0.3)]
-    elif engine.flash_time > 0.0 and engine.flash_color == COLOR_CLEAR_CYAN:
-        # Outward expanding shockwave ring on password cleared
-        fac = min(1.0, engine.flash_time / 0.35)
-        aura_radius *= (1.0 + (1.0 - fac) * 0.45)
-        aura_alpha = 0.22 * fac
-        cc = COLOR_CLEAR_CYAN
-        stops = [(0.0, cc[0], cc[1], cc[2], aura_alpha), (0.5, cc[0], cc[1], cc[2], aura_alpha * 0.35)]
-    else:
-        tr, tg, tb = COLOR_RESTING_TEAL
-        stops = [(0.0, tr, tg, tb, 0.09), (0.45, tr, tg, tb, 0.02)]
-
-    AURA_DOWNSCALE = 6
-    sw = max(1, math.ceil(width / AURA_DOWNSCALE))
-    sh = max(1, math.ceil(height / AURA_DOWNSCALE))
-    small = cairo.ImageSurface(cairo.FORMAT_ARGB32, sw, sh)
-    scr = cairo.Context(small)
-    pat = cairo.RadialGradient(cx / AURA_DOWNSCALE, cy / AURA_DOWNSCALE, 30 / AURA_DOWNSCALE,
-                                cx / AURA_DOWNSCALE, cy / AURA_DOWNSCALE, aura_radius / AURA_DOWNSCALE)
-    for offset, r, g, b, a in stops:
-        pat.add_color_stop_rgba(offset, r, g, b, a)
-    pat.add_color_stop_rgba(1.0, COLOR_BG[0], COLOR_BG[1], COLOR_BG[2], 0.0)
-    scr.set_source(pat)
-    scr.paint()
-
-    cr.save()
-    cr.scale(AURA_DOWNSCALE, AURA_DOWNSCALE)
-    cr.set_source_surface(small, 0, 0)
-    cr.get_source().set_filter(cairo.FILTER_BILINEAR)
-    cr.get_source().set_extend(cairo.EXTEND_PAD)
-    cr.paint()
-    cr.restore()
-
-    # 3. Camera Transformation Setup
+    # 4. Camera Transformation Setup
     Ry = [[math.cos(engine.yaw), 0, math.sin(engine.yaw)], [0, 1, 0], [-math.sin(engine.yaw), 0, math.cos(engine.yaw)]]
     Rx = [[1, 0, 0], [0, math.cos(engine.pitch), -math.sin(engine.pitch)], [0, math.sin(engine.pitch), math.cos(engine.pitch)]]
     R_view = mat_mul_mat(Rx, Ry)
 
     fov = 7.5
-    scale = min(width, height) * 0.46
+    scale = min(width, height) * 0.43
 
-    lx, ly, lz = 0.35, 0.75, -0.6
-    ll = math.sqrt(lx*lx + ly*ly + lz*lz)
-    L_dir = (lx/ll, ly/ll, lz/ll)
+    # Directional Key Light (industrial studio top-left)
+    lx, ly, lz = 0.35, 0.80, 0.50
+    ll = math.hypot(lx, ly, lz)
+    L_dir = (lx / ll, ly / ll, lz / ll)
 
     turn_R = None
     if engine.active_turn:
         turn_R = rot_matrix(engine.active_turn.axis, engine.active_turn.current_angle)
 
-    render_items = []
+    faces_to_render = []
 
-    # Gather 3D transparent elements
+    # Gather 3D solid cubie faces
     for cubie in engine.cubies:
         c_pos = cubie.pos
         c_rot = cubie.rot
@@ -680,255 +693,177 @@ def render_rubik_lockscreen(cr, width, height, engine, preview_mode=False):
 
         # Project 8 cubie vertices
         proj_verts = []
-        view_z_verts = []
+        view_verts = []
         for lv in LOCAL_VERTS:
             wv = mat_mul_vec(c_rot, lv)
-            p_world = (c_pos[0] + wv[0], c_pos[1] + wv[1], c_pos[2] + wv[2])
-            p_view = mat_mul_vec(R_view, p_world)
-            z_cam = p_view[2] + fov
-            factor = scale / z_cam
-            sx = cx + p_view[0] * factor
-            sy = cy - p_view[1] * factor
+            pw = (c_pos[0] + wv[0], c_pos[1] + wv[1], c_pos[2] + wv[2])
+            pv = mat_mul_vec(R_view, pw)
+            view_verts.append(pv)
+            zc = pv[2] + fov
+            factor = scale / zc
+            sx = cx + pv[0] * factor
+            sy = cy - pv[1] * factor
             proj_verts.append((sx, sy))
-            view_z_verts.append(z_cam)
 
-        # Faces: Nearly Invisible Obsidian Glass (#191C24 at 10% opacity, transmission: 0.95, roughness: 0.05)
-        for v_indices, n_local in LOCAL_FACES:
+        # Check each face of the cubie
+        for face_idx, (v_indices, n_local) in enumerate(LOCAL_FACES):
             n_world = mat_mul_vec(c_rot, n_local)
             n_view = mat_mul_vec(R_view, n_world)
-            avg_z = sum(view_z_verts[i] for i in v_indices) / 4.0
+
+            # Backface culling: only render faces pointing towards viewer
+            if n_view[2] <= 0.02:
+                continue
+
+            avg_z = sum(view_verts[i][2] for i in v_indices) / 4.0
             pts = [proj_verts[i] for i in v_indices]
 
-            dot = max(0.0, n_view[0]*L_dir[0] + n_view[1]*L_dir[1] + n_view[2]*L_dir[2])
-            spec = min(0.18, (dot ** 8) * 0.30)
+            # Diffuse lighting calculation (ambient + directional)
+            dot = max(0.0, n_world[0]*L_dir[0] + n_world[1]*L_dir[1] + n_world[2]*L_dir[2])
+            light = 0.84 + 0.22 * dot
 
-            r = min(1.0, COLOR_GLASS[0] + spec)
-            g = min(1.0, COLOR_GLASS[1] + spec)
-            b = min(1.0, COLOR_GLASS[2] + spec)
-            alpha = 0.10 + spec * 0.25
+            sticker_idx = cubie.stickers.get(face_idx)
+            faces_to_render.append((avg_z, pts, light, sticker_idx, is_turning, n_world))
+
+    # 4. Painter's Algorithm: back to front (smallest view Z to largest view Z)
+    faces_to_render.sort(key=lambda item: item[0], reverse=False)
+
+    # 5. Render Solid Cubie Bodies & Inset Tactile Stickers
+    for avg_z, pts, light, sticker_idx, is_turning, nw in faces_to_render:
+        # 5a. Base Cubie Body (Solid dark slate mantle #191C24)
+        body_r = COLOR_GLASS[0] * light
+        body_g = COLOR_GLASS[1] * light
+        body_b = COLOR_GLASS[2] * light
+
+        # Flash tint if error or backspace/clear shockwave
+        if engine.flash_time > 0.0:
+            fac = min(1.0, engine.flash_time / 0.4)
+            body_r = body_r * (1.0 - fac) + engine.flash_color[0] * fac * 0.4
+            body_g = body_g * (1.0 - fac) + engine.flash_color[1] * fac * 0.4
+            body_b = body_b * (1.0 - fac) + engine.flash_color[2] * fac * 0.4
+
+        cr.move_to(pts[0][0], pts[0][1])
+        for p in pts[1:]:
+            cr.line_to(p[0], p[1])
+        cr.close_path()
+        cr.set_source_rgb(body_r, body_g, body_b)
+        cr.fill_preserve()
+
+        # Dark groove separator line between cubies (#0F1117)
+        cr.set_source_rgb(*COLOR_BG)
+        cr.set_line_width(2.0)
+        cr.stroke()
+
+        # 5b. Inset Tactile Color Sticker (exterior faces only)
+        if sticker_idx is not None:
+            base_col = STICKER_COLORS[sticker_idx]
+            fc_x = sum(p[0] for p in pts) / 4.0
+            fc_y = sum(p[1] for p in pts) / 4.0
+
+            inset_ratio = 0.87
+            inset_pts = [
+                (fc_x + (p[0] - fc_x) * inset_ratio, fc_y + (p[1] - fc_y) * inset_ratio)
+                for p in pts
+            ]
+
+            sr = min(1.0, base_col[0] * light)
+            sg = min(1.0, base_col[1] * light)
+            sb = min(1.0, base_col[2] * light)
 
             if engine.flash_time > 0.0:
                 fac = min(1.0, engine.flash_time / 0.4)
-                r = r * (1.0 - fac) + engine.flash_color[0] * fac * 0.25
-                g = g * (1.0 - fac) + engine.flash_color[1] * fac * 0.25
-                b = b * (1.0 - fac) + engine.flash_color[2] * fac * 0.25
-                alpha = min(0.40, alpha + fac * 0.15)
+                sr = sr * (1.0 - fac) + engine.flash_color[0] * fac
+                sg = sg * (1.0 - fac) + engine.flash_color[1] * fac
+                sb = sb * (1.0 - fac) + engine.flash_color[2] * fac
             elif engine.is_checking:
-                wave = 0.5 + 0.5 * math.sin(engine.checking_time * 10.0 + avg_z * 0.5)
-                r = r * (1.0 - wave * 0.25) + COLOR_ACTIVE_GOLD[0] * wave * 0.15
-                g = g * (1.0 - wave * 0.25) + COLOR_ACTIVE_GOLD[1] * wave * 0.15
-                b = b * (1.0 - wave * 0.25) + COLOR_ACTIVE_GOLD[2] * wave * 0.15
-                alpha = min(0.25, alpha + wave * 0.08)
+                pulse = 0.5 + 0.5 * math.sin(engine.checking_time * 10.0)
+                sr = sr * (1.0 - pulse * 0.2) + COLOR_ACTIVE_GOLD[0] * pulse * 0.2
+                sg = sg * (1.0 - pulse * 0.2) + COLOR_ACTIVE_GOLD[1] * pulse * 0.2
+                sb = sb * (1.0 - pulse * 0.2) + COLOR_ACTIVE_GOLD[2] * pulse * 0.2
 
-            render_items.append(("FACE", avg_z, pts, (r, g, b, alpha)))
+            draw_rounded_poly(cr, inset_pts, radius=3.0)
+            cr.set_source_rgb(sr, sg, sb)
+            cr.fill_preserve()
 
-        # Edges: Razor-Thin Holographic Wireframe (Teal Resting #00D2D3 / Axé Gold Turning #EBB434)
-        for i, j in LOCAL_EDGES:
-            avg_z = (view_z_verts[i] + view_z_verts[j]) / 2.0
-            pt1 = proj_verts[i]
-            pt2 = proj_verts[j]
+            # Precision beveled edge
+            cr.set_source_rgb(sr * 0.75, sg * 0.75, sb * 0.75)
+            cr.set_line_width(1.0)
+            cr.stroke()
 
-            if engine.flash_time > 0.0:
-                fac = min(1.0, engine.flash_time / 0.4)
-                base = engine.flash_color
-                intensity = 2.4 * fac + 1.0 * (1.0 - fac)
-                col = base
-            elif engine.is_checking:
-                # Calculating harmonic electric wave sweep across cube vectors
-                wave = 0.5 + 0.5 * math.sin(engine.checking_time * 12.0 + (pt1[0] + pt2[1]) * 0.015)
-                col = (
-                    COLOR_RESTING_TEAL[0] * (1.0 - wave) + COLOR_ACTIVE_GOLD[0] * wave,
-                    COLOR_RESTING_TEAL[1] * (1.0 - wave) + COLOR_ACTIVE_GOLD[1] * wave,
-                    COLOR_RESTING_TEAL[2] * (1.0 - wave) + COLOR_ACTIVE_GOLD[2] * wave,
-                )
-                intensity = 1.4 + wave * 1.0
-            elif is_turning:
-                col = COLOR_ACTIVE_GOLD
-                intensity = 2.0
-            else:
-                col = COLOR_RESTING_TEAL
-                intensity = 1.0
-
-            render_items.append(("EDGE", avg_z, (pt1, pt2), col, intensity, is_turning))
-
-    # 4. Depth Sorting (Back-to-Front Painter's Ordering)
-    render_items.sort(key=lambda item: item[1], reverse=True)
-
-    # 5. Render Glass Bodies & Emissive Vector Outlines
-    for item in render_items:
-        itype = item[0]
-        if itype == "FACE":
-            _, _, pts, col = item
+        # 5c. Turning Slice Accent Highlights
+        if is_turning:
             cr.move_to(pts[0][0], pts[0][1])
             for p in pts[1:]:
                 cr.line_to(p[0], p[1])
             cr.close_path()
-            cr.set_source_rgba(*col)
-            cr.fill()
-        elif itype == "EDGE":
-            _, _, (p1, p2), (r, g, b), intensity, is_turning = item
-
-            # Holographic Neon Vector Shader (Clean Selective Bloom)
-            # Glow (halo + diffuse merged into a single wide soft stroke —
-            # visually equivalent to the old two-pass version but half the
-            # cairo stroke() calls, which is where the per-frame cost was)
-            cr.move_to(p1[0], p1[1]); cr.line_to(p2[0], p2[1])
-            cr.set_source_rgba(r, g, b, 0.15 * intensity)
-            cr.set_line_width(5.0 if is_turning else 3.5)
+            cr.set_source_rgba(COLOR_ACTIVE_GOLD[0], COLOR_ACTIVE_GOLD[1], COLOR_ACTIVE_GOLD[2], 0.30)
+            cr.set_line_width(1.5)
             cr.stroke()
 
-            # Razor-thin 1px Emissive Vector Core
-            cr.move_to(p1[0], p1[1]); cr.line_to(p2[0], p2[1])
-            core_r = min(1.0, r * 0.35 + 0.65)
-            core_g = min(1.0, g * 0.35 + 0.65)
-            core_b = min(1.0, b * 0.35 + 0.65)
-            cr.set_source_rgba(core_r, core_g, core_b, 0.98 * min(1.0, intensity))
-            cr.set_line_width(1.0)
-            cr.stroke()
+    # ─────────────────────────────────────────────────────────────
+    # 6. HUD: Enterprise Security Badging & Status Indicators
+    # ─────────────────────────────────────────────────────────────
+    hud_y = cy + scale * 0.86
+    cr.select_font_face("JetBrainsMono Nerd Font", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
 
-    # 6. Minimalist Error Count Indicator (Security Readout)
-    if engine.failed_attempts > 0:
-        indicator_y = cy + min(width, height) * 0.28
-        failed_count = engine.failed_attempts
-        pulse_fac = min(1.0, engine.error_pulse_time / 0.60) if engine.error_pulse_time > 0.0 else 0.0
+    # 6a. Enterprise Security Header & Session Info
+    try:
+        username = getpass.getuser()
+        hostname = socket.gethostname().split('.')[0]
+    except Exception:
+        username, hostname = "user", "workstation"
 
-        if failed_count <= 5:
-            pip_count = failed_count
-            pip_spacing = 20.0
-            total_w = (pip_count - 1) * pip_spacing
-            start_x = cx - total_w / 2.0
+    cr.set_font_size(11.5)
+    title = "[ ⊞  POLYOMINO DEV WORKSTATION • PREVIEW MODE ]" if preview_mode else "[ ⊞  POLYOMINO DEV WORKSTATION ]"
+    ext_title = cr.text_extents(title)
+    cr.move_to(cx - ext_title.width / 2.0, cy - scale * 0.88)
+    cr.set_source_rgb(*COLOR_MUTED)
+    cr.show_text(title)
 
-            for k in range(pip_count):
-                px = start_x + k * pip_spacing
-                py = indicator_y
-                r = 4.5
-                cr.move_to(px, py - r)
-                cr.line_to(px + r, py)
-                cr.line_to(px, py + r)
-                cr.line_to(px - r, py)
-                cr.close_path()
+    cr.set_font_size(10.0)
+    user_info = (
+        f"SESSION PREVIEW  •  {username}@{hostname}  •  TEST MODE"
+        if preview_mode
+        else f"SESSION LOCKED  •  {username}@{hostname}  •  PAM/FIDO2"
+    )
+    ext_u = cr.text_extents(user_info)
+    cr.move_to(cx - ext_u.width / 2.0, cy - scale * 0.88 + 18)
+    cr.set_source_rgb(*COLOR_SUBTLE)
+    cr.show_text(user_info)
 
-                # Neon bloom halo
-                cr.set_source_rgba(COLOR_REJECT_RED[0], COLOR_REJECT_RED[1], COLOR_REJECT_RED[2], 0.25 * (1.0 + pulse_fac * 0.8))
-                cr.set_line_width(4.0)
-                cr.stroke_preserve()
+    # 6b. Checking status or Error / Failed Attempts Readout
+    if engine.is_checking:
+        cr.set_font_size(11.0)
+        msg = "[ VERIFYING CREDENTIALS... ]"
+        ext_m = cr.text_extents(msg)
+        cr.move_to(cx - ext_m.width / 2.0, hud_y)
+        cr.set_source_rgb(*COLOR_ACTIVE_GOLD)
+        cr.show_text(msg)
+    elif engine.failed_attempts > 0:
+        cr.set_font_size(11.0)
+        s = "S" if engine.failed_attempts > 1 else ""
+        err_text = f"[ ⚠  {engine.failed_attempts} FAILED ATTEMPT{s} ]"
+        ext_err = cr.text_extents(err_text)
+        cr.move_to(cx - ext_err.width / 2.0, hud_y)
+        cr.set_source_rgb(*COLOR_REJECT_RED)
+        cr.show_text(err_text)
 
-                # Diamond fill
-                cr.set_source_rgba(COLOR_REJECT_RED[0], COLOR_REJECT_RED[1], COLOR_REJECT_RED[2], 0.60)
-                cr.fill_preserve()
-
-                # Core vector outline
-                cr.set_source_rgba(*COLOR_REJECT_RED_CORE, 0.95)
-                cr.set_line_width(1.0)
-                cr.stroke()
-        else:
-            # Multiplier format for > 5 attempts
-            r = 4.5
-            cr.move_to(cx - 16, indicator_y - r)
-            cr.line_to(cx - 16 + r, indicator_y)
-            cr.line_to(cx - 16, indicator_y + r)
-            cr.line_to(cx - 16 - r, indicator_y)
-            cr.close_path()
-            cr.set_source_rgba(COLOR_REJECT_RED[0], COLOR_REJECT_RED[1], COLOR_REJECT_RED[2], 0.30)
-            cr.set_line_width(4.0)
-            cr.stroke_preserve()
-            cr.set_source_rgba(COLOR_REJECT_RED[0], COLOR_REJECT_RED[1], COLOR_REJECT_RED[2], 0.65)
-            cr.fill_preserve()
-            cr.set_source_rgba(*COLOR_REJECT_RED_CORE, 0.95)
-            cr.set_line_width(1.0)
-            cr.stroke()
-
-            cr.select_font_face("monospace", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
-            cr.set_font_size(11.0)
-            mult_text = f"× {failed_count}"
-            cr.move_to(cx - 5, indicator_y + 4.0)
-            cr.set_source_rgba(*COLOR_REJECT_RED_CORE, 0.95)
-            cr.show_text(mult_text)
-
-        # Monospace Text Readout
-        if failed_count >= 3:
-            label = f"{failed_count} FAILED ATTEMPTS [LOCKOUT ALERT]"
-        elif failed_count > 1:
-            label = f"{failed_count} FAILED ATTEMPTS"
-        else:
-            label = "1 FAILED ATTEMPT"
-        cr.select_font_face("monospace", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
-        cr.set_font_size(10.5)
-        ext = cr.text_extents(label)
-        tx = cx - ext.width / 2.0
-        ty = indicator_y + 19.0
-
-        # Flanking geometric lines
-        cr.set_line_width(1.0)
-        cr.set_source_rgba(COLOR_REJECT_RED[0], COLOR_REJECT_RED[1], COLOR_REJECT_RED[2], 0.40)
-        cr.move_to(tx - 32, ty - 3.5)
-        cr.line_to(tx - 8, ty - 3.5)
-        cr.move_to(tx + ext.width + 8, ty - 3.5)
-        cr.line_to(tx + ext.width + 32, ty - 3.5)
-        cr.stroke()
-
-        # Text diffuse bloom
-        cr.move_to(tx, ty)
-        cr.set_source_rgba(COLOR_REJECT_RED[0], COLOR_REJECT_RED[1], COLOR_REJECT_RED[2], 0.35 * (1.0 + pulse_fac * 0.8))
-        cr.show_text(label)
-
-        # Text sharp vector core
-        cr.move_to(tx, ty)
-        cr.set_source_rgba(*COLOR_REJECT_RED_CORE, 0.90)
-        cr.show_text(label)
-
-    # 7. CapsLock Warning Indicator (Axé Gold Emissive Vector Badge)
+    # 6d. CapsLock Indicator
     if getattr(engine, 'caps_lock', False):
-        caps_y = cy - min(width, height) * 0.28
-        label = "CAPS LOCK ON"
-        cr.select_font_face("monospace", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
-        cr.set_font_size(10.5)
-        ext = cr.text_extents(label)
-        total_w = ext.width + 16
-        tx = cx - total_w / 2.0 + 16
-        ty = caps_y
+        cr.set_font_size(11.0)
+        caps_text = "[ ⇪  CAPS LOCK ON ]"
+        ext_caps = cr.text_extents(caps_text)
+        caps_y = cy - scale * 0.74
+        cr.move_to(cx - ext_caps.width / 2.0, caps_y)
+        cr.set_source_rgb(*COLOR_ACTIVE_GOLD)
+        cr.show_text(caps_text)
 
-        ax = tx - 12
-        ay = ty - 3.5
-
-        # Vector Upward Arrow Path
-        cr.move_to(ax, ay - 4.5)
-        cr.line_to(ax + 4.0, ay)
-        cr.line_to(ax + 1.8, ay)
-        cr.line_to(ax + 1.8, ay + 4.5)
-        cr.line_to(ax - 1.8, ay + 4.5)
-        cr.line_to(ax - 1.8, ay)
-        cr.line_to(ax - 4.0, ay)
-        cr.close_path()
-
-        # Arrow bloom & core
-        cr.set_source_rgba(COLOR_ACTIVE_GOLD[0], COLOR_ACTIVE_GOLD[1], COLOR_ACTIVE_GOLD[2], 0.35)
-        cr.set_line_width(3.0)
-        cr.stroke_preserve()
-        cr.set_source_rgba(COLOR_ACTIVE_GOLD[0], COLOR_ACTIVE_GOLD[1], COLOR_ACTIVE_GOLD[2], 0.75)
-        cr.fill_preserve()
-        cr.set_source_rgba(*COLOR_ACTIVE_GOLD_CORE, 0.98)
-        cr.set_line_width(1.0)
-        cr.stroke()
-
-        # Flanking accent lines
-        cr.set_line_width(1.0)
-        cr.set_source_rgba(COLOR_ACTIVE_GOLD[0], COLOR_ACTIVE_GOLD[1], COLOR_ACTIVE_GOLD[2], 0.40)
-        cr.move_to(tx - 36, ty - 3.5)
-        cr.line_to(tx - 20, ty - 3.5)
-        cr.move_to(tx + ext.width + 8, ty - 3.5)
-        cr.line_to(tx + ext.width + 28, ty - 3.5)
-        cr.stroke()
-
-        # Text diffuse bloom
-        cr.move_to(tx, ty)
-        cr.set_source_rgba(COLOR_ACTIVE_GOLD[0], COLOR_ACTIVE_GOLD[1], COLOR_ACTIVE_GOLD[2], 0.35)
-        cr.show_text(label)
-
-        # Text sharp core
-        cr.move_to(tx, ty)
-        cr.set_source_rgba(*COLOR_ACTIVE_GOLD_CORE, 0.95)
-        cr.show_text(label)
+    # 6e. Bottom instructions line
+    cr.set_font_size(10.5)
+    hint = "Type keys to test 3D slice shuffle  •  Esc to exit preview" if preview_mode else "Enter password to unlock session  •  Esc to clear"
+    ext_hint = cr.text_extents(hint)
+    cr.move_to(cx - ext_hint.width / 2.0, height - 44)
+    cr.set_source_rgb(*COLOR_SUBTLE)
+    cr.show_text(hint)
 
     cr.restore()
 

@@ -6,40 +6,23 @@ import polyomino.dotfiles.theme.{Palette, ThemeEngine}
 
 import scala.util.control.NonFatal
 
-/** `power-menu` — a Tetris-themed power / exit modal.
+/** `power-menu` — Authentic Tetris workstation power & session modal.
   *
-  * A random tetromino falls for exactly 30 seconds down a flat, upright
-  * rectangular matrix (portrait — narrow and tall, like a real Tetris board)
-  * onto a jagged pile of already-locked pieces heaped along the floor. The
-  * piece and every cell of the pile carry the classic Tetris colours (cyan I,
-  * yellow O, purple T, green S, red Z, blue J, orange L), drawn as solid
-  * two-wide blocks with a darker left column so the grid stays legible.
+  * An authentic playable Tetris matrix with:
+  *   - Full tetromino rotation (`Up` / `k` / `w`)
+  *   - Lateral translation (`Left` / `Right` or `h` / `l`)
+  *   - Soft drop (`Down` / `s`) and Hard drop (`Enter` / `Space` / `j`)
+  *   - Direct lane jump keys (`1`/`r` for Reboot, `2`/`p` for Shutdown, `3` for Lock+Suspend)
+  *   - Ghost piece projection showing exact landing location
+  *   - Three system action landing lanes:
+  *       - Lane 0 (left)   : REBOOT          (`systemctl reboot`)
+  *       - Lane 1 (centre) : SHUTDOWN        (`systemctl poweroff`)
+  *       - Lane 2 (right)  : LOCK + SUSPEND  (`polyomino-rubik-lock` / `swaylock -f` ; `systemctl suspend`)
   *
-  * The matrix is split into three landing lanes:
-  *   - left   : reboot            (`systemctl reboot`)
-  *   - centre : shutdown [default](`systemctl poweroff`)
-  *   - right  : lock + suspend    (`swaylock -f` then `systemctl suspend`)
-  *
-  * Controls: Left/Right or `h`/`l` switch lanes; Enter / Space / `j` hard-drop
-  * (run the selected action immediately); `Esc` or `q` cancels and runs nothing. Down
-  * arrow is deliberately unbound so a stray mouse-wheel scroll can't fire it. If the
-  * user never touches it, the piece lands in the centre lane and shutdown fires.
-  *
-  * There is no separate countdown: the piece's height above the pile *is* the
-  * 30 s timer. The frame, landing ghost and help line are steps on one neutral
-  * text→base ramp; gold (the palette accent) is spent only on the lane the
-  * piece is currently over — its two glowing dividers, its floor tick and its
-  * label below the well.
-  *
-  * Rendering is raw ANSI; the terminal is put into non-canonical mode by shelling
-  * out to `stty` (via os-lib). No new dependencies, so it stays inside the
-  * GraalVM `--no-fallback` / no-reflection constraints of the rest of the binary.
-  *
-  * The Sway rule makes the window a borderless floating pane sized to the whole
-  * output — its own dark translucent backdrop on the screen it opens on. Other
-  * outputs are left alone. The binary re-grabs keyboard focus and sets opacity
-  * once the surface has settled (doing either at map time raced with kitty's
-  * focus setup and left the modal unresponsive until clicked).
+  * Game Over / Sleep Trigger:
+  *   When the piece lands (or is hard-dropped), the modal enters an enterprise
+  *   "GAME OVER" state confirming the chosen lane action, pauses for 2.0s with an
+  *   abort window (`Esc` / `q`), and executes the chosen system action.
   */
 object PowerMenu:
 
@@ -66,7 +49,7 @@ object PowerMenu:
         val (cols, rows) = termSize()
         val g = Geom(cols, rows)
         Console.out.print(Renderer.frame(State.initialFor(g), g, theme, CountdownSecs))
-        Console.out.println("[0m")
+        Console.out.println("\u001b[0m")
         Right(())
       else
         try
@@ -85,73 +68,114 @@ object PowerMenu:
     val (cols, rows) = termSize()
     val g = Geom(cols, rows)
     var st = State.initialFor(g)
-    val start = System.nanoTime()
+    val startTime = System.nanoTime()
     var pending = List.empty[Int]
     var escSince = 0L
     var outcome: Outcome = Outcome.Pending
 
     while outcome == Outcome.Pending do
-      val frameStart = System.nanoTime()
-      val elapsed = (frameStart - start) / 1e9
+      val now = System.nanoTime()
+      val elapsed = (now - startTime) / 1e9
       val remaining = math.max(0.0, CountdownSecs - elapsed)
 
       pending = pending ++ readAvailable()
-      val (events, rest, es2) = InputParser.parse(pending, escSince, frameStart)
+      val (events, rest, es2) = InputParser.parse(pending, escSince, now)
       pending = rest
       escSince = es2
 
-      for ev <- events do ev match
-        case Input.Left   => st = st.copy(laneIdx = math.max(0, st.laneIdx - 1))
-        case Input.Right  => st = st.copy(laneIdx = math.min(2, st.laneIdx + 1))
-        case Input.Drop   => outcome = Outcome.Fire(Lane.values(st.laneIdx))
-        case Input.Cancel => outcome = Outcome.Cancelled
+      st.phase match
+        case Phase.Playing =>
+          for ev <- events do
+            ev match
+              case Input.Left =>
+                val nextX = st.cellX - 1
+                if st.fits(st.shape, nextX, math.floor(st.pieceY).toInt, g) then
+                  st = st.copy(cellX = nextX)
+              case Input.Right =>
+                val nextX = st.cellX + 1
+                if st.fits(st.shape, nextX, math.floor(st.pieceY).toInt, g) then
+                  st = st.copy(cellX = nextX)
+              case Input.Rotate =>
+                val rotated = State.rotCW(st.shape)
+                val kicks = List(0, -1, 1, -2, 2)
+                val curY = math.floor(st.pieceY).toInt
+                kicks.find(k => st.fits(rotated, st.cellX + k, curY, g)) match
+                  case Some(k) =>
+                    st = st.copy(shape = rotated, cellX = st.cellX + k)
+                  case None => ()
+              case Input.SoftDrop =>
+                val ground = st.groundY(st.shape, st.cellX, g)
+                st = st.copy(pieceY = math.min(ground.toDouble, st.pieceY + 1.0))
+              case Input.HardDrop =>
+                val ground = st.groundY(st.shape, st.cellX, g)
+                st = st.copy(pieceY = ground.toDouble)
+                val lane = g.laneForCol(st.cellX, st.shape.head.length)
+                st = st.copy(phase = Phase.GameOver(Lane.values(lane), now + (2.2 * 1e9).toLong))
+              case Input.JumpLane(idx) =>
+                val targetX = idx * g.laneCells + math.max(0, (g.laneCells - st.shape.head.length) / 2)
+                val clampedX = math.max(0, math.min(g.wellCols - st.shape.head.length, targetX))
+                if st.fits(st.shape, clampedX, math.floor(st.pieceY).toInt, g) then
+                  st = st.copy(cellX = clampedX)
+              case Input.Cancel =>
+                outcome = Outcome.Cancelled
 
-      if outcome == Outcome.Pending && remaining <= 0.0 then
-        outcome = Outcome.Fire(Lane.values(st.laneIdx))
+          if st.phase.isInstanceOf[Phase.Playing.type] then
+            val ground = st.groundY(st.shape, st.cellX, g)
+            val progress = 1.0 - remaining / CountdownSecs
+            val nextY = g.topY + (ground - g.topY) * progress
+            st = st.copy(pieceY = nextY)
 
-      val targetX  = g.laneCenterX(st.laneIdx).toDouble
-      val groundY  = g.groundYFor(st.stackMaxRows, st.shape.length)
-      val progress = 1.0 - remaining / CountdownSecs
-      st = st.copy(
-        pieceX = st.pieceX + (targetX - st.pieceX) * 0.35,
-        pieceY = g.topY + (groundY - g.topY) * progress
-      )
+            // Hit the ground
+            if st.pieceY >= ground.toDouble || remaining <= 0.0 then
+              val lane = g.laneForCol(st.cellX, st.shape.head.length)
+              st = st.copy(
+                pieceY = ground.toDouble,
+                phase = Phase.GameOver(Lane.values(lane), now + (2.2 * 1e9).toLong)
+              )
+
+        case Phase.GameOver(lane, deadline) =>
+          for ev <- events do
+            ev match
+              case Input.Cancel =>
+                outcome = Outcome.Cancelled
+              case Input.HardDrop =>
+                outcome = Outcome.Fire(lane)
+              case _ => ()
+
+          if outcome == Outcome.Pending && now >= deadline then
+            outcome = Outcome.Fire(lane)
 
       Console.out.print(Renderer.frame(st, g, theme, remaining))
       Console.out.flush()
 
-      val tookMs = (System.nanoTime() - frameStart) / 1e6
-      val napMs = 30.0 - tookMs
-      if napMs > 0 then Thread.sleep(napMs.toLong)
+      Thread.sleep(25)
 
     outcome match
       case Outcome.Fire(lane) =>
-        slam(st, g, theme)
         restoreTerminal()
-        println(s"[1;33m[polyomino power-menu][0m ${lane.label} — executing…")
+        println(s"\u001b[1;33m[polyomino power-menu]\u001b[0m ${lane.label} — executing…")
         execute(lane)
       case _ =>
         restoreTerminal()
-        println(s"[1;36m[polyomino power-menu][0m cancelled — no action taken.")
-
-  /** Short hard-drop animation before the action fires. */
-  private def slam(st0: State, g: Geom, theme: Theme): Unit =
-    var st = st0
-    val groundY = g.groundYFor(st.stackMaxRows, st.shape.length)
-    var k = 0
-    while k < 6 do
-      st = st.copy(pieceY = st.pieceY + (groundY - st.pieceY) * 0.6)
-      Console.out.print(Renderer.frame(st, g, theme, 0.0))
-      Console.out.flush()
-      Thread.sleep(22)
-      k += 1
+        println(s"\u001b[1;36m[polyomino power-menu]\u001b[0m cancelled — no action taken.")
 
   private def execute(lane: Lane): Unit =
-    for cmd <- actionFor(lane) do
-      if cmd.headOption.contains("swaylock") && !commandExists("swaylock") then ()
-      else
-        try os.proc(cmd).call(check = false, stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit)
-        catch case NonFatal(_) => ()
+    lane match
+      case Lane.Suspend =>
+        val rubik = os.home / ".local" / "bin" / "polyomino-rubik-lock"
+        if os.exists(rubik) then
+          try os.proc(rubik.toString).spawn()
+          catch case NonFatal(_) => ()
+        for cmd <- actionFor(lane) do
+          if cmd.headOption.contains("swaylock") && os.exists(rubik) then ()
+          else if cmd.headOption.contains("swaylock") && !commandExists("swaylock") then ()
+          else
+            try os.proc(cmd).call(check = false, stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit)
+            catch case NonFatal(_) => ()
+      case _ =>
+        for cmd <- actionFor(lane) do
+          try os.proc(cmd).call(check = false, stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit)
+          catch case NonFatal(_) => ()
 
   // ── terminal plumbing ─────────────────────────────────────────────────────
 
@@ -167,31 +191,23 @@ object PowerMenu:
     restored = false
     Runtime.getRuntime.addShutdownHook(new Thread(() => restoreTerminal()))
     grabFocus()
-    Console.out.print("[?1049h[?25l[2J")
+    Console.out.print("\u001b[?1049h\u001b[?25l\u001b[2J")
     Console.out.flush()
 
-  /** Pull the Sway keyboard focus onto this modal, then set its opacity.
-    *
-    * `focus_follows_mouse no` plus the pointer being on another output means the
-    * modal can map without keyboard focus; and doing the opacity change at map
-    * time (via `for_window`) churned kitty's surface enough that it dropped its
-    * initial `wl_keyboard.enter` and stayed dead until clicked. So both happen
-    * here instead, once the surface has settled — the window is already mapped by
-    * the time this runs. No-op if `swaymsg` is absent. */
   private def grabFocus(): Unit =
     var i = 0
     while i < 4 do
       try os.proc("swaymsg", "[app_id=polyomino-power-menu]", "focus").call(check = false, stderr = os.Pipe)
       catch case NonFatal(_) => ()
       i += 1
-      if i < 4 then try Thread.sleep(70) catch case NonFatal(_) => ()
-    try os.proc("swaymsg", "[app_id=polyomino-power-menu]", "opacity", "0.92").call(check = false, stderr = os.Pipe)
+      if i < 4 then try Thread.sleep(60) catch case NonFatal(_) => ()
+    try os.proc("swaymsg", "[app_id=polyomino-power-menu]", "opacity", "0.96").call(check = false, stderr = os.Pipe)
     catch case NonFatal(_) => ()
 
   private def restoreTerminal(): Unit = synchronized {
     if !restored then
       restored = true
-      Console.out.print("[?25h[?1049l[0m")
+      Console.out.print("\u001b[?25h\u001b[?1049l\u001b[0m")
       Console.out.flush()
       savedStty match
         case Some(s) => try os.proc("stty", s).call(stdin = os.Inherit, stderr = os.Pipe) catch case NonFatal(_) => ()
@@ -211,10 +227,8 @@ object PowerMenu:
   private def termSize(): (Int, Int) =
     try
       val parts = os.proc("stty", "size").call(stdin = os.Inherit, stderr = os.Pipe).out.trim().split("\\s+")
-      // use the real pty size — flooring it wider than the window makes every
-      // line wrap and the whole layout drifts off-centre
       (math.max(34, parts(1).toInt), math.max(20, parts(0).toInt))
-    catch case NonFatal(_) => (72, 40)
+    catch case NonFatal(_) => (80, 24)
 
   private def commandExists(cmd: String): Boolean =
     try os.proc("which", cmd).call(check = false).exitCode == 0
@@ -223,31 +237,55 @@ object PowerMenu:
   // ── model ─────────────────────────────────────────────────────────────────
 
   private enum Input:
-    case Left, Right, Drop, Cancel
+    case Left, Right, Rotate, SoftDrop, HardDrop, Cancel
+    case JumpLane(idx: Int)
 
   private enum Outcome:
     case Pending
     case Cancelled
     case Fire(lane: Lane)
 
-  /** One locked cell of the pile: column and row in *cell* units, the row
-    * counted up from the well floor. `colorIdx` is which tetromino this cell
-    * came from, so the pile reads as a mosaic of past pieces. */
+  private enum Phase:
+    case Playing
+    case GameOver(lane: Lane, deadlineNanos: Long)
+
   private final case class Debris(cellX: Int, cellY: Int, colorIdx: Int)
 
   private final case class State(
-      laneIdx: Int,
-      pieceX: Double,
+      cellX: Int,
       pieceY: Double,
+      shape: Vector[String],
       pieceIdx: Int,
       stack: Vector[Debris],
-      stackMaxRows: Int
+      stackMaxRows: Int,
+      phase: Phase = Phase.Playing
   ):
-    def shape: Vector[String] = Tetrominoes(pieceIdx)
+    def laneIdx(g: Geom): Int = g.laneForCol(cellX, shape.head.length)
+
+    def fits(sh: Vector[String], px: Int, py: Int, g: Geom): Boolean =
+      if px < 0 || px + sh.head.length > g.wellCols then false
+      else if py < g.interiorTopY || py + sh.length > g.interiorBottomY + 1 then false
+      else
+        val locked = stack.map(d => (d.cellX, g.interiorBottomY - d.cellY * CellH)).toSet
+        var ok = true
+        for
+          r <- sh.indices
+          c <- sh(r).indices
+          if sh(r).charAt(c) != ' '
+        do
+          val cy = py + r
+          val cx = px + c
+          if locked.contains((cx, cy)) then ok = false
+        ok
+
+    def groundY(sh: Vector[String], px: Int, g: Geom): Int =
+      var py = g.interiorTopY
+      while py + 1 + sh.length <= g.interiorBottomY + 1 && fits(sh, px, py + 1, g) do
+        py += 1
+      py
 
   private object State:
-    /** Rotate a shape 90° clockwise. */
-    private def rotCW(sh: Vector[String]): Vector[String] =
+    def rotCW(sh: Vector[String]): Vector[String] =
       val h = sh.length
       val w = sh.head.length
       Vector.tabulate(w)(r => Vector.tabulate(h)(c => sh(h - 1 - c).charAt(r)).mkString)
@@ -255,16 +293,16 @@ object PowerMenu:
     def initialFor(g: Geom): State =
       val rnd = new scala.util.Random()
       val idx = rnd.nextInt(Tetrominoes.length)
+      val initialShape = Tetrominoes(idx)
 
-      // Build the pile the honest way: drop real, randomly rotated tetrominoes
-      // into a grid and let each settle onto what's below. The heap is then
-      // made of interlocking pieces with a ragged crest, each locked chunk in
-      // its own classic colour — not a per-column bar chart.
+      // Start centered in Lane 1 (Shutdown lane)
+      val initX = g.laneCells + math.max(0, (g.laneCells - initialShape.head.length) / 2)
+
       val rows = g.rowsInner
       val cols = g.wellCols
       val grid = Array.fill(rows, cols)(-1)
 
-      def fits(sh: Vector[String], px: Int, py: Int): Boolean =
+      def cellFits(sh: Vector[String], px: Int, py: Int): Boolean =
         sh.indices.forall { cy =>
           sh(cy).indices.forall { cx =>
             sh(cy).charAt(cx) == ' ' || {
@@ -279,10 +317,10 @@ object PowerMenu:
         while r < rows && grid(r)(c) == -1 do r += 1
         rows - r
 
-      val target = math.max(4, rows * 45 / 100)
+      val target = math.max(2, rows * 30 / 100)
       var attempts = 0
       var crest = 0
-      while crest < target && attempts < 400 do
+      while crest < target && attempts < 300 do
         attempts += 1
         val k = rnd.nextInt(Tetrominoes.length)
         var sh = Tetrominoes(k)
@@ -290,9 +328,9 @@ object PowerMenu:
         while rot > 0 do { sh = rotCW(sh); rot -= 1 }
         if sh.head.length <= cols then
           val px = rnd.nextInt(cols - sh.head.length + 1)
-          if fits(sh, px, 0) then
+          if cellFits(sh, px, 0) then
             var py = 0
-            while fits(sh, px, py + 1) do py += 1
+            while cellFits(sh, px, py + 1) do py += 1
             for cy <- sh.indices; cx <- sh(cy).indices if sh(cy).charAt(cx) != ' ' do
               grid(py + cy)(px + cx) = k
             crest = (0 until cols).map(colHeight).max
@@ -305,48 +343,43 @@ object PowerMenu:
         yield Debris(c, rows - 1 - r, grid(r)(c))
       val maxRows = if crest > 0 then crest else 0
 
-      State(1, g.laneCenterX(1).toDouble, g.topY.toDouble, idx, stack, maxRows)
-
-  /** The well takes this share of the parent's *width* — kept narrow so the
-    * matrix stands upright (portrait), like a real Tetris board. Its height is
-    * whatever's left after the lane ticks + labels + help line. */
-  private val WellFillW = 0.28
+      State(
+        cellX = initX,
+        pieceY = g.interiorTopY.toDouble,
+        shape = initialShape,
+        pieceIdx = idx,
+        stack = stack,
+        stackMaxRows = maxRows
+      )
 
   private final case class Geom(cols: Int, rows: Int):
-    // one Tetris cell is CellW×CellH chars; the interior is a whole number of
-    // cells that splits evenly into three landing lanes
-    val laneCells = math.max(3, ((cols * WellFillW).toInt / CellW) / 3)
-    val wellCols  = laneCells * 3
-    val innerW    = wellCols * CellW
+    val laneCells = 4
+    val wellCols  = laneCells * 3 // 12 cells
+    val innerW    = wellCols * CellW // 24 chars
     val wellLeft  = math.max(1, (cols - (innerW + 2)) / 2)
     val wellRight = wellLeft + innerW + 1
 
-    val wellTop         = 2
+    val wellTop         = math.max(4, math.min(6, (rows - 20) / 2))
     val wellBottom      = math.max(wellTop + 8, rows - 6)
     val interiorTopY    = wellTop + 1
     val interiorBottomY = wellBottom - 1
     val rowsInner       = interiorBottomY - interiorTopY + 1
     val wellH           = wellBottom - wellTop + 1
 
-    def cellX(cx: Int): Int      = wellLeft + 1 + cx * CellW
+    def cellX(cx: Int): Int = wellLeft + 1 + cx * CellW
     def laneCenterX(i: Int): Int = cellX(i * laneCells + laneCells / 2)
-    val topY = interiorTopY
 
-    /** Char row for the top of a piece `pieceRows` cells tall coming to rest on
-      * a pile `stackRows` cells high. */
-    def groundYFor(stackRows: Int, pieceRows: Int): Int =
-      math.max(interiorTopY, interiorBottomY - (stackRows + pieceRows) * CellH + 1)
+    val topY: Int = interiorTopY
+
+    def laneForCol(cx: Int, pieceW: Int): Int =
+      val center = cx + pieceW / 2
+      if center < laneCells then 0
+      else if center < laneCells * 2 then 1
+      else 2
 
   // ── input parser ──────────────────────────────────────────────────────────
 
   private object InputParser:
-    /** Consume as many complete key events as possible from the byte buffer.
-      *
-      * A lone `ESC` (0x1B) is only reported as [[Input.Cancel]] once ~60 ms have
-      * elapsed with nothing following it, so it is never mistaken for the `ESC`
-      * that prefixes an arrow-key CSI sequence. Returns the events produced, the
-      * still-unparsed bytes, and the "esc pending since" timestamp to carry over.
-      */
     def parse(buf0: List[Int], escSince0: Long, now: Long): (List[Input], List[Int], Long) =
       var buf = buf0
       var escSince = escSince0
@@ -354,7 +387,7 @@ object PowerMenu:
       var continue = true
       while continue && buf.nonEmpty do
         buf.head match
-          case 3 => // Ctrl-C — safety hatch, treated as cancel
+          case 3 => // Ctrl-C
             out += Input.Cancel
             buf = buf.tail
           case 27 =>
@@ -368,18 +401,18 @@ object PowerMenu:
                 continue = false
               case s :: rest if s == '['.toInt || s == 'O'.toInt =>
                 rest match
-                  case Nil => continue = false // wait for the final byte
+                  case Nil => continue = false
                   case f :: rest2 =>
                     f.toChar match
-                      case 'C' => out += Input.Right
-                      case 'D' => out += Input.Left
-                      // NB: no 'B' (Down arrow) -> Drop. A mouse wheel scroll
-                      // sends ESC[B in the alt-screen, and mapping it to a
-                      // hard-drop meant a stray scroll fired the power action.
+                      case 'A' => out += Input.Rotate   // Up arrow
+                      case 'B' => out += Input.SoftDrop // Down arrow
+                      case 'C' => out += Input.Right    // Right arrow
+                      case 'D' => out += Input.Left     // Left arrow
+                      case 'Z' => out += Input.Left     // Shift+Tab
                       case _   => ()
                     buf = rest2
                     escSince = 0L
-              case _ => // ESC followed by an unrelated byte — a real Esc press
+              case _ =>
                 out += Input.Cancel
                 buf = buf.tail
                 escSince = 0L
@@ -387,8 +420,15 @@ object PowerMenu:
             b.toChar match
               case 'h' | 'H'         => out += Input.Left
               case 'l' | 'L'         => out += Input.Right
-              case 'j' | 'J'         => out += Input.Drop
-              case '\r' | '\n' | ' ' => out += Input.Drop
+              case 'k' | 'K' | 'w' | 'W' => out += Input.Rotate
+              case 's' | 'S'         => out += Input.SoftDrop
+              case 'j' | 'J'         => out += Input.HardDrop
+              case '\r' | '\n' | ' ' => out += Input.HardDrop
+              case '1'               => out += Input.JumpLane(0)
+              case 'r' | 'R'         => out += Input.JumpLane(0)
+              case '2'               => out += Input.JumpLane(1)
+              case 'p' | 'P'         => out += Input.JumpLane(1)
+              case '3'               => out += Input.JumpLane(2)
               case 'q' | 'Q'         => out += Input.Cancel
               case _                 => ()
             buf = buf.tail
@@ -397,25 +437,29 @@ object PowerMenu:
 
   // ── theme ─────────────────────────────────────────────────────────────────
 
-  /** The frame + ghost + help are steps on one neutral text→base ramp; the
-    * seven pieces carry the classic Tetris colours (each with a darker left
-    * edge for a hint of a grid); `accent` (palette gold) marks the live lane. */
   private final case class Theme(
       bg: String,
-      wall: String, floor: String, divider: String, dividerHot: String,
-      ghost: String, dim: String, help: String, accent: String,
-      pieceFg: Vector[String], pieceEdge: Vector[String],
-      stackFg: Vector[String], stackEdge: Vector[String]
+      wall: String,
+      floor: String,
+      divider: String,
+      dividerHot: String,
+      ghost: String,
+      dim: String,
+      help: String,
+      accentGold: String,
+      accentTeal: String,
+      accentRed: String,
+      pieceFg: Vector[String],
+      pieceEdge: Vector[String],
+      stackFg: Vector[String],
+      stackEdge: Vector[String]
   )
 
   private object Theme:
     private type Rgb = (Int, Int, Int)
 
-    /** Classic tetromino colours, in `Tetrominoes` order (I O T S Z J L). Kept
-      * literal so the modal reads unmistakably as Tetris — the backdrop, frame
-      * and live-lane accent still come from the system palette. */
     private val Classic: Vector[Rgb] = Vector(
-      (0, 209, 214),   // I  cyan
+      (0, 210, 214),   // I  cyan
       (242, 201, 76),  // O  yellow
       (168, 85, 247),  // T  purple
       (39, 201, 108),  // S  green
@@ -428,17 +472,22 @@ object PowerMenu:
       val acc  = rgb(p.accent, (235, 180, 52))
       val base = rgb(p.base, (15, 17, 23))
       val txt  = rgb(p.text, (248, 250, 252))
+      val teal = (0, 210, 211)
+      val red  = (239, 68, 68)
       def tone(t: Double): String = fgSeq(mix(txt, base, t))
+
       Theme(
         bg         = bgSeq(base),
-        wall       = tone(0.55),
-        floor      = tone(0.5),
-        divider    = tone(0.82),
-        dividerHot = fgSeq(mix(acc, base, 0.3)),
-        ghost      = tone(0.7),
-        dim        = tone(0.72),
-        help       = tone(0.6),
-        accent     = fgSeq(acc),
+        wall       = tone(0.60),
+        floor      = tone(0.50),
+        divider    = tone(0.85),
+        dividerHot = fgSeq(mix(acc, base, 0.25)),
+        ghost      = tone(0.72),
+        dim        = tone(0.70),
+        help       = tone(0.55),
+        accentGold = fgSeq(acc),
+        accentTeal = fgSeq(teal),
+        accentRed  = fgSeq(red),
         pieceFg    = Classic.map(c => fgSeq(mix(c, txt, 0.1))),
         pieceEdge  = Classic.map(c => fgSeq(mix(c, base, 0.5))),
         stackFg    = Classic.map(c => fgSeq(mix(c, base, 0.3))),
@@ -458,17 +507,14 @@ object PowerMenu:
       (clamp((a._1 + (b._1 - a._1) * t).toInt),
        clamp((a._2 + (b._2 - a._2) * t).toInt),
        clamp((a._3 + (b._3 - a._3) * t).toInt))
-    private def fgSeq(c: Rgb): String = s"[38;2;${c._1};${c._2};${c._3}m"
-    private def bgSeq(c: Rgb): String = s"[48;2;${c._1};${c._2};${c._3}m"
+    private def fgSeq(c: Rgb): String = s"\u001b[38;2;${c._1};${c._2};${c._3}m"
+    private def bgSeq(c: Rgb): String = s"\u001b[48;2;${c._1};${c._2};${c._3}m"
 
   // ── tetrominoes ───────────────────────────────────────────────────────────
 
-  /** One Tetris cell is `CellW`×`CellH` chars: a solid two-wide block, one row
-    * tall, its left column drawn a shade darker so the grid stays legible. */
   private val CellW = 2
   private val CellH = 1
 
-  /** The seven tetrominoes, one cell per glyph, `#` filled / space empty. */
   private val Tetrominoes: Vector[Vector[String]] = Vector(
     Vector("####"),           // I
     Vector("##", "##"),       // O
@@ -481,50 +527,65 @@ object PowerMenu:
 
   private object Renderer:
     def frame(st: State, g: Geom, th: Theme, remaining: Double): String =
-      val buf     = new Buf(g.cols, g.rows)
-      val shapeW  = st.shape.map(_.length).max
-      val shapeH  = st.shape.length
-      val pxW     = shapeW * CellW
-      val groundY = g.groundYFor(st.stackMaxRows, shapeH)
+      val buf = new Buf(g.cols, g.rows)
+      val curLane = st.laneIdx(g)
 
-      // upright rectangular matrix. There is no separate countdown: the falling
-      // piece's height above the pile is the 30 s timer.
-      drawWell(buf, g, th, st.laneIdx)
+      // 1. Workstation Header Bar
+      val headerTitle = "⊞  POLYOMINO POWER CONTROL"
+      val statusLine = f"SESSION: ACTIVE  •  TIME: ${math.ceil(remaining).toInt}%02ds  •  DROP INTO TARGET LANE TO SELECT"
+      buf.put(math.max(0, (g.cols - headerTitle.length) / 2), math.max(0, g.wellTop - 3), headerTitle, th.accentGold)
+      buf.put(math.max(0, (g.cols - statusLine.length) / 2), math.max(1, g.wellTop - 2), statusLine, th.help)
 
-      // faint lane dividers, only in the open air above the pile; the pair
-      // bounding the live lane glow
+      // 2. Matrix Box
+      drawWell(buf, g, th)
+
+      // 3. Subtle CAD grid dots inside empty matrix
+      var cy = g.interiorTopY
+      while cy <= g.interiorBottomY do
+        for k <- 0 until g.wellCols do
+          buf.put(g.cellX(k), cy, "· ", th.divider)
+        cy += 1
+
+      // 4. Faint lane dividers
       val pileTopY = g.interiorBottomY - st.stackMaxRows * CellH
       for k <- 1 to 2 do
         val dx  = g.cellX(k * g.laneCells)
-        val hot = k == st.laneIdx || k - 1 == st.laneIdx
+        val hot = k == curLane || k - 1 == curLane
         var y   = g.wellTop + 1
         while y <= pileTopY do
           buf.put(dx, y, "┊", if hot then th.dividerHot else th.divider)
           y += 1
 
-      // the accumulated pile — a mosaic of past pieces heaped along the floor
+      // 5. Debris pile
       for d <- st.stack do
         drawBlock(buf, g.cellX(d.cellX), g.interiorBottomY - d.cellY * CellH,
                   th.stackFg(d.colorIdx), th.stackEdge(d.colorIdx))
 
-      // where the piece will land in the current lane
-      drawShape(buf, st.shape, g.laneCenterX(st.laneIdx) - pxW / 2, groundY,
-                th.ghost, th.ghost, "░")
+      // 6. Ghost piece
+      val ghostY = st.groundY(st.shape, st.cellX, g)
+      drawShape(buf, st.shape, g.cellX(st.cellX), ghostY, th.ghost, th.ghost, "░")
 
-      // the live piece — x is the choice, y is the clock
-      drawShape(buf, st.shape, math.round(st.pieceX).toInt - pxW / 2,
-                math.round(st.pieceY).toInt,
+      // 7. Active piece
+      drawShape(buf, st.shape, g.cellX(st.cellX), math.round(st.pieceY).toInt,
                 th.pieceFg(st.pieceIdx), th.pieceEdge(st.pieceIdx), "█")
 
-      drawLanes(buf, g, th, st.laneIdx)
+      // 8. Lanes underneath matrix
+      drawLanes(buf, g, th, curLane)
 
-      val help = "←/→  move        ↵  drop        esc / q  cancel"
+      // 9. Game Over overlay banner if triggered
+      st.phase match
+        case Phase.GameOver(lane, deadline) =>
+          val leftSec = math.max(0.0, (deadline - System.nanoTime()) / 1e9)
+          drawGameOverModal(buf, g, th, lane, leftSec)
+        case _ => ()
+
+      // 10. Footer controls hint with full h/j/k/l vim & arrow keys
+      val help = "h/l (←/→) move  k (↑) rotate  s (↓) soft  j/↵ drop  1/2/3 lane  q/esc cancel"
       buf.put(math.max(0, (g.cols - help.length) / 2), g.rows - 1, help, th.help)
 
       buf.render(th.bg)
 
-    /** The matrix: square-cornered side rails + floor, open top. */
-    private def drawWell(buf: Buf, g: Geom, th: Theme, laneIdx: Int): Unit =
+    private def drawWell(buf: Buf, g: Geom, th: Theme): Unit =
       val span = "─" * math.max(0, g.wellRight - g.wellLeft - 1)
       buf.put(g.wellLeft, g.wellTop, "┌" + span + "┐", th.wall)
       buf.put(g.wellLeft, g.wellBottom, "└" + span + "┘", th.wall)
@@ -534,25 +595,48 @@ object PowerMenu:
         buf.put(g.wellRight, y, "│", th.wall)
         y += 1
 
-    /** Lane ticks right under the floor + the three action labels spread across
-      * the full width. The live lane is the only thing drawn in the accent. */
     private def drawLanes(buf: Buf, g: Geom, th: Theme, laneIdx: Int): Unit =
       for i <- 0 to 2 do
         val sel  = i == laneIdx
-        val w    = math.max(2, g.laneCells * CellW - 2)
+        val w    = g.laneCells * CellW - 2
+        val acc  = if i == 0 then th.accentTeal else if i == 1 then th.accentRed else th.accentGold
         buf.put(g.laneCenterX(i) - w / 2, g.wellBottom + 1,
-                (if sel then "▀" else "─") * w, if sel then th.accent else th.dim)
+                (if sel then "▀" else "─") * w, if sel then acc else th.dim)
+
       val third = math.max(1, g.cols / 3)
       for i <- 0 to 2 do
-        val lane  = Lane.values(i)
-        val sel   = i == laneIdx
+        val lane = Lane.values(i)
+        val sel  = i == laneIdx
         val label = s"${lane.glyph} ${lane.label}"
-        val cx    = third * i + third / 2
-        buf.put(math.max(0, cx - label.length / 2), g.wellBottom + 3, label,
-                if sel then th.accent else th.dim)
+        val acc  = if i == 0 then th.accentTeal else if i == 1 then th.accentRed else th.accentGold
+        val cx = third * i + third / 2
+        buf.put(math.max(0, cx - label.length / 2), g.wellBottom + 3, label, if sel then acc else th.dim)
 
-    /** One filled cell: a `CellW`-wide block whose leftmost column is `edge`
-      * (a shade darker) and the rest `fg`. */
+    private def drawGameOverModal(buf: Buf, g: Geom, th: Theme, lane: Lane, leftSec: Double): Unit =
+      val modalW = 34
+      val modalH = 8
+      val mx = math.max(0, (g.cols - modalW) / 2)
+      val my = g.wellTop + math.max(1, (g.wellH - modalH) / 2)
+      val acc = lane match
+        case Lane.Reboot   => th.accentTeal
+        case Lane.Shutdown => th.accentRed
+        case Lane.Suspend  => th.accentGold
+
+      val span = "═" * (modalW - 2)
+      buf.put(mx, my, s"╔$span╗", acc)
+      for r <- 1 until modalH - 1 do
+        buf.put(mx, my + r, "║" + " " * (modalW - 2) + "║", acc)
+      buf.put(mx, my + modalH - 1, s"╚$span╝", acc)
+
+      val t1 = "▶  G A M E   O V E R  ◀"
+      val t2 = s"CHOSEN ACTION: ${lane.glyph} ${lane.label}"
+      val t3 = f"EXECUTING IN ${leftSec}%.1fs..."
+      val t4 = "[Q/ESC] ABORT  •  [J/ENTER] NOW"
+      buf.put(mx + (modalW - t1.length) / 2, my + 1, t1, acc)
+      buf.put(mx + (modalW - t2.length) / 2, my + 3, t2, th.wall)
+      buf.put(mx + (modalW - t3.length) / 2, my + 4, t3, acc)
+      buf.put(mx + (modalW - t4.length) / 2, my + 6, t4, th.dim)
+
     private def drawBlock(buf: Buf, x: Int, y: Int, fg: String, edge: String): Unit =
       buf.put(x, y, "█", edge)
       if CellW > 1 then buf.put(x + 1, y, "█" * (CellW - 1), fg)
@@ -572,7 +656,6 @@ object PowerMenu:
           cx += 1
         cy += 1
 
-  /** Fixed-size character + foreground-colour grid, serialised to one ANSI frame. */
   private final class Buf(cols: Int, rows: Int):
     private val ch = Array.fill(rows, cols)(' ')
     private val fg = Array.fill(rows, cols)("")
@@ -591,33 +674,38 @@ object PowerMenu:
       val sb = new StringBuilder(rows * (cols + 16))
       var y = 0
       while y < rows do
-        sb.append(s"[${y + 1};1H").append(bg)
+        sb.append(s"\u001b[${y + 1};1H").append(bg)
         var last = "?"
         var x = 0
         while x < cols do
           val c = fg(y)(x)
           if c != last then
-            sb.append(if c.isEmpty then "[39m" else c)
+            sb.append(if c.isEmpty then "\u001b[39m" else c)
             last = c
           sb.append(ch(y)(x))
           x += 1
-        sb.append("[0m")
+        sb.append("\u001b[0m")
         y += 1
       sb.toString
 
   private val HelpText: String =
-    """polyomino power-menu — Tetris-themed power / exit modal.
+    """polyomino power-menu — Authentic Tetris workstation power/exit modal.
       |
-      |A tetromino falls for 30 s over three lanes:
+      |A tetromino descends down a 12-column matrix with 3 action lanes:
       |  left    reboot             (systemctl reboot)
       |  centre  shutdown [default] (systemctl poweroff)
-      |  right   lock + suspend     (swaylock -f ; systemctl suspend)
+      |  right   lock + suspend     (polyomino-rubik-lock / swaylock -f ; systemctl suspend)
       |
-      |  left/right or h/l   switch lane
-      |  enter / space / j   drop now (run the selected action immediately)
+      |Controls:
+      |  left/right or h/l   move piece across lanes
+      |  up or k / w         rotate tetromino clockwise
+      |  down or s           soft drop
+      |  1 / 2 / 3           direct lane jump (reboot, shutdown, lock+suspend)
+      |  enter / space / j   hard drop into chosen lane
       |  esc / q             cancel, run nothing
       |
-      |If left untouched the piece lands centre and shutdown runs.
+      |When the piece lands, a Game Over countdown begins for the chosen lane
+      |with an abort window before executing.
       |
       |Flags:
       |  --dry-run   render one frame to stdout and exit (no input, no action)

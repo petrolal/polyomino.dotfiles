@@ -91,7 +91,7 @@ object Main:
       |  preview-lock     preview and test lock screen safely without locking session
       |  idle             run the swayidle daemon (auto-lock, dpms, suspend)
       |  screenshot       capture a screenshot (full|region|window)
-      |  power-menu       Tetris-themed power/exit modal (reboot | shutdown | lock+suspend)
+      |  power-menu       workstation power & session modal (reboot | shutdown | lock+suspend)
       |  autotiling       Fibonacci spiral autotiling daemon for Sway
       |  healthcheck      read-only health check of the deployed setup
       |  backup           snapshot managed configs to a timestamped tarball
