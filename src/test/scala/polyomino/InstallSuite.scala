@@ -60,8 +60,10 @@ class InstallSuite extends FunSuite:
   test("ToolInstallers.detectKnownSubcommands contains expected tasks"):
     val tasks = Seq(
       "install-deps", "install-brew", "install-gh", "install-coursier",
-      "install-fonts", "install-apps", "install-swaync", "install-browser", "install-devops",
-      "install-zsh", "install-sdkman", "install-tools", "install-fastfetch", "full-install"
+      "install-fonts", "install-apps", "install-sway", "install-swayfx", "install-swaync",
+      "install-browser", "install-devops", "install-telegram", "install-zsh",
+      "install-sdkman", "install-node", "install-npm", "install-npx", "install-tools",
+      "install-spotify", "install-spotify-player", "install-yazi", "install-fastfetch", "full-install"
     )
     tasks.foreach { task =>
       assert(DeployInstaller.Subcommands.contains(task), s"Missing task: $task")
@@ -75,3 +77,33 @@ class InstallSuite extends FunSuite:
   test("ToolInstallers.detectPackageManager returns valid PM"):
     val pm = ToolInstallers.detectPackageManager()
     assert(pm.toString.nonEmpty)
+
+  test("DeployInstaller.ensureDotfilesRepo returns Right on valid checkout"):
+    val ctx = Context.discover().toOption.get
+    val res = DeployInstaller.ensureDotfilesRepo(ctx)
+    assert(res.isRight)
+
+  test("Manifest serialization roundtrip"):
+    val manifest = Manifest(
+      version = "0.1.0",
+      timestamp = 123456789L,
+      entries = List(
+        ManifestEntry(
+          sourcePath = "/source/test",
+          targetPath = "/target/test",
+          backupPath = Some("/backup/test")
+        )
+      )
+    )
+    val json = upickle.default.write(manifest)
+    val readBack = upickle.default.read[Manifest](json)
+    assertEquals(readBack.version, "0.1.0")
+    assertEquals(readBack.timestamp, 123456789L)
+    assertEquals(readBack.entries.length, 1)
+    assertEquals(readBack.entries.head.sourcePath, "/source/test")
+
+  test("DeployInstaller.Subcommands contains power menu and lock aliases"):
+    val aliases = Seq("rubik-lock", "preview-lock", "power-menu", "powermenu", "whichkey", "menu")
+    aliases.foreach { alias =>
+      assert(DeployInstaller.Subcommands.contains(alias), s"Missing subcommand alias: $alias")
+    }

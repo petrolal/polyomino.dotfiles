@@ -223,12 +223,14 @@ object ToolInstallers:
   private def installSdkCandidate(initScript: os.Path, candidate: String): Unit =
     try
       println(s"  \u001b[36m[INFO]\u001b[0m Installing SDKMAN! candidate '$candidate'...")
-      val res = os.proc(
-        "bash", "-c",
-        s"source ${initScript} && sdk install $candidate && sdk default $candidate"
-      ).call(check = false)
+      val cmd = candidate match
+        case "java" =>
+          s"source ${initScript} && echo 'Y' | sdk install java 21.0.1-graal"
+        case _ =>
+          s"source ${initScript} && echo 'Y' | sdk install $candidate"
+      val res = os.proc("bash", "-c", cmd).call(check = false)
       if res.exitCode == 0 then
-        println(s"  \u001b[32m[OK]\u001b[0m SDKMAN! candidate '$candidate' installed and set as default.")
+        println(s"  \u001b[32m[OK]\u001b[0m SDKMAN! candidate '$candidate' installed.")
       else
         println(s"  \u001b[33m[NOTE]\u001b[0m SDKMAN! candidate '$candidate' install exited with code ${res.exitCode}")
     catch
@@ -527,18 +529,37 @@ object ToolInstallers:
             os.makeDir.all(buildDir / os.up)
             if !os.exists(buildDir / ".git") then
               if os.exists(buildDir) then os.remove.all(buildDir)
-              os.proc("git", "clone", "--depth", "1", "https://github.com/WillPower3309/swayfx.git", buildDir.toString).call(check = false)
-            else
-              os.proc("git", "-C", buildDir.toString, "pull", "--ff-only").call(check = false)
+              os.proc("git", "clone", "--depth", "1", "--branch", "0.4", "https://github.com/WillPower3309/swayfx.git", buildDir.toString).call(check = false)
+            val scenefxDir = buildDir / "subprojects" / "scenefx"
+            os.makeDir.all(scenefxDir / os.up)
+            if !os.exists(scenefxDir / ".git") then
+              if os.exists(scenefxDir) then os.remove.all(scenefxDir)
+              os.proc("git", "clone", "--depth", "1", "--branch", "0.1", "https://github.com/wlrfx/scenefx.git", scenefxDir.toString).call(check = false)
 
             if os.exists(buildDir / "meson.build") then
+              val mesonContent = os.read(buildDir / "meson.build")
+              val patchedMeson = mesonContent.replace(
+                "subproject(\n\t'wlroots'",
+                "# subproject('wlroots'"
+              ).replace(
+                "subproject(\n  'wlroots'",
+                "# subproject('wlroots'"
+              )
+              os.write.over(buildDir / "meson.build", patchedMeson)
+
               val mesonDir = buildDir / "build"
               if !os.exists(mesonDir) then
-                os.proc("meson", "setup", "build", "--prefix=/usr/local", "--buildtype=release", "-Dman-pages=disabled").call(cwd = buildDir, check = false)
+                os.proc(
+                  "meson", "setup", "build",
+                  s"--prefix=${ctx.home}/.local",
+                  "-Dman-pages=disabled",
+                  "-Dtray=disabled",
+                  s"-Dc_link_args=-Wl,-rpath,$$ORIGIN/../lib/x86_64-linux-gnu:$$ORIGIN/../lib"
+                ).call(cwd = buildDir, check = false)
               os.proc("ninja", "-C", "build").call(cwd = buildDir, check = false)
-              val installRes = os.proc("sudo", "ninja", "-C", "build", "install").call(cwd = buildDir, check = false)
+              val installRes = os.proc("ninja", "-C", "build", "install").call(cwd = buildDir, check = false)
               if installRes.exitCode == 0 then
-                println("  \u001b[32m[OK]\u001b[0m SwayFX built and installed successfully to /usr/local/bin/sway.")
+                println(s"  \u001b[32m[OK]\u001b[0m SwayFX built and installed successfully to ${ctx.home}/.local/bin/sway.")
               else
                 println(s"  \u001b[33m[NOTE]\u001b[0m SwayFX install exited with code ${installRes.exitCode}; base sway is installed.")
             Right(())

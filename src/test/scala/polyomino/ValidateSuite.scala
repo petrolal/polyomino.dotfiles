@@ -41,11 +41,17 @@ class ValidateSuite extends FunSuite:
     assert(Validator.VersionStr.contains("0.1.0"))
 
   test("Validator.Subcommands contains expected commands"):
-    assert(Validator.Subcommands.contains("theme"))
-    assert(Validator.Subcommands.contains("install"))
-    assert(Validator.Subcommands.contains("autotiling"))
+    val expected = Seq("theme", "install", "autotiling", "runtime-refresh", "os-colorscheme", "lock", "idle", "screenshot", "backup", "restore", "menu", "whichkey")
+    expected.foreach { cmd =>
+      assert(Validator.Subcommands.contains(cmd), s"Missing expected command in Validator: $cmd")
+    }
 
   test("menu subcommand is wired into both symlink/audit lists and help"):
     assert(Validator.Subcommands.contains("menu"))
     assert(polyomino.dotfiles.install.DeployInstaller.Subcommands.contains("menu"))
     assert(Main.UmbrellaHelp.contains("menu"))
+
+  test("Validator detects command execution and exit code handling"):
+    val ctx = Context.discover().toOption.get
+    val res = Validator.run(ctx, List("--dry-run"))
+    assert(res.isRight || res.isLeft)

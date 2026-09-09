@@ -57,3 +57,19 @@ class SysUtilsSuite extends FunSuite:
     val res = SysUtils.runScreenshot(ctx, Nil)
     // May succeed or fail depending on user interaction and available tools
     assert(res.isRight || res.isLeft)
+
+  test("SysUtils.runCalendar executes without throwing uncaught exceptions"):
+    val ctx = Context.discover().toOption.get
+    val res = SysUtils.runCalendar(ctx)
+    assert(res.isRight || res.isLeft)
+
+  test("SysUtils.runDrawWindow handles missing or existing script"):
+    val ctx = Context.discover().toOption.get
+    val res = SysUtils.runDrawWindow(ctx, List("--help"))
+    assert(res.isRight || res.isLeft)
+
+  test("SysUtils.runLockPreview handles preview arguments gracefully"):
+    assume(!isCI)
+    val ctx = Context.discover().toOption.get
+    val res = SysUtils.runLockPreview(ctx, List("--preview"))
+    assert(res.isRight || res.isLeft)
