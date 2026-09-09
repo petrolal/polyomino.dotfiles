@@ -22,6 +22,7 @@ object ToolInstallers:
       case "install-coursier" | "install-cs" => installCoursier(ctx)
       case "install-fonts" => installFonts(ctx)
       case "install-apps" => installApps(ctx)
+      case "install-sway" | "install-swayfx" => installSwayfx(ctx)
       case "install-browser" => installBrowser(ctx)
       case "install-swaync" | "install-notifications" => installSwaync(ctx)
       case "install-devops" => installDevops(ctx)
@@ -55,6 +56,14 @@ object ToolInstallers:
     val fontsDir = ctx.home / ".local" / "share" / "fonts"
     os.makeDir.all(fontsDir)
     println(s"\u001b[1;36m[polyomino install-fonts]\u001b[0m Installing JetBrainsMono Nerd Font to $fontsDir...")
+    val fontRegular = fontsDir / "JetBrainsMonoNerdFont-Regular.ttf"
+    if !os.exists(fontRegular) then
+      try
+        println("  \u001b[36m[INFO]\u001b[0m Downloading JetBrainsMono Nerd Font release...")
+        val fontUrl = "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz"
+        os.proc("bash", "-c", s"curl -fsSL '$fontUrl' | tar -xJ -C '${fontsDir}'").call(check = false)
+      catch
+        case e: Exception => println(s"  \u001b[33m[NOTE]\u001b[0m Font download skipped: ${e.getMessage}")
     try
       os.proc("fc-cache", "-f", fontsDir.toString).call(check = false)
       println("  \u001b[32m[OK]\u001b[0m Refreshed system font cache (fc-cache)")
@@ -67,13 +76,15 @@ object ToolInstallers:
     println(s"\u001b[1;36m[polyomino install-apps]\u001b[0m Installing core desktop apps (PM: $pm)...")
     pm match
       case PackageManager.Pacman =>
-        runPkgInstall("sudo", Seq("pacman", "-S", "--needed", "--noconfirm", "waybar", "kitty", "wofi", "swaylock", "gtklock", "swayidle", "grim", "slurp", "brightnessctl", "libpulse", "playerctl", "wireplumber", "ttf-jetbrains-mono-nerd", "swaync", "mako", "cmake", "ncurses", "neovim", "fastfetch", "cmatrix", "jq", "xdotool", "network-manager-applet", "polkit-gnome"))
+        runPkgInstall("sudo", Seq("pacman", "-S", "--needed", "--noconfirm", "waybar", "kitty", "wofi", "swaylock", "gtklock", "swayidle", "grim", "slurp", "brightnessctl", "libpulse", "playerctl", "wireplumber", "ttf-jetbrains-mono-nerd", "swaync", "mako", "cmake", "ncurses", "neovim", "fastfetch", "cmatrix", "jq", "xdotool", "network-manager-applet", "polkit-gnome", "wl-clipboard", "pavucontrol"))
         if isAvailable("yay") then runPkgInstall("yay", Seq("-S", "--needed", "--noconfirm", "--answerclean", "None", "--answerdiff", "None", "swayfx", "ncpamixer", "onlyoffice-bin"))
         else runPkgInstall("sudo", Seq("pacman", "-S", "--needed", "--noconfirm", "sway"))
       case PackageManager.Dnf =>
-        runPkgInstall("sudo", Seq("dnf", "install", "-y", "sway", "waybar", "kitty", "wofi", "swaylock", "swayidle", "grim", "slurp", "brightnessctl", "playerctl", "wireplumber", "sway-notification-center", "mako", "neovim", "onlyoffice-desktopeditors", "fastfetch", "cmatrix", "jq", "xdotool", "network-manager-applet", "polkit-gnome"))
+        runPkgInstall("sudo", Seq("dnf", "install", "-y", "sway", "waybar", "kitty", "wofi", "swaylock", "swayidle", "grim", "slurp", "brightnessctl", "playerctl", "wireplumber", "sway-notification-center", "mako", "neovim", "onlyoffice-desktopeditors", "fastfetch", "cmatrix", "jq", "xdotool", "network-manager-applet", "polkit-gnome", "wl-clipboard", "pavucontrol"))
+        installSwayfx(ctx)
       case PackageManager.Apt =>
-        runPkgInstall("sudo", Seq("apt-get", "install", "-y", "sway", "waybar", "kitty", "wofi", "swaylock", "swayidle", "grim", "slurp", "brightnessctl", "playerctl", "wireplumber", "pulseaudio-utils", "fonts-jetbrains-mono", "sway-notification-center", "mako-notifier", "python3-gi", "python3-cairo", "gir1.2-gtk-3.0", "neovim", "fastfetch", "cmatrix", "jq", "xdotool", "network-manager-gnome", "policykit-1-gnome"))
+        runPkgInstall("sudo", Seq("apt-get", "install", "-y", "sway", "waybar", "kitty", "wofi", "swaylock", "swayidle", "grim", "slurp", "brightnessctl", "playerctl", "wireplumber", "pulseaudio-utils", "fonts-jetbrains-mono", "sway-notification-center", "mako-notifier", "python3-gi", "python3-cairo", "gir1.2-gtk-3.0", "neovim", "fastfetch", "cmatrix", "jq", "xdotool", "network-manager-gnome", "policykit-1-gnome", "wl-clipboard", "pavucontrol"))
+        installSwayfx(ctx)
       case PackageManager.Brew =>
         runPkgInstall("brew", Seq("install", "fastfetch", "cmatrix", "jq"))
       case _ =>
@@ -116,7 +127,8 @@ object ToolInstallers:
       case PackageManager.Dnf =>
         runPkgInstall("sudo", Seq("dnf", "install", "-y", "docker", "terraform", "ansible", "awscli", "kubectl", "helm"))
       case PackageManager.Apt =>
-        runPkgInstall("sudo", Seq("apt-get", "install", "-y", "docker.io", "ansible"))
+        val pkgs = if isAvailable("docker") then Seq("ansible") else Seq("docker.io", "ansible")
+        runPkgInstall("sudo", Seq("apt-get", "install", "-y") ++ pkgs)
       case PackageManager.Brew =>
         runPkgInstall("brew", Seq("install", "docker", "terraform", "ansible", "awscli", "google-cloud-sdk", "oci-cli", "kubectl", "helm"))
       case _ =>
@@ -145,6 +157,18 @@ object ToolInstallers:
       catch
         case e: Exception =>
           println(s"  \u001b[33m[NOTE]\u001b[0m helm download skipped: ${e.getMessage}")
+
+    // Terraform binary fallback (e.g. for Debian/Ubuntu APT where terraform is not in main repo)
+    if !isAvailable("terraform") && !os.exists(localBin / "terraform") then
+      println("  \u001b[36m[INFO]\u001b[0m Downloading terraform binary...")
+      try
+        val tfUrl = "https://releases.hashicorp.com/terraform/1.9.5/terraform_1.9.5_linux_amd64.zip"
+        os.proc("bash", "-c", s"curl -fsSL '$tfUrl' -o /tmp/tf.zip && unzip -qo /tmp/tf.zip -d '$localBin' && rm -f /tmp/tf.zip").call(check = false)
+        if os.exists(localBin / "terraform") then
+          println("  \u001b[32m[OK]\u001b[0m terraform installed to ~/.local/bin.")
+      catch
+        case e: Exception =>
+          println(s"  \u001b[33m[NOTE]\u001b[0m terraform download skipped: ${e.getMessage}")
 
     // Google Cloud CLI (gcloud)
     println("  \u001b[36m[INFO]\u001b[0m Installing/Updating Google Cloud CLI (gcloud)...")
@@ -464,31 +488,99 @@ object ToolInstallers:
 
     Right(())
 
+  private def installSwayfx(ctx: Context): Either[PolyominoError, Unit] =
+    val pm = detectPackageManager()
+    println(s"\u001b[1;36m[polyomino install-swayfx]\u001b[0m Checking/Installing SwayFX / Sway (PM: $pm)...")
+    pm match
+      case PackageManager.Pacman =>
+        if isAvailable("yay") then
+          runPkgInstall("yay", Seq("-S", "--needed", "--noconfirm", "--answerclean", "None", "--answerdiff", "None", "swayfx"))
+        else
+          runPkgInstall("sudo", Seq("pacman", "-S", "--needed", "--noconfirm", "sway"))
+      case PackageManager.Dnf =>
+        try
+          os.proc("sudo", "dnf", "copr", "enable", "-y", "swayfx/swayfx").call(check = false)
+        catch
+          case _: Exception => ()
+        val dnfRes = runPkgInstall("sudo", Seq("dnf", "install", "-y", "swayfx"))
+        if !isAvailable("sway") && !isAvailable("swayfx") then
+          runPkgInstall("sudo", Seq("dnf", "install", "-y", "sway"))
+        else Right(())
+      case PackageManager.Apt =>
+        val isSwayfxInstalled = isAvailable("swayfx") || {
+          try os.proc("sway", "--version").call(check = false).out.text().toLowerCase.contains("swayfx") catch case _: Exception => false
+        }
+        if isSwayfxInstalled then
+          println("  \u001b[32m[OK]\u001b[0m SwayFX is already installed.")
+          Right(())
+        else
+          println("  \u001b[36m[INFO]\u001b[0m Compiling and installing SwayFX for Ubuntu...")
+          try
+            val buildDeps = Seq(
+              "meson", "ninja-build", "libwlroots-dev", "wayland-protocols", "libwayland-dev",
+              "libpango1.0-dev", "libcairo2-dev", "libgdk-pixbuf-2.0-dev", "libjson-c-dev",
+              "libpcre2-dev", "libevdev-dev", "libinput-dev", "libxkbcommon-dev", "scdoc", "cmake", "git", "sway"
+            )
+            runPkgInstall("sudo", Seq("apt-get", "install", "-y") ++ buildDeps)
+
+            val buildDir = ctx.home / ".cache" / "polyomino" / "swayfx"
+            os.makeDir.all(buildDir / os.up)
+            if !os.exists(buildDir / ".git") then
+              if os.exists(buildDir) then os.remove.all(buildDir)
+              os.proc("git", "clone", "--depth", "1", "https://github.com/WillPower3309/swayfx.git", buildDir.toString).call(check = false)
+            else
+              os.proc("git", "-C", buildDir.toString, "pull", "--ff-only").call(check = false)
+
+            if os.exists(buildDir / "meson.build") then
+              val mesonDir = buildDir / "build"
+              if !os.exists(mesonDir) then
+                os.proc("meson", "setup", "build", "--prefix=/usr/local", "--buildtype=release", "-Dman-pages=disabled").call(cwd = buildDir, check = false)
+              os.proc("ninja", "-C", "build").call(cwd = buildDir, check = false)
+              val installRes = os.proc("sudo", "ninja", "-C", "build", "install").call(cwd = buildDir, check = false)
+              if installRes.exitCode == 0 then
+                println("  \u001b[32m[OK]\u001b[0m SwayFX built and installed successfully to /usr/local/bin/sway.")
+              else
+                println(s"  \u001b[33m[NOTE]\u001b[0m SwayFX install exited with code ${installRes.exitCode}; base sway is installed.")
+            Right(())
+          catch
+            case e: Exception =>
+              println(s"  \u001b[33m[NOTE]\u001b[0m SwayFX build skipped (${e.getMessage}); ensuring standard sway...")
+              runPkgInstall("sudo", Seq("apt-get", "install", "-y", "sway"))
+      case PackageManager.Brew =>
+        runPkgInstall("brew", Seq("install", "sway"))
+      case _ =>
+        Right(println("  \u001b[33m[NOTE]\u001b[0m Manual installation of SwayFX/Sway required for current OS."))
+
   private def installTelegram(ctx: Context): Either[PolyominoError, Unit] =
     val pm = detectPackageManager()
-    println(s"\u001b[1;36m[polyomino install-telegram]\u001b[0m Installing/Updating Telegram Desktop (PM: $pm)...")
+    val localBin = ctx.home / ".local" / "bin"
+    val isTelegramInstalled = isAvailable("telegram-desktop") || isAvailable("Telegram") || os.exists(localBin / "telegram-desktop") || os.exists(localBin / "Telegram" / "Telegram")
+    if isTelegramInstalled then
+      println("  \u001b[32m[OK]\u001b[0m Telegram Desktop is already installed.")
+      return Right(())
+
+    println(s"\u001b[1;36m[polyomino install-telegram]\u001b[0m Installing Telegram Desktop (PM: $pm)...")
     pm match
       case PackageManager.Pacman =>
         runPkgInstall("sudo", Seq("pacman", "-S", "--noconfirm", "telegram-desktop"))
       case PackageManager.Dnf =>
         runPkgInstall("sudo", Seq("dnf", "install", "-y", "telegram-desktop"))
       case PackageManager.Apt =>
-        val res = runPkgInstall("sudo", Seq("apt-get", "install", "-y", "telegram-desktop"))
-        if !isAvailable("telegram-desktop") && !isAvailable("Telegram") then
-          println("  \u001b[36m[INFO]\u001b[0m telegram-desktop package unavailable in APT repos. Downloading official binary...")
-          try
-            val tgzUrl = "https://telegram.org/dl/desktop/linux"
-            val localBin = ctx.home / ".local" / "bin"
-            os.makeDir.all(localBin)
-            val dlRes = os.proc("bash", "-c", s"curl -fsSL '$tgzUrl' | tar -xJ -C '${localBin}' && ln -sf '${localBin}/Telegram/Telegram' '${localBin}/telegram-desktop'").call(check = false)
-            if dlRes.exitCode == 0 then
-              println("  \u001b[32m[OK]\u001b[0m Telegram installed to ~/.local/bin/telegram-desktop.")
-            else
-              println(s"  \u001b[33m[NOTE]\u001b[0m Telegram binary download exited with code ${dlRes.exitCode}")
-          catch
-            case e: Exception =>
-              println(s"  \u001b[33m[NOTE]\u001b[0m Telegram download skipped: ${e.getMessage}")
-        Right(())
+        println("  \u001b[36m[INFO]\u001b[0m Downloading official standalone Telegram binary for Ubuntu/Debian...")
+        try
+          val tgzUrl = "https://telegram.org/dl/desktop/linux"
+          os.makeDir.all(localBin)
+          val dlRes = os.proc("bash", "-c", s"curl -fsSL '$tgzUrl' | tar -xJ -C '${localBin}' && ln -sf '${localBin}/Telegram/Telegram' '${localBin}/telegram-desktop'").call(check = false)
+          if dlRes.exitCode == 0 then
+            println("  \u001b[32m[OK]\u001b[0m Telegram installed to ~/.local/bin/telegram-desktop.")
+            Right(())
+          else
+            println(s"  \u001b[33m[NOTE]\u001b[0m Telegram binary download exited with code ${dlRes.exitCode}")
+            Right(())
+        catch
+          case e: Exception =>
+            println(s"  \u001b[33m[NOTE]\u001b[0m Telegram download skipped: ${e.getMessage}")
+            Right(())
       case PackageManager.Brew =>
         runPkgInstall("brew", Seq("install", "--cask", "telegram-desktop"))
       case _ =>
@@ -593,6 +685,7 @@ object ToolInstallers:
       _ <- installGh(ctx)
       _ <- installCoursier(ctx)
       _ <- installApps(ctx)
+      _ <- installSwayfx(ctx)
       _ <- installFastfetch(ctx)
       _ <- installSwaync(ctx)
       _ <- installFonts(ctx)
@@ -600,8 +693,10 @@ object ToolInstallers:
       _ <- installTelegram(ctx)
       _ <- installDevops(ctx)
       _ <- installZsh(ctx)
+      _ <- installSdkman(ctx)
       _ <- installNode(ctx)
       _ <- installTools(ctx)
+      _ <- installSpotifyPlayer(ctx)
       _ <- installYazi(ctx)
       _ <- polyomino.dotfiles.refresh.NotificationIntegration.configureApps(ctx)
     yield ()

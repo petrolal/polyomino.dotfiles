@@ -50,6 +50,11 @@ install_system_deps() {
       ;;
     apt-get)
       sudo apt-get update
+      DOCKER_PKG=""
+      if ! command -v docker &> /dev/null; then
+        DOCKER_PKG="docker.io"
+      fi
+
       sudo apt-get install -y \
         build-essential git curl wget \
         zsh fontconfig fastfetch cmatrix \
@@ -58,8 +63,8 @@ install_system_deps() {
         python3-gi python3-cairo gir1.2-gtk-3.0 \
         firefox chromium-browser \
         neovim \
-        docker.io \
-        fonts-jetbrains-mono
+        fonts-jetbrains-mono \
+        $DOCKER_PKG
       echo -e "  \033[32m[OK]\033[0m System packages installed"
       ;;
     dnf)

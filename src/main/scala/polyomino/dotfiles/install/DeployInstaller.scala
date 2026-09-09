@@ -35,7 +35,7 @@ object DeployInstaller:
     "screenshot", "draw-window", "sway-draw-window", "calendar", "autotiling", "healthcheck", "backup", "restore", "update", "notify-config",
     "sdd", "install", "deploy", "install-deps", "install-brew", "install-homebrew",
     "install-gh", "install-github-cli", "install-coursier", "install-cs",
-    "install-fonts", "install-apps", "install-swaync", "install-notifications", "install-browser", "install-devops", "install-zsh", "install-sdkman",
+    "install-fonts", "install-apps", "install-sway", "install-swayfx", "install-swaync", "install-notifications", "install-browser", "install-devops", "install-zsh", "install-sdkman",
     "install-tools", "install-telegram", "install-node", "install-npm", "install-npx", "install-yazi", "install-fastfetch", "install-spotify", "install-spotify-player", "full-install", "theme-picker", "wallpaper", "wallpaper-picker", "whichkey", "wichkey", "menu", "rubik-lock", "preview-lock", "power-menu", "powermenu"
   )
 
