@@ -27,15 +27,17 @@ import threading
 
 try:
     import gi
-except ImportError:
+    gi.require_version('Gtk', '3.0')
+    gi.require_version('Gdk', '3.0')
+    gi.require_version('Pango', '1.0')
+    gi.require_version('PangoCairo', '1.0')
+    from gi.repository import Gtk, Gdk, GLib, Pango, PangoCairo
+    import cairo
+except Exception:
     if sys.executable != "/usr/bin/python3" and os.path.exists("/usr/bin/python3"):
         os.execv("/usr/bin/python3", ["/usr/bin/python3"] + sys.argv)
     raise
 
-gi.require_version('Gtk', '3.0')
-gi.require_version('Gdk', '3.0')
-gi.require_version('Pango', '1.0')
-gi.require_version('PangoCairo', '1.0')
 try:
     gi.require_version('GtkSessionLock', '0.1')
     from gi.repository import GtkSessionLock
@@ -43,8 +45,12 @@ try:
 except Exception:
     HAS_SESSION_LOCK = False
 
-from gi.repository import Gtk, Gdk, GLib, Pango, PangoCairo
-import cairo
+try:
+    gi.require_version('GtkLayerShell', '0.1')
+    from gi.repository import GtkLayerShell
+    HAS_LAYER_SHELL = True
+except Exception:
+    HAS_LAYER_SHELL = False
 
 import socket
 
@@ -1046,19 +1052,22 @@ class PolyominoRubikLockApp:
 
         if not self.test_mode:
             if HAS_SESSION_LOCK and GtkSessionLock.is_supported():
+                self.lock_mode = "session_lock"
                 self.lock = GtkSessionLock.prepare_lock()
                 self.lock.connect("locked", self.on_locked)
                 self.lock.connect("finished", self.on_finished)
                 # Correct ext-session-lock lifecycle: lock_lock() BEFORE new_surface()
                 self.lock.lock_lock()
+            elif HAS_LAYER_SHELL and GtkLayerShell.is_supported():
+                self.lock_mode = "layer_shell"
+                self.setup_layer_shell_windows()
+                self._start_ticking()
             else:
-                sys.stderr.write("GtkSessionLock unavailable. Falling back to swaylock...\n")
-                try:
-                    os.execvp("swaylock", ["swaylock", "-f"])
-                except Exception as e:
-                    sys.stderr.write(f"Failed to exec swaylock: {e}\n")
-                    sys.exit(1)
+                self.lock_mode = "fullscreen"
+                self.setup_fullscreen_windows()
+                self._start_ticking()
         else:
+            self.lock_mode = "preview"
             self.setup_preview_windows()
             self._start_ticking()
 
@@ -1091,6 +1100,75 @@ class PolyominoRubikLockApp:
 
     def on_finished(self, lock):
         Gtk.main_quit()
+
+    def setup_layer_shell_windows(self):
+        display = Gdk.Display.get_default()
+        n_monitors = display.get_n_monitors() if display else 1
+        for i in range(max(1, n_monitors)):
+            monitor = display.get_monitor(i) if display else None
+            win = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
+            win.set_title("Polyomino Rubik Lock")
+            win.set_app_paintable(True)
+            win.set_can_focus(True)
+            win.add_events(Gdk.EventMask.KEY_PRESS_MASK | Gdk.EventMask.KEY_RELEASE_MASK | Gdk.EventMask.BUTTON_PRESS_MASK)
+            win.connect("key-press-event", self.on_key_press)
+            win.connect("button-press-event", self.on_button_press)
+
+            darea = Gtk.DrawingArea()
+            darea.connect("draw", self.on_draw)
+            win.add(darea)
+
+            GtkLayerShell.init_for_window(win)
+            if monitor:
+                GtkLayerShell.set_monitor(win, monitor)
+            GtkLayerShell.set_layer(win, GtkLayerShell.Layer.OVERLAY)
+            GtkLayerShell.set_keyboard_mode(win, GtkLayerShell.KeyboardMode.EXCLUSIVE)
+            GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.TOP, True)
+            GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.BOTTOM, True)
+            GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.LEFT, True)
+            GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.RIGHT, True)
+            GtkLayerShell.set_exclusive_zone(win, -1)
+
+            win.show_all()
+            self.windows.append((win, darea))
+
+        if self.windows:
+            self.windows[0][0].grab_focus()
+
+    def setup_fullscreen_windows(self):
+        display = Gdk.Display.get_default()
+        n_monitors = display.get_n_monitors() if display else 1
+        for i in range(max(1, n_monitors)):
+            monitor = display.get_monitor(i) if display else None
+            win = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
+            win.set_title("Polyomino Rubik Lock")
+            win.set_app_paintable(True)
+            win.set_can_focus(True)
+            win.set_decorated(False)
+            win.set_keep_above(True)
+            win.add_events(Gdk.EventMask.KEY_PRESS_MASK | Gdk.EventMask.KEY_RELEASE_MASK | Gdk.EventMask.BUTTON_PRESS_MASK)
+            win.connect("key-press-event", self.on_key_press)
+            win.connect("button-press-event", self.on_button_press)
+
+            darea = Gtk.DrawingArea()
+            darea.connect("draw", self.on_draw)
+            win.add(darea)
+
+            if monitor:
+                geom = monitor.get_geometry()
+                win.move(geom.x, geom.y)
+                win.set_default_size(geom.width, geom.height)
+            win.fullscreen()
+            win.show_all()
+            self.windows.append((win, darea))
+
+        if self.windows:
+            self.windows[0][0].grab_focus()
+            win_gdk = self.windows[0][0].get_window()
+            if win_gdk and display:
+                seat = display.get_default_seat()
+                if seat:
+                    seat.grab(win_gdk, Gdk.SeatCapabilities.ALL, True, None, None, None)
 
     def setup_preview_windows(self):
         GLib.set_prgname("polyomino-lock-preview")
@@ -1222,6 +1300,16 @@ class PolyominoRubikLockApp:
             display = Gdk.Display.get_default()
             if display:
                 display.sync()
+            Gtk.main_quit()
+        elif not self.test_mode:
+            display = Gdk.Display.get_default()
+            if display:
+                seat = display.get_default_seat()
+                if seat:
+                    seat.ungrab()
+                display.sync()
+            for win, _ in self.windows:
+                win.destroy()
             Gtk.main_quit()
         elif self.test_mode:
             self.engine.auth_state = "SUCCESS"

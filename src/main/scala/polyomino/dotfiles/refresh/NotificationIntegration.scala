@@ -24,25 +24,20 @@ object NotificationIntegration:
 
     // Configure Chromium/Chrome
     configureChromium(ctx) match
-      case Right(_) => results += "  [32m[OK][0m Chromium/Chrome configured for native notifications"
-      case Left(_) => results += "  [33m[NOTE][0m Chromium not found or already configured"
+      case Right(_) => results += "  \u001b[32m[OK]\u001b[0m Chromium/Chrome configured for native notifications"
+      case Left(_) => results += "  \u001b[33m[NOTE]\u001b[0m Chromium not found or already configured"
 
     // Configure Firefox (already uses system notifications by default on Wayland)
-    results += "  [32m[OK][0m Firefox uses system notifications by default"
+    results += "  \u001b[32m[OK]\u001b[0m Firefox uses system notifications by default"
 
     // Configure Slack (if installed)
     configureSlack(ctx) match
-      case Right(_) => results += "  [32m[OK][0m Slack configured for system notifications"
-      case Left(_) => results += "  [33m[NOTE][0m Slack not installed"
-
-    // Configure Discord (if installed)
-    configureDiscord(ctx) match
-      case Right(_) => results += "  [32m[OK][0m Discord configured for system notifications"
-      case Left(_) => results += "  [33m[NOTE][0m Discord not installed"
+      case Right(_) => results += "  \u001b[32m[OK]\u001b[0m Slack configured for system notifications"
+      case Left(_) => results += "  \u001b[33m[NOTE]\u001b[0m Slack not installed"
 
     for line <- results do println(line)
 
-    println("[1;32m[SUCCESS][0m Application notification integration complete!")
+    println("  \u001b[1;32m[SUCCESS]\u001b[0m Application notification integration complete!")
     Right(())
 
   private def configureChromium(ctx: Context): Either[PolyominoError, Unit] =
@@ -94,22 +89,3 @@ exec /usr/bin/google-chrome --enable-features=UseOsNotificationCenter "$@"
         case _: Exception => Left(CommandError("Slack config update failed", 1))
     else
       Left(CommandError("Slack not installed", 1))
-
-  private def configureDiscord(ctx: Context): Either[PolyominoError, Unit] =
-    val discordConfigDir = ctx.home / ".config" / "discord"
-    if os.exists(discordConfigDir) then
-      try
-        val settingsFile = discordConfigDir / "settings.json"
-        if os.exists(settingsFile) then
-          val content = os.read(settingsFile)
-          if !content.contains("\"USE_SYSTEM_NOTIFICATIONS\":true") then
-            val updatedContent = content.replace(
-              "\"USE_SYSTEM_NOTIFICATIONS\":false",
-              "\"USE_SYSTEM_NOTIFICATIONS\":true"
-            )
-            os.write.over(settingsFile, updatedContent)
-        Right(())
-      catch
-        case _: Exception => Left(CommandError("Discord config update failed", 1))
-    else
-      Left(CommandError("Discord not installed", 1))

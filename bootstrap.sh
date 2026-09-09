@@ -36,12 +36,13 @@ install_system_deps() {
 
   case "$pkg_mgr" in
     pacman)
-      # Core system + desktop + dev tools
+      # Core system + desktop + dev tools + lockscreen & Wayland stack
       sudo pacman -S --needed --noconfirm \
         base-devel git curl wget \
         zsh fontconfig fastfetch cmatrix \
         sway waybar kitty wofi swaylock gtklock swayidle grim slurp \
         brightnessctl libpulse playerctl wireplumber swaync mako \
+        python-gobject python-cairo gtk3 gtk-layer-shell gtk-session-lock pam \
         chromium firefox \
         neovim \
         docker \
@@ -60,7 +61,7 @@ install_system_deps() {
         zsh fontconfig fastfetch cmatrix \
         sway waybar kitty wofi swaylock swayidle grim slurp \
         brightnessctl playerctl wireplumber pulseaudio-utils sway-notification-center mako-notifier \
-        python3-gi python3-cairo gir1.2-gtk-3.0 \
+        python3-gi python3-cairo gir1.2-gtk-3.0 gir1.2-gtklayershell-0.1 libpam0g-dev \
         firefox chromium-browser \
         neovim \
         fonts-jetbrains-mono \
@@ -73,6 +74,7 @@ install_system_deps() {
         zsh fontconfig fastfetch cmatrix \
         sway waybar kitty wofi swaylock swayidle grim slurp \
         brightnessctl playerctl wireplumber pulseaudio-libs sway-notification-center mako \
+        python3-gobject python3-cairo gtk3 gtk-layer-shell pam-devel \
         firefox \
         neovim \
         docker
@@ -226,6 +228,60 @@ install_tools() {
   fi
 }
 
+install_swayfx() {
+  local pkg_mgr="$1"
+  if command -v sway &> /dev/null && sway --version 2>&1 | grep -iq "swayfx"; then
+    echo -e "  \033[32m[OK]\033[0m SwayFX is already installed"
+    return
+  fi
+
+  echo -e "  \033[1;36m[polyomino]\033[0m Checking/Installing SwayFX ($pkg_mgr)..."
+  case "$pkg_mgr" in
+    pacman)
+      if command -v yay &> /dev/null; then
+        echo -e "  \033[36m[INFO]\033[0m Installing SwayFX via yay..."
+        yay -S --needed --noconfirm --answerclean None --answerdiff None swayfx 2>/dev/null || true
+      fi
+      ;;
+    dnf)
+      echo -e "  \033[36m[INFO]\033[0m Enabling SwayFX COPR repository..."
+      sudo dnf copr enable -y swayfx/swayfx 2>/dev/null || true
+      sudo dnf install -y swayfx 2>/dev/null || true
+      ;;
+    apt-get)
+      echo -e "  \033[36m[INFO]\033[0m Compiling and installing SwayFX from source for Ubuntu..."
+      sudo apt-get install -y meson ninja-build libwlroots-dev wayland-protocols libwayland-dev \
+        libpango1.0-dev libcairo2-dev libgdk-pixbuf-2.0-dev libjson-c-dev libpcre2-dev libevdev-dev \
+        libinput-dev libxkbcommon-dev scdoc cmake git sway 2>/dev/null || true
+
+      local build_dir="$HOME/.cache/polyomino/swayfx"
+      mkdir -p "$HOME/.cache/polyomino"
+      if [ ! -d "$build_dir/.git" ]; then
+        rm -rf "$build_dir"
+        git clone --depth 1 --branch 0.4 https://github.com/WillPower3309/swayfx.git "$build_dir" 2>/dev/null || true
+      fi
+      mkdir -p "$build_dir/subprojects"
+      if [ ! -d "$build_dir/subprojects/scenefx/.git" ]; then
+        rm -rf "$build_dir/subprojects/scenefx"
+        git clone --depth 1 --branch 0.1 https://github.com/wlrfx/scenefx.git "$build_dir/subprojects/scenefx" 2>/dev/null || true
+      fi
+      if [ -f "$build_dir/meson.build" ]; then
+        sed -i "s/subproject(\t'wlroots'/# subproject('wlroots'/g" "$build_dir/meson.build" 2>/dev/null || true
+        sed -i "s/subproject(  'wlroots'/# subproject('wlroots'/g" "$build_dir/meson.build" 2>/dev/null || true
+        mkdir -p "$HOME/.local/bin"
+        if [ ! -f "$build_dir/build/build.ninja" ]; then
+          meson setup "$build_dir/build" "$build_dir" --prefix="$HOME/.local" -Dman-pages=disabled -Dtray=disabled "-Dc_link_args=-Wl,-rpath,\$ORIGIN/../lib/x86_64-linux-gnu:\$ORIGIN/../lib" 2>/dev/null || true
+        fi
+        ninja -C "$build_dir/build" 2>/dev/null || true
+        ninja -C "$build_dir/build" install 2>/dev/null || true
+        if [ -f "$HOME/.local/bin/sway" ]; then
+          echo -e "  \033[32m[OK]\033[0m SwayFX compiled and installed to $HOME/.local/bin/sway"
+        fi
+      fi
+      ;;
+  esac
+}
+
 enable_path() {
   if ! echo "$PATH" | grep -q "$BIN_DIR"; then
     echo -e "  \033[36m[INFO]\033[0m Adding $BIN_DIR to PATH..."
@@ -255,6 +311,10 @@ echo ""
 
 # Install TUI tools (spotify_player, bluetui)
 install_tools "$PKG_MGR"
+echo ""
+
+# Install / Build SwayFX
+install_swayfx "$PKG_MGR"
 echo ""
 
 # Install Java

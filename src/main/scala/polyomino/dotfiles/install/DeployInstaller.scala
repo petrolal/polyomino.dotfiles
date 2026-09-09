@@ -40,7 +40,14 @@ object DeployInstaller:
   )
 
   def run(ctx: Context, args: List[String]): Either[PolyominoError, Unit] =
-    println("[1;32m[polyomino install][0m Deploying polyomino.dotfiles configurations & symlinks...")
+    println("\u001b[1;32m[polyomino install]\u001b[0m Deploying polyomino.dotfiles configurations & symlinks...")
+
+    if args.exists(a => a == "--bootstrap" || a == "-b" || a == "--with-bootstrap" || a == "--deps") then
+      val bootstrapScript = ctx.dotfilesDir / "bootstrap.sh"
+      if os.exists(bootstrapScript) then
+        println(s"\u001b[1;36m[polyomino install]\u001b[0m Executing bootstrap.sh...")
+        try os.proc("bash", bootstrapScript.toString).call(stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit)
+        catch case e: Exception => println(s"  \u001b[33m[WARN]\u001b[0m bootstrap.sh exited: ${e.getMessage}")
 
     ensureDotfilesRepo(ctx) match
       case Left(err) => Left(err)

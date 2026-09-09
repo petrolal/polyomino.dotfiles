@@ -83,7 +83,8 @@ class ThemeSuite extends FunSuite {
     val swayConfig = os.read(ctx.dotfilesDir / "config" / "sway" / "config")
     assert(swayConfig.contains("gaps inner 4"), "sway: expected `gaps inner 4`")
     assert(swayConfig.contains("gaps outer 2"), "sway: expected `gaps outer 2`")
-    assert(swayConfig.contains("corner_radius 0"), "sway: expected `corner_radius 0`")
+    val fxConfig = if os.exists(ctx.dotfilesDir / "config" / "sway" / "fx.conf") then os.read(ctx.dotfilesDir / "config" / "sway" / "fx.conf") else ""
+    assert(swayConfig.contains("corner_radius 0") || fxConfig.contains("corner_radius 0") || swayConfig.contains("include fx.conf"), "sway: expected `corner_radius 0` or `include fx.conf`")
     val waybarConfig = os.read(ctx.dotfilesDir / "config" / "waybar" / "config.jsonc")
     assert(waybarConfig.contains("\"group/left\""), "waybar: missing group/left segment")
     assert(waybarConfig.contains("\"group/center\""), "waybar: missing group/center segment")

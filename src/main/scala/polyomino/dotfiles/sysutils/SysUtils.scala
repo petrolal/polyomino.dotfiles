@@ -43,8 +43,14 @@ object SysUtils:
 
   def runIdle(ctx: Context): Either[PolyominoError, Unit] =
     println("\u001b[1;34m[polyomino idle]\u001b[0m Launching swayidle daemon...")
+    val rubikScript = ctx.dotfilesDir / "config" / "sway" / "scripts" / "polyomino-rubik-lock"
+    val localRubik = ctx.home / ".local" / "bin" / "polyomino-rubik-lock"
     val lockConfigFile = ctx.configDir / "swaylock" / "config"
-    val lockCmd = if os.exists(lockConfigFile) then
+    val lockCmd = if os.exists(rubikScript) then
+      rubikScript.toString
+    else if os.exists(localRubik) then
+      localRubik.toString
+    else if os.exists(lockConfigFile) then
       s"swaylock -f --config $lockConfigFile"
     else
       "swaylock -f -c 1e1e2e"
