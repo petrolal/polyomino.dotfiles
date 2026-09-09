@@ -188,7 +188,7 @@
   // waybar-sway-workspaces
   "sway/workspaces": {
     "disable-scroll": true,
-    "disable-click": true,
+    "disable-click": false,
     "all-outputs": true,
     "format": "{icon}",
     "format-icons": {
