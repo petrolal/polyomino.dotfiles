@@ -1,1 +1,1 @@
-/home/petrolal/.config/fastfetch/assets/polyonimo_arch_tetris.txt
+/home/luhenr@ad.global/.config/fastfetch/assets/polyonimo_ubuntu_tetris.txt

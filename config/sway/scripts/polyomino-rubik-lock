@@ -25,7 +25,13 @@ import ctypes
 import getpass
 import threading
 
-import gi
+try:
+    import gi
+except ImportError:
+    if sys.executable != "/usr/bin/python3" and os.path.exists("/usr/bin/python3"):
+        os.execv("/usr/bin/python3", ["/usr/bin/python3"] + sys.argv)
+    raise
+
 gi.require_version('Gtk', '3.0')
 gi.require_version('Gdk', '3.0')
 gi.require_version('Pango', '1.0')

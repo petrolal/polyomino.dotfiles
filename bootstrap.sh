@@ -54,7 +54,8 @@ install_system_deps() {
         build-essential git curl wget \
         zsh fontconfig fastfetch cmatrix \
         sway waybar kitty wofi swaylock swayidle grim slurp \
-        brightnessctl playerctl wireplumber pulseaudio-utils sway-notification-center mako \
+        brightnessctl playerctl wireplumber pulseaudio-utils sway-notification-center mako-notifier \
+        python3-gi python3-cairo gir1.2-gtk-3.0 \
         firefox chromium-browser \
         neovim \
         docker.io \

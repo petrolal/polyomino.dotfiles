@@ -6,4 +6,4 @@ configuration {
     terminal: "kitty";
     drun-display-format: "[⊞] {name}";
 }
-@theme "/home/petrolal/.config/rofi/theme.rasi"
+@theme "/home/luhenr@ad.global/.config/rofi/theme.rasi"

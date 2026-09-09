@@ -73,7 +73,7 @@ object ToolInstallers:
       case PackageManager.Dnf =>
         runPkgInstall("sudo", Seq("dnf", "install", "-y", "sway", "waybar", "kitty", "wofi", "swaylock", "swayidle", "grim", "slurp", "brightnessctl", "playerctl", "wireplumber", "sway-notification-center", "mako", "neovim", "onlyoffice-desktopeditors", "fastfetch", "cmatrix", "jq", "xdotool", "network-manager-applet", "polkit-gnome"))
       case PackageManager.Apt =>
-        runPkgInstall("sudo", Seq("apt-get", "install", "-y", "sway", "waybar", "kitty", "wofi", "swaylock", "swayidle", "grim", "slurp", "brightnessctl", "playerctl", "wireplumber", "pulseaudio-utils", "fonts-jetbrains-mono", "sway-notification-center", "mako", "neovim", "onlyoffice-desktopeditors", "fastfetch", "cmatrix", "jq", "xdotool", "network-manager-gnome", "policykit-1-gnome"))
+        runPkgInstall("sudo", Seq("apt-get", "install", "-y", "sway", "waybar", "kitty", "wofi", "swaylock", "swayidle", "grim", "slurp", "brightnessctl", "playerctl", "wireplumber", "pulseaudio-utils", "fonts-jetbrains-mono", "sway-notification-center", "mako-notifier", "python3-gi", "python3-cairo", "gir1.2-gtk-3.0", "neovim", "fastfetch", "cmatrix", "jq", "xdotool", "network-manager-gnome", "policykit-1-gnome"))
       case PackageManager.Brew =>
         runPkgInstall("brew", Seq("install", "fastfetch", "cmatrix", "jq"))
       case _ =>
@@ -116,7 +116,7 @@ object ToolInstallers:
       case PackageManager.Dnf =>
         runPkgInstall("sudo", Seq("dnf", "install", "-y", "docker", "terraform", "ansible", "awscli", "kubectl", "helm"))
       case PackageManager.Apt =>
-        runPkgInstall("sudo", Seq("apt-get", "install", "-y", "docker.io", "ansible", "awscli", "helm"))
+        runPkgInstall("sudo", Seq("apt-get", "install", "-y", "docker.io", "ansible"))
       case PackageManager.Brew =>
         runPkgInstall("brew", Seq("install", "docker", "terraform", "ansible", "awscli", "google-cloud-sdk", "oci-cli", "kubectl", "helm"))
       case _ =>
@@ -133,6 +133,18 @@ object ToolInstallers:
       catch
         case e: Exception =>
           println(s"  \u001b[33m[NOTE]\u001b[0m kubectl download skipped: ${e.getMessage}")
+
+    // Helm binary fallback (e.g. for Debian/Ubuntu APT where helm is not in main repo)
+    if !isAvailable("helm") && !os.exists(localBin / "helm") then
+      println("  \u001b[36m[INFO]\u001b[0m Downloading helm binary...")
+      try
+        val helmScript = s"curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | USE_SUDO=false HELM_INSTALL_DIR=${localBin} bash"
+        os.proc("bash", "-c", helmScript).call(check = false)
+        if os.exists(localBin / "helm") then
+          println("  \u001b[32m[OK]\u001b[0m helm installed to ~/.local/bin.")
+      catch
+        case e: Exception =>
+          println(s"  \u001b[33m[NOTE]\u001b[0m helm download skipped: ${e.getMessage}")
 
     // Google Cloud CLI (gcloud)
     println("  \u001b[36m[INFO]\u001b[0m Installing/Updating Google Cloud CLI (gcloud)...")
@@ -461,7 +473,22 @@ object ToolInstallers:
       case PackageManager.Dnf =>
         runPkgInstall("sudo", Seq("dnf", "install", "-y", "telegram-desktop"))
       case PackageManager.Apt =>
-        runPkgInstall("sudo", Seq("apt-get", "install", "-y", "telegram-desktop"))
+        val res = runPkgInstall("sudo", Seq("apt-get", "install", "-y", "telegram-desktop"))
+        if !isAvailable("telegram-desktop") && !isAvailable("Telegram") then
+          println("  \u001b[36m[INFO]\u001b[0m telegram-desktop package unavailable in APT repos. Downloading official binary...")
+          try
+            val tgzUrl = "https://telegram.org/dl/desktop/linux"
+            val localBin = ctx.home / ".local" / "bin"
+            os.makeDir.all(localBin)
+            val dlRes = os.proc("bash", "-c", s"curl -fsSL '$tgzUrl' | tar -xJ -C '${localBin}' && ln -sf '${localBin}/Telegram/Telegram' '${localBin}/telegram-desktop'").call(check = false)
+            if dlRes.exitCode == 0 then
+              println("  \u001b[32m[OK]\u001b[0m Telegram installed to ~/.local/bin/telegram-desktop.")
+            else
+              println(s"  \u001b[33m[NOTE]\u001b[0m Telegram binary download exited with code ${dlRes.exitCode}")
+          catch
+            case e: Exception =>
+              println(s"  \u001b[33m[NOTE]\u001b[0m Telegram download skipped: ${e.getMessage}")
+        Right(())
       case PackageManager.Brew =>
         runPkgInstall("brew", Seq("install", "--cask", "telegram-desktop"))
       case _ =>
@@ -490,6 +517,8 @@ object ToolInstallers:
       val installedViaPm = pm match
         case PackageManager.Pacman =>
           runPkgInstall("sudo", Seq("pacman", "-S", "--needed", "--noconfirm", "yazi")).isRight
+        case PackageManager.Apt =>
+          runPkgInstall("sudo", Seq("apt-get", "install", "-y", "yazi")).isRight
         case PackageManager.Brew =>
           runPkgInstall("brew", Seq("install", "yazi")).isRight
         case _ => false
@@ -540,7 +569,17 @@ object ToolInstallers:
       case PackageManager.Dnf =>
         runPkgInstall("sudo", Seq("dnf", "install", "-y", "fastfetch"))
       case PackageManager.Apt =>
-        runPkgInstall("sudo", Seq("apt-get", "install", "-y", "fastfetch"))
+        val res = runPkgInstall("sudo", Seq("apt-get", "install", "-y", "fastfetch"))
+        if !isAvailable("fastfetch") then
+          try
+            println("  \u001b[36m[INFO]\u001b[0m Adding fastfetch PPA for Ubuntu...")
+            os.proc("sudo", "add-apt-repository", "-y", "ppa:zhangsongcui3371/fastfetch").call(check = false)
+            os.proc("sudo", "apt-get", "update").call(check = false)
+            runPkgInstall("sudo", Seq("apt-get", "install", "-y", "fastfetch"))
+          catch
+            case e: Exception =>
+              println(s"  \u001b[33m[NOTE]\u001b[0m Fastfetch PPA setup skipped: ${e.getMessage}")
+        Right(())
       case PackageManager.Brew =>
         runPkgInstall("brew", Seq("install", "fastfetch"))
       case _ =>
