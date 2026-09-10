@@ -16,15 +16,30 @@ object AutotilingDaemon:
           println("  \u001b[32m[OK]\u001b[0m Autotiling daemon active. Listening for Sway window events...")
           
           // Stream Sway IPC window events continuously
-          val subProc = os.proc("swaymsg", "-m", "-t", "subscribe", "[\"window\"]").spawn()
-          val reader = new java.io.BufferedReader(new java.io.InputStreamReader(subProc.stdout.wrapped))
-          
-          var line: String = null
-          while { line = reader.readLine(); line != null } do
-            if line.contains("\"focus\"") || line.contains("\"new\"") || line.contains("\"move\"") then
-              autoSplitFocusedWindow()
+          var subProc: os.SubProcess = null
+          var reader: java.io.BufferedReader = null
+          try
+            subProc = os.proc("swaymsg", "-m", "-t", "subscribe", "[\"window\"]").spawn(stderr = os.Inherit)
+            reader = new java.io.BufferedReader(new java.io.InputStreamReader(subProc.stdout.wrapped))
+            
+            var line: String = null
+            while { line = reader.readLine(); line != null } do
+              try
+                val eventJson = ujson.read(line)
+                val change = eventJson.obj.get("change").map(_.str).getOrElse("")
+                if change == "focus" || change == "new" || change == "move" then
+                  autoSplitFocusedWindow()
+              catch
+                case _: Exception => ()
 
-          Right(())
+            Right(())
+          finally
+            if reader != null then try reader.close() catch case _: Exception => ()
+            if subProc != null then
+              try
+                subProc.destroy()
+                subProc.destroyForcibly()
+              catch case _: Exception => ()
         catch
           case e: Exception => Left(CommandError(s"Autotiling daemon failed: ${e.getMessage}"))
 
@@ -68,6 +83,14 @@ object AutotilingDaemon:
       case _: Exception => None
 
   def shouldAutotile(focused: ujson.Value, parent: Option[ujson.Value]): Boolean =
-    val isFloating = focused.obj.get("type").exists(_.str == "floating_con")
+    val isFloatingCon = focused.obj.get("type").exists(_.str == "floating_con")
+    val parentIsFloating = parent.exists(_.obj.get("type").exists(_.str == "floating_con"))
+    val hasFloatingState = focused.obj.get("floating").exists {
+      case ujson.Str(s) => s.contains("on")
+      case ujson.Bool(b) => b
+      case _ => false
+    }
+    val isFloating = isFloatingCon || parentIsFloating || hasFloatingState
+    val isConOrFloating = focused.obj.get("type").exists(t => t.str == "con" || t.str == "floating_con")
     val parentLayout = parent.flatMap(_.obj.get("layout").map(_.str)).getOrElse("")
-    !isFloating && parentLayout != "tabbed" && parentLayout != "stacked"
+    !isFloating && isConOrFloating && parentLayout != "tabbed" && parentLayout != "stacked"

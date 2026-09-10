@@ -41,6 +41,27 @@ class AutotilingSuite extends FunSuite:
     )
     assertEquals(AutotilingDaemon.shouldAutotile(floatingWindow, None), false)
 
+  test("shouldAutotile returns false for window inside a floating_con parent container"):
+    val conInFloating = ujson.Obj(
+      "focused" -> ujson.Bool(true),
+      "type" -> "con",
+      "rect" -> ujson.Obj("x" -> 10, "y" -> 10, "width" -> 400, "height" -> 300)
+    )
+    val floatingParent = ujson.Obj(
+      "type" -> "floating_con",
+      "layout" -> "splith"
+    )
+    assertEquals(AutotilingDaemon.shouldAutotile(conInFloating, Some(floatingParent)), false)
+
+  test("shouldAutotile returns false when window has floating property"):
+    val floatingPropWindow = ujson.Obj(
+      "focused" -> ujson.Bool(true),
+      "type" -> "con",
+      "floating" -> "user_on",
+      "rect" -> ujson.Obj("x" -> 10, "y" -> 10, "width" -> 400, "height" -> 300)
+    )
+    assertEquals(AutotilingDaemon.shouldAutotile(floatingPropWindow, None), false)
+
   test("shouldAutotile returns false when parent layout is tabbed or stacked"):
     val normalWindow = ujson.Obj(
       "focused" -> ujson.Bool(true),

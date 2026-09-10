@@ -72,17 +72,22 @@ exec /usr/bin/google-chrome --enable-features=UseOsNotificationCenter "$@"
     try os.proc("which", cmd).call(check = false).exitCode == 0 catch case _: Exception => false
 
   private def configureSlack(ctx: Context): Either[PolyominoError, Unit] =
-    val slackConfigDir = ctx.home / ".config" / "Slack"
+    val slackConfigDir = ctx.configDir / "Slack"
     if os.exists(slackConfigDir) then
       try
         val settingsFile = slackConfigDir / "settings.json"
         if os.exists(settingsFile) then
           val content = os.read(settingsFile)
           if !content.contains("\"useNativeNotifications\": true") then
-            val updatedContent = content.replace(
-              "\"useNativeNotifications\": false",
-              "\"useNativeNotifications\": true"
-            )
+            val updatedContent = if content.contains("\"useNativeNotifications\": false") then
+              content.replace(
+                "\"useNativeNotifications\": false",
+                "\"useNativeNotifications\": true"
+              )
+            else if content.trim.startsWith("{") && content.trim.endsWith("}") then
+              val trimmed = content.trim
+              trimmed.substring(0, trimmed.lastIndexOf('}')) + ",\n  \"useNativeNotifications\": true\n}\n"
+            else content
             os.write.over(settingsFile, updatedContent)
         Right(())
       catch

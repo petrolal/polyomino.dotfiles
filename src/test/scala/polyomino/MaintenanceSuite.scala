@@ -36,6 +36,26 @@ class MaintenanceSuite extends FunSuite:
       assert(os.size(customPath) > 0)
     }
 
+  test("Maintenance.runBackup packages multiple managed configs"):
+    withIsolatedContext { ctx =>
+      os.makeDir.all(ctx.configDir / "kitty")
+      os.write(ctx.configDir / "kitty" / "kitty.conf", "font_size 12.0\n")
+      os.makeDir.all(ctx.configDir / "waybar")
+      os.write(ctx.configDir / "waybar" / "config.jsonc", "{\"layer\": \"top\"}\n")
+
+      val customPath = ctx.home / "multi-backup.tar.gz"
+      val res = Maintenance.runBackup(ctx, List(customPath.toString))
+      assert(res.isRight, s"Multi-config backup failed: $res")
+      assert(os.exists(customPath))
+
+      // Check contents of tar archive
+      val listRes = os.proc("tar", "-tf", customPath.toString).call()
+      val contents = listRes.out.text()
+      assert(contents.contains("sway/config"), "Archive should contain sway/config")
+      assert(contents.contains("kitty/kitty.conf"), "Archive should contain kitty/kitty.conf")
+      assert(contents.contains("waybar/config.jsonc"), "Archive should contain waybar/config.jsonc")
+    }
+
   test("Maintenance.runBackup fails when sway config directory is missing"):
     val emptyDir = os.temp.dir(prefix = "polyomino-empty-test-")
     try

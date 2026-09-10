@@ -6,15 +6,30 @@ import polyomino.dotfiles.theme.ThemeEngine
 
 object CalendarPopup:
   def run(ctx: Context, args: List[String] = Nil): Either[PolyominoError, Unit] =
-    // Toggle behavior: if already running, kill it to close
+    // Toggle behavior: check PID file first, fallback to precise python runner process
+    val pidFile = ctx.shareDir / "calendar.pid"
+    if os.exists(pidFile) then
+      val savedPid = os.read(pidFile).trim
+      if savedPid.nonEmpty && savedPid.forall(_.isDigit) then
+        try
+          val check = os.proc("kill", "-0", savedPid).call(check = false)
+          if check.exitCode == 0 then
+            os.proc("kill", savedPid).call(check = false)
+            os.remove(pidFile)
+            return Right(())
+          else
+            os.remove(pidFile)
+        catch case _: Exception => ()
+
     val myPid = ProcessHandle.current().pid()
     try
-      val checkRes = os.proc("pgrep", "-f", "polyomino-calendar-runner").call(check = false)
+      val checkRes = os.proc("pgrep", "-f", "python3.*polyomino-calendar-runner").call(check = false)
       if checkRes.exitCode == 0 then
         val pids = checkRes.out.text().trim.split("\\s+").filter(_.nonEmpty).map(_.toLong).filter(_ != myPid)
         if pids.nonEmpty then
           for pid <- pids do
             try os.proc("kill", pid.toString).call(check = false) catch case _: Exception => ()
+          if os.exists(pidFile) then os.remove(pidFile)
           return Right(())
     catch
       case _: Exception => ()
@@ -31,7 +46,7 @@ object CalendarPopup:
     val targetOutput = args.sliding(2).collectFirst { case Seq("--output", name) => name }.getOrElse("")
 
     try
-      os.proc(
+      val proc = os.proc(
         "python3", runnerScript.toString,
         "--base", palette.base,
         "--accent", palette.accent,
@@ -40,7 +55,8 @@ object CalendarPopup:
         "--red", palette.red,
         "--theme-file", themePath,
         "--target-output", targetOutput
-      ).spawn()
+      ).spawn(stdout = os.Inherit, stderr = os.Inherit)
+      try os.write.over(pidFile, proc.wrapped.pid().toString) catch case _: Exception => ()
       Right(())
     catch
       case e: Exception => Left(CommandError(s"Calendar popup launch failed: ${e.getMessage}"))
@@ -65,6 +81,11 @@ object CalendarPopup:
       |
       |def dlog(msg):
       |    try:
+      |        if os.path.exists(DEBUG_LOG) and os.path.getsize(DEBUG_LOG) > 256000:
+      |            try:
+      |                os.remove(DEBUG_LOG)
+      |            except Exception:
+      |                pass
       |        with open(DEBUG_LOG, "a") as f:
       |            f.write(f"[{datetime.datetime.now().isoformat()}] {msg}\\n")
       |    except Exception:

@@ -4,6 +4,10 @@ import polyomino.dotfiles.context.Context
 import polyomino.dotfiles.error.{CommandError, PolyominoError}
 
 object Maintenance:
+  val ManagedConfigs: Seq[String] = Seq(
+    "sway", "kitty", "waybar", "wofi", "rofi", "swaync", "mako", "fastfetch", "spotify-player"
+  )
+
   def runBackup(ctx: Context, args: List[String]): Either[PolyominoError, Unit] =
     val archivePath = args.headOption match
       case Some(custom) =>
@@ -18,16 +22,17 @@ object Maintenance:
 
     println(s"\u001b[1;36m[polyomino backup]\u001b[0m Creating configuration snapshot at $archivePath...")
     try
-      val configSway = ctx.configDir / "sway"
-      if os.exists(configSway) then
-        val res = os.proc("tar", "-czf", archivePath.toString, "-C", ctx.configDir.toString, "sway").call(check = false)
+      val existing = ManagedConfigs.filter(dir => os.exists(ctx.configDir / dir))
+      if existing.nonEmpty then
+        val tarArgs: Seq[os.Shellable] = (Seq("tar", "-czf", archivePath.toString, "-C", ctx.configDir.toString) ++ existing).map(s => (s: os.Shellable))
+        val res = os.proc(tarArgs*).call(check = false)
         if res.exitCode == 0 && os.exists(archivePath) then
           println(s"  \u001b[32m[OK]\u001b[0m Backup snapshot saved successfully (${os.size(archivePath)} bytes)")
           Right(())
         else
           Left(CommandError(s"tar archive creation failed with exit code ${res.exitCode}", res.exitCode))
       else
-        Left(CommandError(s"Sway configuration path missing at $configSway", 1))
+        Left(CommandError(s"No managed configuration paths found to backup in ${ctx.configDir}", 1))
     catch
       case e: Exception => Left(CommandError(s"Backup failed: ${e.getMessage}"))
 

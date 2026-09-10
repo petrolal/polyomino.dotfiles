@@ -336,7 +336,7 @@ object WofiPickers:
 
     try
       val shellableWhichkey: Seq[os.Shellable] = whichkeyArgs.map(s => (s: os.Shellable))
-      os.proc(shellableWhichkey*).spawn(stdin = inputList)
+      os.proc(shellableWhichkey*).call(stdin = inputList, check = false)
       Right(())
     catch
       case e: Exception => Left(CommandError(s"Wofi whichkey failed: ${e.getMessage}"))

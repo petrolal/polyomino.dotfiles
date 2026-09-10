@@ -482,14 +482,14 @@ object ToolInstallers:
             println(s"  \u001b[33m[NOTE]\u001b[0m spotify_player cargo install skipped: ${e.getMessage}")
 
     // 3. Ensure configuration exists
-    val configDir = ctx.home / ".config" / "spotify-player"
+    val configDir = ctx.configDir / "spotify-player"
     val configFile = configDir / "app.toml"
     val defaultConfigFile = ctx.dotfilesDir / "config" / "spotify-player" / "app.toml"
     if !os.exists(configFile) && os.exists(defaultConfigFile) then
       try
         os.makeDir.all(configDir)
         os.copy(defaultConfigFile, configFile)
-        println("  \u001b[32m[OK]\u001b[0m Seeded default spotify-player configuration to ~/.config/spotify-player/app.toml")
+        println(s"  \u001b[32m[OK]\u001b[0m Seeded default spotify-player configuration to $configFile")
       catch
         case e: Exception =>
           println(s"  \u001b[33m[NOTE]\u001b[0m Failed seeding spotify-player config: ${e.getMessage}")
@@ -676,7 +676,7 @@ object ToolInstallers:
             if os.exists(srcBin) then
               try
                 if os.exists(targetBin) || os.isLink(targetBin) then os.remove(targetBin)
-                os.symlink(targetBin, srcBin)
+                os.proc("ln", "-sf", srcBin.toString, targetBin.toString).call(check = false)
               catch case _: Exception => ()
           println("  \u001b[32m[OK]\u001b[0m Symlinked node, npm, and npx to ~/.local/bin")
       Right(())

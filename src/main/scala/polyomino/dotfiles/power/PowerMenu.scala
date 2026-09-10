@@ -164,7 +164,10 @@ object PowerMenu:
       case Lane.Suspend =>
         val rubik = os.home / ".local" / "bin" / "polyomino-rubik-lock"
         if os.exists(rubik) then
-          try os.proc(rubik.toString).spawn()
+          try
+            os.proc(rubik.toString).spawn(stdout = os.Inherit, stderr = os.Inherit)
+            // Allow rubik lock time to initialize ext-session-lock before systemctl suspend
+            Thread.sleep(400)
           catch case NonFatal(_) => ()
         for cmd <- actionFor(lane) do
           if cmd.headOption.contains("swaylock") && os.exists(rubik) then ()
@@ -181,6 +184,7 @@ object PowerMenu:
 
   @volatile private var savedStty: Option[String] = None
   @volatile private var restored = true
+  @volatile private var shutdownHook: Option[Thread] = None
 
   private def setupTerminal(): Unit =
     savedStty =
@@ -189,7 +193,9 @@ object PowerMenu:
     try os.proc("stty", "-echo", "-icanon", "min", "0", "time", "0").call(stdin = os.Inherit, stderr = os.Pipe)
     catch case NonFatal(_) => ()
     restored = false
-    Runtime.getRuntime.addShutdownHook(new Thread(() => restoreTerminal()))
+    val hook = new Thread(() => restoreTerminal())
+    shutdownHook = Some(hook)
+    Runtime.getRuntime.addShutdownHook(hook)
     grabFocus()
     Console.out.print("\u001b[?1049h\u001b[?25l\u001b[2J")
     Console.out.flush()
@@ -207,6 +213,10 @@ object PowerMenu:
   private def restoreTerminal(): Unit = synchronized {
     if !restored then
       restored = true
+      shutdownHook.foreach { h =>
+        try Runtime.getRuntime.removeShutdownHook(h) catch case NonFatal(_) => ()
+        shutdownHook = None
+      }
       Console.out.print("\u001b[?25h\u001b[?1049l\u001b[0m")
       Console.out.flush()
       savedStty match
@@ -260,22 +270,25 @@ object PowerMenu:
       stackMaxRows: Int,
       phase: Phase = Phase.Playing
   ):
+    val stackCoords: Set[(Int, Int)] = stack.map(d => (d.cellX, d.cellY)).toSet
     def laneIdx(g: Geom): Int = g.laneForCol(cellX, shape.head.length)
 
     def fits(sh: Vector[String], px: Int, py: Int, g: Geom): Boolean =
       if px < 0 || px + sh.head.length > g.wellCols then false
       else if py < g.interiorTopY || py + sh.length > g.interiorBottomY + 1 then false
       else
-        val locked = stack.map(d => (d.cellX, g.interiorBottomY - d.cellY * CellH)).toSet
         var ok = true
-        for
-          r <- sh.indices
-          c <- sh(r).indices
-          if sh(r).charAt(c) != ' '
-        do
-          val cy = py + r
-          val cx = px + c
-          if locked.contains((cx, cy)) then ok = false
+        var r = 0
+        while r < sh.length && ok do
+          var c = 0
+          while c < sh(r).length && ok do
+            if sh(r).charAt(c) != ' ' then
+              val cy = py + r
+              val cx = px + c
+              val targetDebrisY = g.interiorBottomY - cy
+              if stackCoords.contains((cx, targetDebrisY)) then ok = false
+            c += 1
+          r += 1
         ok
 
     def groundY(sh: Vector[String], px: Int, g: Geom): Int =

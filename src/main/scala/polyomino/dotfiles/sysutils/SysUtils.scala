@@ -20,7 +20,7 @@ object SysUtils:
       println(s"\u001b[1;34m[polyomino lock]\u001b[0m Locking screen via ${scriptToRun.last}...")
       try
         val fullCmd: Seq[os.Shellable] = Seq(scriptToRun.toString: os.Shellable) ++ args.map(a => (a: os.Shellable))
-        os.proc(fullCmd*).spawn()
+        os.proc(fullCmd*).spawn(stdout = os.Inherit, stderr = os.Inherit)
         Right(())
       catch
         case e: Exception => Left(CommandError(s"Lock failed: ${e.getMessage}"))
@@ -63,14 +63,14 @@ object SysUtils:
         "swaylock -f -c 1e1e2e"
 
       try
-        val res = os.proc(
+        os.proc(
           "swayidle", "-w",
           "timeout", "300", lockCmd,
           "timeout", "600", "swaymsg 'output * dpms off'",
           "resume", "swaymsg 'output * dpms on'",
           "timeout", "900", "systemctl suspend",
           "before-sleep", lockCmd
-        ).call(check = false)
+        ).spawn(stdout = os.Inherit, stderr = os.Inherit)
         Right(())
       catch
         case e: Exception => Left(CommandError(s"Idle daemon failed: ${e.getMessage}"))
@@ -195,7 +195,7 @@ object SysUtils:
           "-o", "initial_window_width=680",
           "-o", "initial_window_height=440",
           "sh", "-c", "cal -3; echo ''; read -n 1 -s -r -p '  [Press any key or Escape to close]' || true"
-        ).spawn()
+        ).spawn(stdout = os.Inherit, stderr = os.Inherit)
         Right(())
       else
         println("  \u001b[33m[NOTE]\u001b[0m Calendar tool not available.")

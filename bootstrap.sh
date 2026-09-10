@@ -94,6 +94,10 @@ install_system_deps() {
 }
 
 install_java() {
+  if [ -d "$HOME/.sdkman/candidates/java/current/bin" ]; then
+    export PATH="$HOME/.sdkman/candidates/java/current/bin:$PATH"
+  fi
+
   if command -v java &> /dev/null; then
     echo -e "  \033[32m[OK]\033[0m Java already installed:"
     java -version 2>&1 | head -1
@@ -108,10 +112,16 @@ install_java() {
     curl -s "https://get.sdkman.io" | bash
   fi
 
-  bash -c "
-    source $HOME/.sdkman/bin/sdkman-init.sh
+  if [ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]; then
+    set +u
+    source "$HOME/.sdkman/bin/sdkman-init.sh"
     sdk install java 21.0.1-graal --default 2>/dev/null || true
-  "
+    set -u
+  fi
+
+  if [ -d "$HOME/.sdkman/candidates/java/current/bin" ]; then
+    export PATH="$HOME/.sdkman/candidates/java/current/bin:$PATH"
+  fi
 
   if command -v java &> /dev/null; then
     echo -e "  \033[32m[OK]\033[0m Java installed via SDKMan"
@@ -302,7 +312,9 @@ enable_path() {
     export PATH="$BIN_DIR:$PATH"
 
     # Also add SDKMan to PATH
-    if [ -d "$HOME/.sdkman/bin" ]; then
+    if [ -d "$HOME/.sdkman/candidates/java/current/bin" ]; then
+      export PATH="$HOME/.sdkman/candidates/java/current/bin:$PATH"
+    elif [ -d "$HOME/.sdkman/bin" ]; then
       export PATH="$HOME/.sdkman/bin:$PATH"
     fi
   fi
