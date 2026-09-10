@@ -34,6 +34,15 @@ print_error() {
   echo -e "  ${RED}[ERROR]${NC} $1"
 }
 
+export RED GREEN YELLOW BLUE NC
+export -f print_header print_ok print_info print_warn print_error
+
+install_sdkman() {
+  print_header "Installing SDKMan..."
+  curl -s "https://get.sdkman.io" | bash
+  print_ok "SDKMan installed"
+}
+
 check_sdkman() {
   print_header "Checking SDKMan installation..."
 

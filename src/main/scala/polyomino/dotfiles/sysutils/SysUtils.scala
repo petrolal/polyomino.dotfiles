@@ -11,7 +11,10 @@ object SysUtils:
     val scriptToRun = if os.exists(rubikScript) then rubikScript
       else ctx.home / ".local" / "bin" / "polyomino-rubik-lock"
 
-    if isPreview then
+    if ctx.isTest then
+      if os.exists(scriptToRun) then Right(())
+      else Left(CommandError(s"Lock script not found at $scriptToRun"))
+    else if isPreview then
       runLockPreview(ctx, args)
     else if os.exists(scriptToRun) then
       println(s"\u001b[1;34m[polyomino lock]\u001b[0m Locking screen via ${scriptToRun.last}...")
@@ -30,43 +33,47 @@ object SysUtils:
       else ctx.home / ".local" / "bin" / "polyomino-rubik-lock"
 
     if os.exists(scriptToRun) then
-      println(s"\u001b[1;36m[polyomino preview-lock]\u001b[0m Launching lock screen preview (${scriptToRun.last})...")
-      try
-        val previewArgs = if args.isEmpty || !args.exists(a => a.startsWith("-")) then List("--preview") else args
-        val fullCmd: Seq[os.Shellable] = Seq(scriptToRun.toString: os.Shellable) ++ previewArgs.map(a => (a: os.Shellable))
-        os.proc(fullCmd*).call(stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit)
-        Right(())
-      catch
-        case e: Exception => Left(CommandError(s"Preview lock failed: ${e.getMessage}"))
+      if ctx.isTest then Right(())
+      else
+        println(s"\u001b[1;36m[polyomino preview-lock]\u001b[0m Launching lock screen preview (${scriptToRun.last})...")
+        try
+          val previewArgs = if args.isEmpty || !args.exists(a => a.startsWith("-")) then List("--preview") else args
+          val fullCmd: Seq[os.Shellable] = Seq(scriptToRun.toString: os.Shellable) ++ previewArgs.map(a => (a: os.Shellable))
+          os.proc(fullCmd*).call(stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit)
+          Right(())
+        catch
+          case e: Exception => Left(CommandError(s"Preview lock failed: ${e.getMessage}"))
     else
       Left(CommandError(s"Lock script not found at $scriptToRun"))
 
   def runIdle(ctx: Context): Either[PolyominoError, Unit] =
-    println("\u001b[1;34m[polyomino idle]\u001b[0m Launching swayidle daemon...")
-    val rubikScript = ctx.dotfilesDir / "config" / "sway" / "scripts" / "polyomino-rubik-lock"
-    val localRubik = ctx.home / ".local" / "bin" / "polyomino-rubik-lock"
-    val lockConfigFile = ctx.configDir / "swaylock" / "config"
-    val lockCmd = if os.exists(rubikScript) then
-      rubikScript.toString
-    else if os.exists(localRubik) then
-      localRubik.toString
-    else if os.exists(lockConfigFile) then
-      s"swaylock -f --config $lockConfigFile"
+    if ctx.isTest then Right(())
     else
-      "swaylock -f -c 1e1e2e"
+      println("\u001b[1;34m[polyomino idle]\u001b[0m Launching swayidle daemon...")
+      val rubikScript = ctx.dotfilesDir / "config" / "sway" / "scripts" / "polyomino-rubik-lock"
+      val localRubik = ctx.home / ".local" / "bin" / "polyomino-rubik-lock"
+      val lockConfigFile = ctx.configDir / "swaylock" / "config"
+      val lockCmd = if os.exists(rubikScript) then
+        rubikScript.toString
+      else if os.exists(localRubik) then
+        localRubik.toString
+      else if os.exists(lockConfigFile) then
+        s"swaylock -f --config $lockConfigFile"
+      else
+        "swaylock -f -c 1e1e2e"
 
-    try
-      val res = os.proc(
-        "swayidle", "-w",
-        "timeout", "300", lockCmd,
-        "timeout", "600", "swaymsg 'output * dpms off'",
-        "resume", "swaymsg 'output * dpms on'",
-        "timeout", "900", "systemctl suspend",
-        "before-sleep", lockCmd
-      ).call(check = false)
-      Right(())
-    catch
-      case e: Exception => Left(CommandError(s"Idle daemon failed: ${e.getMessage}"))
+      try
+        val res = os.proc(
+          "swayidle", "-w",
+          "timeout", "300", lockCmd,
+          "timeout", "600", "swaymsg 'output * dpms off'",
+          "resume", "swaymsg 'output * dpms on'",
+          "timeout", "900", "systemctl suspend",
+          "before-sleep", lockCmd
+        ).call(check = false)
+        Right(())
+      catch
+        case e: Exception => Left(CommandError(s"Idle daemon failed: ${e.getMessage}"))
 
   def runScreenshot(ctx: Context, args: List[String]): Either[PolyominoError, Unit] =
     val mode = args.headOption.getOrElse("region")
@@ -77,8 +84,12 @@ object SysUtils:
 
     val screenshotsDir = ctx.home / "Pictures" / "Screenshots"
     os.makeDir.all(screenshotsDir)
-    val timestamp = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
+    val timestamp = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss-SSS"))
     val file = screenshotsDir / s"$timestamp.png"
+
+    if ctx.isTest then
+      os.write.over(file, Array[Byte](0x89.toByte, 'P'.toByte, 'N'.toByte, 'G'.toByte))
+      return Right(())
 
     println(s"\u001b[1;34m[polyomino screenshot]\u001b[0m Capturing $mode screenshot to $file...")
 
@@ -133,7 +144,7 @@ object SysUtils:
     catch
       case _: Exception => None
 
-  private def findFocusedNodeGeometry(node: ujson.Value): Option[String] =
+  def findFocusedNodeGeometry(node: ujson.Value): Option[String] =
     try
       if node.obj.get("focused").exists(_.bool) then
         val rect = node.obj("rect")
@@ -159,7 +170,8 @@ object SysUtils:
       case _: Exception => () // Silently fail if notification daemon unavailable
 
   def runCalendar(ctx: Context): Either[PolyominoError, Unit] =
-    if isCommandAvailable("swaync-client") && isProcessRunning("swaync") then
+    if ctx.isTest then Right(())
+    else if isCommandAvailable("swaync-client") && isProcessRunning("swaync") then
       try
         os.proc("swaync-client", "-t", "-sw").call(check = false)
         Right(())
@@ -195,14 +207,46 @@ object SysUtils:
     val script = ctx.dotfilesDir / "config" / "sway" / "scripts" / "sway-draw-window.sh"
     val scriptToRun = if os.exists(script) then script else ctx.configDir / "sway" / "scripts" / "sway-draw-window.sh"
     if os.exists(scriptToRun) then
-      try
-        val fullCmd: Seq[os.Shellable] = (scriptToRun.toString +: args).map(s => (s: os.Shellable))
-        os.proc(fullCmd*).call(stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit, check = false)
-        Right(())
-      catch
-        case e: Exception => Left(CommandError(s"Draw window failed: ${e.getMessage}"))
+      if ctx.isTest then Right(())
+      else
+        try
+          val fullCmd: Seq[os.Shellable] = (scriptToRun.toString +: args).map(s => (s: os.Shellable))
+          os.proc(fullCmd*).call(stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit, check = false)
+          Right(())
+        catch
+          case e: Exception => Left(CommandError(s"Draw window failed: ${e.getMessage}"))
     else
       Left(CommandError(s"Script not found at $scriptToRun"))
+
+  def runScreensaver(ctx: Context, args: List[String] = Nil): Either[PolyominoError, Unit] =
+    val script = ctx.dotfilesDir / "config" / "sway" / "scripts" / "screensaver.py"
+    val scriptToRun = if os.exists(script) then script else ctx.configDir / "sway" / "scripts" / "screensaver.py"
+    if os.exists(scriptToRun) then
+      if ctx.isTest then Right(())
+      else
+        try
+          val fullCmd: Seq[os.Shellable] = Seq("python3": os.Shellable, scriptToRun.toString: os.Shellable) ++ args.map(a => (a: os.Shellable))
+          os.proc(fullCmd*).call(stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit)
+          Right(())
+        catch
+          case e: Exception => Left(CommandError(s"Screensaver failed: ${e.getMessage}"))
+    else
+      Left(CommandError(s"Screensaver script not found at $scriptToRun"))
+
+  def runMatrix(ctx: Context, args: List[String] = Nil): Either[PolyominoError, Unit] =
+    val script = ctx.dotfilesDir / "config" / "sway" / "scripts" / "matrix.sh"
+    val scriptToRun = if os.exists(script) then script else ctx.configDir / "sway" / "scripts" / "matrix.sh"
+    if os.exists(scriptToRun) then
+      if ctx.isTest then Right(())
+      else
+        try
+          val fullCmd: Seq[os.Shellable] = Seq("bash": os.Shellable, scriptToRun.toString: os.Shellable) ++ args.map(a => (a: os.Shellable))
+          os.proc(fullCmd*).call(stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit)
+          Right(())
+        catch
+          case e: Exception => Left(CommandError(s"Matrix screen failed: ${e.getMessage}"))
+    else
+      Left(CommandError(s"Matrix script not found at $scriptToRun"))
 
   private def isCommandAvailable(cmd: String): Boolean =
     try os.proc("which", cmd).call(check = false).exitCode == 0 catch case _: Exception => false

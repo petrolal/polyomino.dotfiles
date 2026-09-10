@@ -174,7 +174,9 @@ def _lighten(rgb, amount=0.35):
 
 def _load_theme_palette():
     """Parse the active theme's palette .conf (shell KEY="value" pairs)."""
-    state_file = os.path.expanduser("~/.config/polyomino/theme/state")
+    config_home = os.environ.get("XDG_CONFIG_HOME")
+    config_dir = config_home if config_home else os.path.expanduser("~/.config")
+    state_file = os.path.join(config_dir, "polyomino", "theme", "state")
     flavor = None
     try:
         with open(state_file, "r") as f:

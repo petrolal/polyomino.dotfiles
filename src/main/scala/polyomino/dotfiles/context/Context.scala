@@ -8,7 +8,8 @@ case class Context(
     configDir: Path,
     shareDir: Path,
     dotfilesDir: Path,
-    swaySocket: Option[String]
+    swaySocket: Option[String],
+    isTest: Boolean = false
 )
 
 object Context:
@@ -17,7 +18,9 @@ object Context:
       val home = os.home
       val configDir = sys.env.get("XDG_CONFIG_HOME").map(os.Path(_)).getOrElse(home / ".config")
       val shareDir = sys.env.get("XDG_DATA_HOME").map(os.Path(_)).getOrElse(home / ".local" / "share" / "polyomino")
-      val dotfilesDir = sys.env.get("POLYOMINO_DOTFILES_DIR").map(os.Path(_)).getOrElse(home / "polyomino.dotfiles")
+      val dotfilesDir = sys.env.get("POLYOMINO_DOTFILES_DIR").map(os.Path(_)).getOrElse(
+        if os.exists(home / "polyomino.dotfiles") then home / "polyomino.dotfiles" else os.pwd
+      )
       val swaySocket = sys.env.get("SWAYSOCK")
 
       Right(Context(
@@ -25,7 +28,24 @@ object Context:
         configDir = configDir,
         shareDir = shareDir,
         dotfilesDir = dotfilesDir,
-        swaySocket = swaySocket
+        swaySocket = swaySocket,
+        isTest = false
       ))
     catch
       case e: Exception => Left(ConfigError(e.getMessage))
+
+  def isolated(tempDir: Path, dotfilesDir: Path = os.pwd): Context =
+    val home = tempDir / "home"
+    val configDir = home / ".config"
+    val shareDir = home / ".local" / "share" / "polyomino"
+    os.makeDir.all(home)
+    os.makeDir.all(configDir)
+    os.makeDir.all(shareDir)
+    Context(
+      home = home,
+      configDir = configDir,
+      shareDir = shareDir,
+      dotfilesDir = dotfilesDir,
+      swaySocket = None,
+      isTest = true
+    )

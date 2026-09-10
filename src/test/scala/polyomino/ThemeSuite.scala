@@ -41,41 +41,56 @@ class ThemeSuite extends FunSuite {
     assert(p.text.startsWith("#"))
   }
 
+  private def withIsolatedContext[T](f: Context => T): T =
+    val tempDir = os.temp.dir(prefix = "polyomino-theme-test-")
+    try
+      val ctx = Context.isolated(tempDir, dotfilesDir = os.pwd)
+      f(ctx)
+    finally
+      os.remove.all(tempDir)
+
   test("ThemeEngine.run renders custom theme config files") {
-    val ctx = Context.discover().toOption.get
-    val res = ThemeEngine.run(ctx, List("matriz"))
-    assert(res.isRight)
-    assert(os.exists(ctx.configDir / "kitty" / "theme.conf"))
-    assert(os.exists(ctx.configDir / "waybar" / "theme.css"))
-    assert(os.exists(ctx.configDir / "wofi" / "theme.css"))
-    assert(os.exists(ctx.configDir / "wofi" / "style.css"))
-    assert(os.exists(ctx.configDir / "rofi" / "theme.rasi"))
-    assert(os.exists(ctx.configDir / "swaync" / "style.css"))
+    withIsolatedContext { ctx =>
+      val res = ThemeEngine.run(ctx, List("matriz"))
+      assert(res.isRight)
+      assert(os.exists(ctx.configDir / "kitty" / "theme.conf"))
+      assert(os.exists(ctx.configDir / "waybar" / "theme.css"))
+      assert(os.exists(ctx.configDir / "wofi" / "theme.css"))
+      assert(os.exists(ctx.configDir / "wofi" / "style.css"))
+      assert(os.exists(ctx.configDir / "rofi" / "theme.rasi"))
+      assert(os.exists(ctx.configDir / "swaync" / "style.css"))
+    }
   }
 
   test("ThemeEngine.run applies all supported themes") {
-    // TODO: This test times out due to Sway IPC calls - skip for now
-    // Individual theme tests cover the functionality
-    assertEquals(true, true)
+    withIsolatedContext { ctx =>
+      for flavor <- List("matriz", "encruza", "caravela", "aruanda") do
+        val res = ThemeEngine.run(ctx, List(flavor))
+        assert(res.isRight, s"$flavor theme apply failed: $res")
+        val state = os.read(ctx.configDir / "polyomino" / "theme" / "state")
+        assert(state.contains(s"FLAVOR=$flavor"))
+    }
   }
 
   test("ThemeEngine.run with flat mode") {
-    val ctx = Context.discover().toOption.get
-    val res = ThemeEngine.run(ctx, List("matriz", "--flat"))
-    assert(res.isRight)
+    withIsolatedContext { ctx =>
+      val res = ThemeEngine.run(ctx, List("matriz", "--flat"))
+      assert(res.isRight)
+    }
   }
 
   test("all 4 themes preserve the Enterprise CAD Waybar layout") {
-    val ctx = Context.discover().toOption.get
-    val waybarStyle = ctx.configDir / "waybar" / "style.css"
-    for flavor <- List("matriz", "encruza", "caravela", "aruanda") do
-      val res = ThemeEngine.run(ctx, List(flavor, "--flat"))
-      assert(res.isRight, s"$flavor theme apply failed: $res")
-      val css = os.read(waybarStyle)
-      assert(css.contains("window#waybar") && css.contains("margin: 8px 12px 0 12px;"), s"$flavor: missing floating CAD bar margin")
-      assert(css.contains("border-radius: 0px") || css.contains("border-radius: 0;"), s"$flavor: missing CAD 0px border radius")
-      assert(css.contains("#left") && css.contains("#center") && css.contains("#right"),
-        s"$flavor: missing the 3 segment selectors")
+    withIsolatedContext { ctx =>
+      val waybarStyle = ctx.configDir / "waybar" / "style.css"
+      for flavor <- List("matriz", "encruza", "caravela", "aruanda") do
+        val res = ThemeEngine.run(ctx, List(flavor, "--flat"))
+        assert(res.isRight, s"$flavor theme apply failed: $res")
+        val css = os.read(waybarStyle)
+        assert(css.contains("window#waybar") && css.contains("margin: 8px 12px 0 12px;"), s"$flavor: missing floating CAD bar margin")
+        assert(css.contains("border-radius: 0px") || css.contains("border-radius: 0;"), s"$flavor: missing CAD 0px border radius")
+        assert(css.contains("#left") && css.contains("#center") && css.contains("#right"),
+          s"$flavor: missing the 3 segment selectors")
+    }
   }
 
   test("static Sway/Waybar configs carry the CAD workstation layout invariants") {
@@ -92,34 +107,38 @@ class ThemeSuite extends FunSuite {
   }
 
   test("ThemeEngine.run with rotate mode") {
-    val ctx = Context.discover().toOption.get
-    val res = ThemeEngine.run(ctx, List("matriz", "--rotate"))
-    assert(res.isRight)
+    withIsolatedContext { ctx =>
+      val res = ThemeEngine.run(ctx, List("matriz", "--rotate"))
+      assert(res.isRight)
+    }
   }
 
   test("ThemeEngine.getActivePalette returns valid palette") {
-    val ctx = Context.discover().toOption.get
-    ThemeEngine.run(ctx, List("matriz"))
-    val p = ThemeEngine.getActivePalette(ctx)
-    assert(p.name.nonEmpty)
-    assert(p.base.nonEmpty)
+    withIsolatedContext { ctx =>
+      ThemeEngine.run(ctx, List("matriz"))
+      val p = ThemeEngine.getActivePalette(ctx)
+      assert(p.name.nonEmpty)
+      assert(p.base.nonEmpty)
+    }
   }
 
   test("ThemeEngine renders sway colors.conf correctly") {
-    val ctx = Context.discover().toOption.get
-    ThemeEngine.run(ctx, List("matriz"))
-    val colorsFile = ctx.configDir / "sway" / "colors.conf"
-    assert(os.exists(colorsFile))
-    val content = os.read(colorsFile)
-    assert(content.contains("client.focused"))
+    withIsolatedContext { ctx =>
+      ThemeEngine.run(ctx, List("matriz"))
+      val colorsFile = ctx.configDir / "sway" / "colors.conf"
+      assert(os.exists(colorsFile))
+      val content = os.read(colorsFile)
+      assert(content.contains("client.focused"))
+    }
   }
 
   test("ThemeEngine renders swaylock config") {
-    val ctx = Context.discover().toOption.get
-    ThemeEngine.run(ctx, List("matriz"))
-    val lockConfig = ctx.configDir / "swaylock" / "config"
-    assert(os.exists(lockConfig))
-    val content = os.read(lockConfig)
-    assert(content.contains("font"))
+    withIsolatedContext { ctx =>
+      ThemeEngine.run(ctx, List("matriz"))
+      val lockConfig = ctx.configDir / "swaylock" / "config"
+      assert(os.exists(lockConfig))
+      val content = os.read(lockConfig)
+      assert(content.contains("font"))
+    }
   }
 }

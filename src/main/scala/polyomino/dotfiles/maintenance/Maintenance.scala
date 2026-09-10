@@ -5,18 +5,27 @@ import polyomino.dotfiles.error.{CommandError, PolyominoError}
 
 object Maintenance:
   def runBackup(ctx: Context, args: List[String]): Either[PolyominoError, Unit] =
-    val backupDir = ctx.home / ".local" / "share" / "polyomino" / "backups"
-    os.makeDir.all(backupDir)
-    val timestamp = System.currentTimeMillis()
-    val archivePath = backupDir / s"polyomino-backup-$timestamp.tar.gz"
+    val archivePath = args.headOption match
+      case Some(custom) =>
+        val p = os.Path(custom, os.pwd)
+        os.makeDir.all(p / os.up)
+        p
+      case None =>
+        val backupDir = ctx.shareDir / "backups"
+        os.makeDir.all(backupDir)
+        val timestamp = System.currentTimeMillis()
+        backupDir / s"polyomino-backup-$timestamp.tar.gz"
 
-    println(s"[1;36m[polyomino backup][0m Creating configuration snapshot at $archivePath...")
+    println(s"\u001b[1;36m[polyomino backup]\u001b[0m Creating configuration snapshot at $archivePath...")
     try
       val configSway = ctx.configDir / "sway"
       if os.exists(configSway) then
-        os.proc("tar", "-czf", archivePath.toString, "-C", ctx.configDir.toString, "sway").call(check = false)
-        println(s"  [32m[OK][0m Backup snapshot saved successfully (${os.size(archivePath)} bytes)")
-        Right(())
+        val res = os.proc("tar", "-czf", archivePath.toString, "-C", ctx.configDir.toString, "sway").call(check = false)
+        if res.exitCode == 0 && os.exists(archivePath) then
+          println(s"  \u001b[32m[OK]\u001b[0m Backup snapshot saved successfully (${os.size(archivePath)} bytes)")
+          Right(())
+        else
+          Left(CommandError(s"tar archive creation failed with exit code ${res.exitCode}", res.exitCode))
       else
         Left(CommandError(s"Sway configuration path missing at $configSway", 1))
     catch
@@ -28,12 +37,15 @@ object Maintenance:
         Left(CommandError("Usage: polyomino restore <path-to-archive.tar.gz>", 1))
       case Some(archiveStr) =>
         val archivePath = os.Path(archiveStr, os.pwd)
-        println(s"[1;36m[polyomino restore][0m Restoring configuration snapshot from $archivePath...")
+        println(s"\u001b[1;36m[polyomino restore]\u001b[0m Restoring configuration snapshot from $archivePath...")
         if os.exists(archivePath) then
           try
-            os.proc("tar", "-xzf", archivePath.toString, "-C", ctx.configDir.toString).call(check = false)
-            println(s"  [32m[OK][0m Configuration restored to ${ctx.configDir}")
-            Right(())
+            val res = os.proc("tar", "-xzf", archivePath.toString, "-C", ctx.configDir.toString).call(check = false)
+            if res.exitCode == 0 then
+              println(s"  \u001b[32m[OK]\u001b[0m Configuration restored to ${ctx.configDir}")
+              Right(())
+            else
+              Left(CommandError(s"tar extraction failed with exit code ${res.exitCode}", res.exitCode))
           catch
             case e: Exception => Left(CommandError(s"Restore failed: ${e.getMessage}"))
         else

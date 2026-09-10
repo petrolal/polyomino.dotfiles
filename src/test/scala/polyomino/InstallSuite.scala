@@ -5,48 +5,85 @@ import polyomino.dotfiles.install.{DeployInstaller, ToolInstallers, Manifest, Ma
 import munit.FunSuite
 
 class InstallSuite extends FunSuite:
-  private val isCI = sys.env.contains("CI") || sys.env.contains("GITHUB_ACTIONS")
+  private def withIsolatedContext[T](f: Context => T): T =
+    val tempDir = os.temp.dir(prefix = "polyomino-install-test-")
+    try
+      val ctx = Context.isolated(tempDir, dotfilesDir = os.pwd)
+      f(ctx)
+    finally
+      os.remove.all(tempDir)
 
   test("DeployInstaller.run executes symlink deployment and writes manifest"):
-    val ctx = Context.discover().toOption.get
-    val res = DeployInstaller.run(ctx, List("--links-only"))
-    assert(res.isRight)
-    assert(os.exists(ctx.shareDir / "manifest.json"))
+    withIsolatedContext { ctx =>
+      val res = DeployInstaller.run(ctx, List("--links-only"))
+      assert(res.isRight)
+      assert(os.exists(ctx.shareDir / "manifest.json"))
+    }
 
   test("DeployInstaller creates ~/.local/bin directory"):
-    val ctx = Context.discover().toOption.get
-    DeployInstaller.run(ctx, List("--links-only"))
-    assert(os.exists(ctx.home / ".local" / "bin"))
+    withIsolatedContext { ctx =>
+      DeployInstaller.run(ctx, List("--links-only"))
+      assert(os.exists(ctx.home / ".local" / "bin"))
+    }
 
   test("DeployInstaller creates symlinks for zsh config"):
-    assume(!isCI)
-    val ctx = Context.discover().toOption.get
-    DeployInstaller.run(ctx, List("--links-only"))
-    val zshrcLink = ctx.home / ".zshrc"
-    assert(os.exists(zshrcLink) || os.isLink(zshrcLink))
+    withIsolatedContext { ctx =>
+      DeployInstaller.run(ctx, List("--links-only"))
+      val zshrcLink = ctx.home / ".zshrc"
+      assert(os.exists(zshrcLink) || os.isLink(zshrcLink))
+    }
 
   test("DeployInstaller creates symlinks for swaync config"):
-    assume(!isCI)
-    val ctx = Context.discover().toOption.get
-    DeployInstaller.run(ctx, List("--links-only"))
-    val swayncLink = ctx.configDir / "swaync"
-    assert(os.exists(swayncLink) || os.isLink(swayncLink))
+    withIsolatedContext { ctx =>
+      DeployInstaller.run(ctx, List("--links-only"))
+      val swayncLink = ctx.configDir / "swaync"
+      assert(os.exists(swayncLink) || os.isLink(swayncLink))
+    }
 
   test("DeployInstaller creates symlinks for fastfetch config"):
-    assume(!isCI)
-    val ctx = Context.discover().toOption.get
-    DeployInstaller.run(ctx, List("--links-only"))
-    val fastfetchLink = ctx.configDir / "fastfetch"
-    assert(os.exists(fastfetchLink) || os.isLink(fastfetchLink))
+    withIsolatedContext { ctx =>
+      DeployInstaller.run(ctx, List("--links-only"))
+      val fastfetchLink = ctx.configDir / "fastfetch"
+      assert(os.exists(fastfetchLink) || os.isLink(fastfetchLink))
+    }
 
   test("DeployInstaller writes valid manifest JSON"):
-    assume(!isCI)
-    val ctx = Context.discover().toOption.get
-    DeployInstaller.run(ctx, List("--links-only"))
-    val manifestFile = ctx.shareDir / "manifest.json"
-    if os.exists(manifestFile) then
+    withIsolatedContext { ctx =>
+      DeployInstaller.run(ctx, List("--links-only"))
+      val manifestFile = ctx.shareDir / "manifest.json"
+      assert(os.exists(manifestFile))
       val json = os.read(manifestFile)
       assert(json.contains("\"sourcePath\""))
+    }
+
+  test("DeployInstaller.uninstall removes symlinks and deletes manifest"):
+    withIsolatedContext { ctx =>
+      val installRes = DeployInstaller.run(ctx, List("--links-only"))
+      assert(installRes.isRight)
+      assert(os.exists(ctx.shareDir / "manifest.json"))
+      assert(os.exists(ctx.configDir / "sway"))
+
+      val uninstallRes = DeployInstaller.uninstall(ctx)
+      assert(uninstallRes.isRight)
+      assert(!os.exists(ctx.shareDir / "manifest.json"))
+      assert(!os.exists(ctx.configDir / "sway"))
+    }
+
+  test("DeployInstaller.uninstall restores pre-existing configuration backup"):
+    withIsolatedContext { ctx =>
+      val zshrc = ctx.home / ".zshrc"
+      os.write(zshrc, "# pre-existing user zshrc\n")
+
+      val installRes = DeployInstaller.run(ctx, List("--links-only"))
+      assert(installRes.isRight)
+      assert(os.isLink(zshrc))
+
+      val uninstallRes = DeployInstaller.uninstall(ctx)
+      assert(uninstallRes.isRight)
+      assert(os.exists(zshrc))
+      assert(!os.isLink(zshrc))
+      assertEquals(os.read(zshrc), "# pre-existing user zshrc\n")
+    }
 
   test("ManifestEntry serializes to JSON"):
     val entry = ManifestEntry(

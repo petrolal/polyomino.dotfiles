@@ -33,25 +33,28 @@ object DeployInstaller:
   val Subcommands: Seq[String] = Seq(
     "theme", "runtime-refresh", "os-colorscheme", "lock", "idle",
     "screenshot", "draw-window", "sway-draw-window", "calendar", "autotiling", "healthcheck", "backup", "restore", "update", "notify-config",
-    "sdd", "install", "deploy", "install-deps", "install-brew", "install-homebrew",
+    "sdd", "install", "deploy", "uninstall", "screensaver", "matrix", "install-deps", "install-brew", "install-homebrew",
     "install-gh", "install-github-cli", "install-coursier", "install-cs",
     "install-fonts", "install-apps", "install-sway", "install-swayfx", "install-swaync", "install-notifications", "install-browser", "install-devops", "install-zsh", "install-sdkman",
     "install-tools", "install-telegram", "install-node", "install-npm", "install-npx", "install-yazi", "install-fastfetch", "install-spotify", "install-spotify-player", "full-install", "theme-picker", "theme-cycle", "wallpaper", "wallpaper-picker", "whichkey", "wichkey", "menu", "rubik-lock", "preview-lock", "power-menu", "powermenu"
   )
 
   def run(ctx: Context, args: List[String]): Either[PolyominoError, Unit] =
-    println("\u001b[1;32m[polyomino install]\u001b[0m Deploying polyomino.dotfiles configurations & symlinks...")
+    if args.contains("--uninstall") || args.contains("uninstall") then
+      uninstall(ctx, args)
+    else
+      println("\u001b[1;32m[polyomino install]\u001b[0m Deploying polyomino.dotfiles configurations & symlinks...")
 
-    if args.exists(a => a == "--bootstrap" || a == "-b" || a == "--with-bootstrap" || a == "--deps") then
-      val bootstrapScript = ctx.dotfilesDir / "bootstrap.sh"
-      if os.exists(bootstrapScript) then
-        println(s"\u001b[1;36m[polyomino install]\u001b[0m Executing bootstrap.sh...")
-        try os.proc("bash", bootstrapScript.toString).call(stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit)
-        catch case e: Exception => println(s"  \u001b[33m[WARN]\u001b[0m bootstrap.sh exited: ${e.getMessage}")
+      if args.exists(a => a == "--bootstrap" || a == "-b" || a == "--with-bootstrap" || a == "--deps") then
+        val bootstrapScript = ctx.dotfilesDir / "bootstrap.sh"
+        if os.exists(bootstrapScript) then
+          println(s"\u001b[1;36m[polyomino install]\u001b[0m Executing bootstrap.sh...")
+          try os.proc("bash", bootstrapScript.toString).call(stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit)
+          catch case e: Exception => println(s"  \u001b[33m[WARN]\u001b[0m bootstrap.sh exited: ${e.getMessage}")
 
-    ensureDotfilesRepo(ctx) match
-      case Left(err) => Left(err)
-      case Right(_) => runDeploy(ctx, args)
+      ensureDotfilesRepo(ctx) match
+        case Left(err) => Left(err)
+        case Right(_) => runDeploy(ctx, args)
 
   private def runDeploy(ctx: Context, args: List[String]): Either[PolyominoError, Unit] =
     val binDir = ctx.home / ".local" / "bin"
@@ -144,6 +147,10 @@ object DeployInstaller:
         ctx.dotfilesDir / "config" / "sway" / "scripts" / "polyomino-rubik-lock"
       else if cmd == "theme-cycle" then
         ctx.dotfilesDir / "scripts" / "polyomino-theme-cycle"
+      else if cmd == "screensaver" then
+        ctx.dotfilesDir / "config" / "sway" / "scripts" / "screensaver.py"
+      else if cmd == "matrix" then
+        ctx.dotfilesDir / "config" / "sway" / "scripts" / "matrix.sh"
       else mainBinary
       try
         if os.exists(symlinkPath) || os.isLink(symlinkPath) then os.remove(symlinkPath)
@@ -179,8 +186,9 @@ object DeployInstaller:
     println("\n[1;32m[SUCCESS][0m polyomino.dotfiles deployment complete!")
 
     // Apply active desktop theme to re-render all config files
-    val activePalette = polyomino.dotfiles.theme.ThemeEngine.getActivePalette(ctx)
-    polyomino.dotfiles.theme.ThemeEngine.applyTheme(ctx, activePalette.name)
+    if !ctx.isTest then
+      val activePalette = polyomino.dotfiles.theme.ThemeEngine.getActivePalette(ctx)
+      polyomino.dotfiles.theme.ThemeEngine.applyTheme(ctx, activePalette.name)
 
     if !args.contains("--links-only") then
       println("\n[1;32m[polyomino full-install][0m Installing all system dependencies, desktop apps, fonts, and tooling...")
@@ -190,3 +198,62 @@ object DeployInstaller:
       yield ()
     else
       Right(())
+
+  def uninstall(ctx: Context, args: List[String] = Nil): Either[PolyominoError, Unit] =
+    println("\u001b[1;33m[polyomino uninstall]\u001b[0m Removing polyomino dotfiles symlinks and restoring configurations...")
+    val manifestFile = ctx.shareDir / "manifest.json"
+
+    var restoredCount = 0
+    var removedCount = 0
+
+    if os.exists(manifestFile) then
+      try
+        val content = os.read(manifestFile)
+        val manifest = upickle.default.read[Manifest](content)
+
+        for entry <- manifest.entries do
+          val targetPath = os.Path(entry.targetPath, os.pwd)
+          // Remove target symlink/file if it exists
+          if os.exists(targetPath) || os.isLink(targetPath) then
+            try
+              os.remove.all(targetPath)
+              removedCount += 1
+              println(s"  \u001b[32m[OK]\u001b[0m Removed $targetPath")
+            catch
+              case e: Exception => println(s"  \u001b[33m[WARN]\u001b[0m Failed to remove $targetPath: ${e.getMessage}")
+
+          // Restore backup if available
+          entry.backupPath.foreach { bPathStr =>
+            val bPath = os.Path(bPathStr, os.pwd)
+            if os.exists(bPath) then
+              try
+                os.makeDir.all(targetPath / os.up)
+                os.copy(bPath, targetPath)
+                restoredCount += 1
+                println(s"  \u001b[32m[OK]\u001b[0m Restored backup to $targetPath")
+              catch
+                case e: Exception => println(s"  \u001b[33m[WARN]\u001b[0m Failed to restore backup from $bPath: ${e.getMessage}")
+          }
+
+        os.remove(manifestFile)
+        println(s"  \u001b[32m[OK]\u001b[0m Removed manifest: $manifestFile")
+      catch
+        case e: Exception =>
+          return Left(CommandError(s"Failed to read or process manifest at $manifestFile: ${e.getMessage}"))
+    else
+      println(s"  \u001b[33m[NOTE]\u001b[0m No manifest found at $manifestFile. Cleaning up standard symlinks...")
+
+    // Also clean up any lingering CLI subcommand symlinks in ~/.local/bin/
+    val binDir = ctx.home / ".local" / "bin"
+    if os.exists(binDir) then
+      for cmd <- Subcommands do
+        val symlink = binDir / s"polyomino-$cmd"
+        if os.isLink(symlink) then
+          try
+            os.remove(symlink)
+            removedCount += 1
+          catch
+            case _: Exception => ()
+
+    println(s"\n\u001b[1;32m[SUCCESS]\u001b[0m Uninstallation complete! Removed $removedCount links, restored $restoredCount backups.")
+    Right(())

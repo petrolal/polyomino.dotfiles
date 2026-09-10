@@ -8,7 +8,7 @@ object Main:
     val exitCode = dispatch(args)
     if exitCode != 0 then sys.exit(exitCode)
 
-  def dispatch(args: Array[String]): Int =
+  def dispatch(args: Array[String], customCtx: Option[Context] = None): Int =
     val rawProg = sys.env.getOrElse("POLYOMINO_PROG_NAME", getArgv0())
     val progName = if rawProg.nonEmpty then rawProg else "polyomino"
     val binaryBasename = try os.Path(progName, os.pwd).last catch case _: Exception => progName
@@ -22,7 +22,7 @@ object Main:
           printUmbrellaHelp()
           return 0
 
-    runCommand(cmd, restArgs) match
+    runCommand(cmd, restArgs, customCtx) match
       case Right(_) => 0
       case Left(err) =>
         if err.message.nonEmpty then
@@ -38,9 +38,9 @@ object Main:
     catch
       case _: Exception => ""
 
-  private def runCommand(name: String, args: List[String]): Either[PolyominoError, Unit] =
+  private def runCommand(name: String, args: List[String], customCtx: Option[Context] = None): Either[PolyominoError, Unit] =
     for
-      ctx <- Context.discover()
+      ctx <- customCtx.map(Right(_)).getOrElse(Context.discover())
       res <- dispatchModule(name, ctx, args)
     yield res
 
@@ -70,6 +70,9 @@ object Main:
       case "restore" => polyomino.dotfiles.maintenance.Maintenance.runRestore(ctx, args)
       case "update" => polyomino.dotfiles.maintenance.Maintenance.runUpdate(ctx, args)
       case "install" | "deploy" => polyomino.dotfiles.install.DeployInstaller.run(ctx, args)
+      case "uninstall" => polyomino.dotfiles.install.DeployInstaller.uninstall(ctx, args)
+      case "screensaver" => polyomino.dotfiles.sysutils.SysUtils.runScreensaver(ctx, args)
+      case "matrix" => polyomino.dotfiles.sysutils.SysUtils.runMatrix(ctx, args)
       case name if name.startsWith("install-") => polyomino.dotfiles.install.ToolInstallers.runTool(name, ctx, args)
       case "full-install" => polyomino.dotfiles.install.ToolInstallers.runTool("full-install", ctx, args)
       case other => Left(UnknownCommandError(other))
@@ -83,6 +86,9 @@ object Main:
       |
       |Commands:
       |  install          full setup: symlinks config + installs/updates all dependencies
+      |  uninstall        clean up symlinks and restore original configurations
+      |  screensaver      launch the kinetic terminal screensaver
+      |  matrix           terminal matrix / screensaver animation
       |  theme            select a desktop flavor + background mode and apply it live
       |  wallpaper        swap the wallpaper within the active flavor (next|prev|random|list|<name>)
       |  runtime-refresh  refresh running apps (sway/waybar/kitty/wofi/neovim/os)

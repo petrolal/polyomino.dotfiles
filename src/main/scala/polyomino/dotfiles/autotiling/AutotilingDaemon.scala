@@ -33,19 +33,28 @@ object AutotilingDaemon:
       val res = os.proc("swaymsg", "-t", "get_tree").call(check = false)
       if res.exitCode == 0 then
         val json = ujson.read(res.out.text())
-        findFocusedWindow(json, None).foreach { (focused, parent) =>
-          if shouldAutotile(focused, parent) then
-            val rect = focused("rect")
-            val width = rect("width").num.toInt
-            val height = rect("height").num.toInt
-            if width > 0 && height > 0 then
-              val targetSplit = if width > height then "split h" else "split v"
-              os.proc("swaymsg", targetSplit).call(check = false)
+        calculateSplit(json).foreach { targetSplit =>
+          os.proc("swaymsg", targetSplit).call(check = false)
         }
     catch
       case _: Exception => ()
 
-  private def findFocusedWindow(node: ujson.Value, parent: Option[ujson.Value]): Option[(ujson.Value, Option[ujson.Value])] =
+  def calculateSplit(tree: ujson.Value): Option[String] =
+    findFocusedWindow(tree, None).flatMap { (focused, parent) =>
+      if shouldAutotile(focused, parent) then
+        try
+          val rect = focused("rect")
+          val width = rect("width").num.toInt
+          val height = rect("height").num.toInt
+          if width > 0 && height > 0 then
+            Some(if width > height then "split h" else "split v")
+          else None
+        catch
+          case _: Exception => None
+      else None
+    }
+
+  def findFocusedWindow(node: ujson.Value, parent: Option[ujson.Value] = None): Option[(ujson.Value, Option[ujson.Value])] =
     try
       if node.obj.get("focused").exists(_.bool) then
         Some((node, parent))
@@ -58,7 +67,7 @@ object AutotilingDaemon:
     catch
       case _: Exception => None
 
-  private def shouldAutotile(focused: ujson.Value, parent: Option[ujson.Value]): Boolean =
+  def shouldAutotile(focused: ujson.Value, parent: Option[ujson.Value]): Boolean =
     val isFloating = focused.obj.get("type").exists(_.str == "floating_con")
     val parentLayout = parent.flatMap(_.obj.get("layout").map(_.str)).getOrElse("")
     !isFloating && parentLayout != "tabbed" && parentLayout != "stacked"

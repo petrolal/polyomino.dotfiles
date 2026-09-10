@@ -107,6 +107,7 @@ object ThemeEngine:
          |client.unfocused        ${palette.mantle}   ${palette.base}   #9ca3af             ${palette.mantle}   ${palette.mantle}
          |client.urgent           ${palette.red}      ${palette.base}   ${palette.red}      ${palette.red}      ${palette.red}
          |""".stripMargin
+    os.write.over(swayColorsFile, swayColorsContent)
     val isSystemSwayfx = try {
       val v = if os.exists(os.Path("/usr/bin/sway")) then
         os.proc("/usr/bin/sway", "--version").call(check = false).out.text().toLowerCase
@@ -132,7 +133,7 @@ object ThemeEngine:
         |""".stripMargin
     os.write.over(swayFxFile, swayFxContent)
     val dotfilesFxFile = ctx.dotfilesDir / "config" / "sway" / "fx.conf"
-    if os.exists(ctx.dotfilesDir / "config" / "sway") && dotfilesFxFile != swayFxFile then
+    if !ctx.isTest && os.exists(ctx.dotfilesDir / "config" / "sway") && dotfilesFxFile != swayFxFile then
       try os.write.over(dotfilesFxFile, swayFxContent) catch case _: Exception => ()
 
     println(s"  \u001b[32m[OK]\u001b[0m Rendered Sway colors -> $swayColorsFile")
@@ -695,7 +696,7 @@ object ThemeEngine:
       case _: Exception => ()
 
     // 8. Apply wallpaper live via Sway output bg
-    if activeWallpaper.nonEmpty then
+    if !ctx.isTest && ctx.swaySocket.isDefined && activeWallpaper.nonEmpty then
       try
         os.proc("timeout", "2", "swaymsg", "output", "*", "bg", activeWallpaper, "fill").call(check = false, stdout = os.Pipe, stderr = os.Pipe)
         println(s"  \u001b[32m[OK]\u001b[0m Applied wallpaper via Sway -> $activeWallpaper")

@@ -36,7 +36,9 @@ def get_theme_colors():
         "orange": (249, 115, 22),
         "cherry": (255, 75, 43),
     }
-    tokens_file = Path.home() / ".config" / "polyomino" / "theme" / "tokens.css"
+    config_home = os.environ.get("XDG_CONFIG_HOME")
+    config_dir = Path(config_home) if config_home else (Path.home() / ".config")
+    tokens_file = config_dir / "polyomino" / "theme" / "tokens.css"
     if tokens_file.exists():
         try:
             for line in tokens_file.read_text().splitlines():
