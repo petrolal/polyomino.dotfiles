@@ -77,8 +77,14 @@ object ToolInstallers:
     pm match
       case PackageManager.Pacman =>
         runPkgInstall("sudo", Seq("pacman", "-S", "--needed", "--noconfirm", "waybar", "kitty", "wofi", "swaylock", "gtklock", "swayidle", "grim", "slurp", "brightnessctl", "libpulse", "playerctl", "wireplumber", "ttf-jetbrains-mono-nerd", "swaync", "mako", "cmake", "ncurses", "neovim", "fastfetch", "cmatrix", "jq", "xdotool", "network-manager-applet", "polkit-gnome", "wl-clipboard", "pavucontrol", "python-gobject", "python-cairo", "gtk3", "gtk-layer-shell", "gtk-session-lock", "pam"))
-        if isAvailable("yay") then runPkgInstall("yay", Seq("-S", "--needed", "--noconfirm", "--answerclean", "None", "--answerdiff", "None", "swayfx", "ncpamixer", "onlyoffice-bin"))
-        else runPkgInstall("sudo", Seq("pacman", "-S", "--needed", "--noconfirm", "sway"))
+        if isAvailable("yay") then
+          if isSwayInstalled && !isSwayfxInstalled then
+            try os.proc("sudo", "pacman", "-Rdd", "--noconfirm", "sway").call(check = false) catch case _: Exception => ()
+          runPkgInstall("yay", Seq("-S", "--needed", "--noconfirm", "--answerclean", "None", "--answerdiff", "None", "swayfx", "ncpamixer", "onlyoffice-bin"))
+        else if !isSwayInstalled && !isSwayfxInstalled then
+          runPkgInstall("sudo", Seq("pacman", "-S", "--needed", "--noconfirm", "sway"))
+        else
+          Right(())
       case PackageManager.Dnf =>
         runPkgInstall("sudo", Seq("dnf", "install", "-y", "sway", "waybar", "kitty", "wofi", "swaylock", "swayidle", "grim", "slurp", "brightnessctl", "playerctl", "wireplumber", "sway-notification-center", "mako", "neovim", "onlyoffice-desktopeditors", "fastfetch", "cmatrix", "jq", "xdotool", "network-manager-applet", "polkit-gnome", "wl-clipboard", "pavucontrol", "python3-gobject", "python3-cairo", "gtk3", "gtk-layer-shell", "pam-devel"))
         installSwayfx(ctx)
@@ -493,29 +499,32 @@ object ToolInstallers:
   private def installSwayfx(ctx: Context): Either[PolyominoError, Unit] =
     val pm = detectPackageManager()
     println(s"\u001b[1;36m[polyomino install-swayfx]\u001b[0m Checking/Installing SwayFX / Sway (PM: $pm)...")
-    pm match
-      case PackageManager.Pacman =>
-        if isAvailable("yay") then
-          runPkgInstall("yay", Seq("-S", "--needed", "--noconfirm", "--answerclean", "None", "--answerdiff", "None", "swayfx"))
-        else
-          runPkgInstall("sudo", Seq("pacman", "-S", "--needed", "--noconfirm", "sway"))
-      case PackageManager.Dnf =>
-        try
-          os.proc("sudo", "dnf", "copr", "enable", "-y", "swayfx/swayfx").call(check = false)
-        catch
-          case _: Exception => ()
-        val dnfRes = runPkgInstall("sudo", Seq("dnf", "install", "-y", "swayfx"))
-        if !isAvailable("sway") && !isAvailable("swayfx") then
-          runPkgInstall("sudo", Seq("dnf", "install", "-y", "sway"))
-        else Right(())
-      case PackageManager.Apt =>
-        val isSwayfxInstalled = isAvailable("swayfx") || {
-          try os.proc("sway", "--version").call(check = false).out.text().toLowerCase.contains("swayfx") catch case _: Exception => false
-        }
-        if isSwayfxInstalled then
-          println("  \u001b[32m[OK]\u001b[0m SwayFX is already installed.")
-          Right(())
-        else
+    if isSwayfxInstalled then
+      println("  \u001b[32m[OK]\u001b[0m SwayFX is already installed.")
+      Right(())
+    else
+      pm match
+        case PackageManager.Pacman =>
+          if isAvailable("yay") then
+            if isSwayInstalled then
+              println("  \u001b[36m[INFO]\u001b[0m Replacing standard Sway with SwayFX...")
+              try os.proc("sudo", "pacman", "-Rdd", "--noconfirm", "sway").call(check = false) catch case _: Exception => ()
+            runPkgInstall("yay", Seq("-S", "--needed", "--noconfirm", "--answerclean", "None", "--answerdiff", "None", "swayfx"))
+          else if !isSwayInstalled then
+            runPkgInstall("sudo", Seq("pacman", "-S", "--needed", "--noconfirm", "sway"))
+          else
+            println("  \u001b[32m[OK]\u001b[0m Sway is already installed.")
+            Right(())
+        case PackageManager.Dnf =>
+          try
+            os.proc("sudo", "dnf", "copr", "enable", "-y", "swayfx/swayfx").call(check = false)
+          catch
+            case _: Exception => ()
+          val dnfRes = runPkgInstall("sudo", Seq("dnf", "install", "-y", "swayfx"))
+          if !isAvailable("sway") && !isAvailable("swayfx") then
+            runPkgInstall("sudo", Seq("dnf", "install", "-y", "sway"))
+          else Right(())
+        case PackageManager.Apt =>
           println("  \u001b[36m[INFO]\u001b[0m Compiling and installing SwayFX for Ubuntu...")
           try
             val buildDeps = Seq(
@@ -567,10 +576,10 @@ object ToolInstallers:
             case e: Exception =>
               println(s"  \u001b[33m[NOTE]\u001b[0m SwayFX build skipped (${e.getMessage}); ensuring standard sway...")
               runPkgInstall("sudo", Seq("apt-get", "install", "-y", "sway"))
-      case PackageManager.Brew =>
-        runPkgInstall("brew", Seq("install", "sway"))
-      case _ =>
-        Right(println("  \u001b[33m[NOTE]\u001b[0m Manual installation of SwayFX/Sway required for current OS."))
+        case PackageManager.Brew =>
+          runPkgInstall("brew", Seq("install", "sway"))
+        case _ =>
+          Right(println("  \u001b[33m[NOTE]\u001b[0m Manual installation of SwayFX/Sway required for current OS."))
 
   private def installTelegram(ctx: Context): Either[PolyominoError, Unit] =
     val pm = detectPackageManager()
@@ -750,4 +759,19 @@ object ToolInstallers:
 
   private def isAvailable(cmd: String): Boolean =
     try os.proc("which", cmd).call(check = false).exitCode == 0 catch case _: Exception => false
+
+  private def isSwayfxInstalled: Boolean =
+    isAvailable("swayfx") || {
+      try os.proc("sway", "--version").call(check = false).out.text().toLowerCase.contains("swayfx")
+      catch case _: Exception => false
+    } || {
+      try isAvailable("pacman") && os.proc("pacman", "-Qq", "swayfx").call(check = false).exitCode == 0
+      catch case _: Exception => false
+    }
+
+  private def isSwayInstalled: Boolean =
+    isAvailable("sway") || {
+      try isAvailable("pacman") && os.proc("pacman", "-Qq", "sway").call(check = false).exitCode == 0
+      catch case _: Exception => false
+    }
 

@@ -37,10 +37,17 @@ install_system_deps() {
   case "$pkg_mgr" in
     pacman)
       # Core system + desktop + dev tools + lockscreen & Wayland stack
+      SWAY_PKG=""
+      if ! pacman -Qq swayfx &>/dev/null && ! pacman -Qq sway &>/dev/null; then
+        if ! command -v yay &>/dev/null; then
+          SWAY_PKG="sway"
+        fi
+      fi
+
       sudo pacman -S --needed --noconfirm \
         base-devel git curl wget \
         zsh fontconfig fastfetch cmatrix \
-        sway waybar kitty wofi swaylock gtklock swayidle grim slurp \
+        $SWAY_PKG waybar kitty wofi swaylock gtklock swayidle grim slurp \
         brightnessctl libpulse playerctl wireplumber swaync mako \
         python-gobject python-cairo gtk3 gtk-layer-shell gtk-session-lock pam \
         chromium firefox \
@@ -240,7 +247,14 @@ install_swayfx() {
     pacman)
       if command -v yay &> /dev/null; then
         echo -e "  \033[36m[INFO]\033[0m Installing SwayFX via yay..."
+        if pacman -Qq sway &>/dev/null; then
+          echo -e "  \033[36m[INFO]\033[0m Replacing standard Sway with SwayFX..."
+          sudo pacman -Rdd --noconfirm sway 2>/dev/null || true
+        fi
         yay -S --needed --noconfirm --answerclean None --answerdiff None swayfx 2>/dev/null || true
+      elif ! command -v sway &> /dev/null; then
+        echo -e "  \033[36m[INFO]\033[0m yay not found; installing standard Sway via pacman..."
+        sudo pacman -S --needed --noconfirm sway 2>/dev/null || true
       fi
       ;;
     dnf)
