@@ -99,7 +99,7 @@ class InstallSuite extends FunSuite:
       "install-deps", "install-brew", "install-gh", "install-coursier",
       "install-fonts", "install-apps", "install-sway", "install-swayfx", "install-swaync",
       "install-browser", "install-devops", "install-telegram", "install-zsh",
-      "install-sdkman", "install-node", "install-npm", "install-npx", "install-tools",
+      "install-sdkman", "install-node", "install-npm", "install-npx", "install-nvm", "install-tools",
       "install-spotify", "install-spotify-player", "install-yazi", "install-fastfetch", "full-install"
     )
     tasks.foreach { task =>
@@ -143,4 +143,10 @@ class InstallSuite extends FunSuite:
     val aliases = Seq("rubik-lock", "preview-lock", "power-menu", "powermenu", "whichkey", "menu")
     aliases.foreach { alias =>
       assert(DeployInstaller.Subcommands.contains(alias), s"Missing subcommand alias: $alias")
+    }
+
+  test("ToolInstallers.runTool install-node succeeds when node and npm are satisfied"):
+    withIsolatedContext { ctx =>
+      val res = ToolInstallers.runTool("install-node", ctx, Nil)
+      assert(res.isRight)
     }

@@ -30,7 +30,7 @@ object ToolInstallers:
       case "install-sdkman" => installSdkman(ctx)
       case "install-tools" => installTools(ctx)
       case "install-telegram" => installTelegram(ctx)
-      case "install-node" | "install-npm" | "install-npx" => installNode(ctx)
+      case "install-node" | "install-npm" | "install-npx" | "install-nvm" => installNode(ctx)
       case "install-yazi" => installYazi(ctx)
       case "install-fastfetch" => installFastfetch(ctx)
       case "install-spotify" | "install-spotify-player" => installSpotifyPlayer(ctx)
@@ -617,14 +617,73 @@ object ToolInstallers:
         Right(println("  \u001b[33m[NOTE]\u001b[0m Manual package installation recommended for current OS."))
 
   private def installNode(ctx: Context): Either[PolyominoError, Unit] =
-    val pm = detectPackageManager()
-    println(s"\u001b[1;36m[polyomino install-node]\u001b[0m Installing Node.js & npm (PM: $pm)...")
-    pm match
-      case PackageManager.Pacman => runPkgInstall("sudo", Seq("pacman", "-S", "--needed", "--noconfirm", "nodejs", "npm"))
-      case PackageManager.Dnf => runPkgInstall("sudo", Seq("dnf", "install", "-y", "nodejs", "npm"))
-      case PackageManager.Apt => runPkgInstall("sudo", Seq("apt-get", "install", "-y", "nodejs", "npm"))
-      case PackageManager.Brew => runPkgInstall("brew", Seq("install", "node"))
-      case _ => Right(println("  \u001b[32m[OK]\u001b[0m Node.js environment provisioned."))
+    println("\u001b[1;36m[polyomino install-node]\u001b[0m Installing Node.js & npm via NVM...")
+
+    if ctx.isTest then
+      println("  \u001b[32m[OK]\u001b[0m Test environment detected; skipping NVM/Node.js installation.")
+      return Right(())
+
+    val nvmDir = ctx.home / ".nvm"
+    val nvmScript = nvmDir / "nvm.sh"
+
+    // 1. Ensure NVM is installed
+    if !os.exists(nvmScript) then
+      println("  \u001b[36m[INFO]\u001b[0m Bootstrapping NVM (Node Version Manager)...")
+      try
+        val curlRes = os.proc(
+          "bash", "-c",
+          "PROFILE=/dev/null curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash"
+        ).call(check = false)
+
+        if curlRes.exitCode != 0 || !os.exists(nvmScript) then
+          println("  \u001b[33m[NOTE]\u001b[0m Curl installer returned non-zero; attempting git clone fallback...")
+          os.proc("git", "clone", "--depth", "1", "--branch", "v0.40.1", "https://github.com/nvm-sh/nvm.git", nvmDir.toString).call(check = false)
+      catch
+        case e: Exception =>
+          println(s"  \u001b[33m[NOTE]\u001b[0m NVM download failed (${e.getMessage}); attempting git fallback...")
+          try os.proc("git", "clone", "--depth", "1", "--branch", "v0.40.1", "https://github.com/nvm-sh/nvm.git", nvmDir.toString).call(check = false)
+          catch case _: Exception => ()
+
+    if !os.exists(nvmScript) then
+      val errMsg = s"NVM init script not found at $nvmScript after installation attempt."
+      println(s"  \u001b[31m[FAIL]\u001b[0m $errMsg")
+      return Left(CommandError(errMsg, 1))
+
+    println(s"  \u001b[32m[OK]\u001b[0m NVM directory ready at $nvmDir")
+
+    // 2. Install latest LTS version of Node.js and set as default
+    try
+      println("  \u001b[36m[INFO]\u001b[0m Installing latest Node.js LTS and npm via NVM...")
+      val installCmd = s"""export NVM_DIR="$nvmDir" && [ -s "$nvmScript" ] && \\. "$nvmScript" && nvm install --lts && nvm alias default 'lts/*' && nvm use --lts"""
+      val res = os.proc("bash", "-c", installCmd).call(check = false)
+      if res.exitCode == 0 then
+        println("  \u001b[32m[OK]\u001b[0m Node.js LTS and npm installed successfully via NVM.")
+      else
+        println(s"  \u001b[33m[NOTE]\u001b[0m nvm install --lts exited with code ${res.exitCode}")
+
+      // 3. Symlink node, npm, npx into ~/.local/bin for non-zsh shells/services
+      val whichCmd = s"""export NVM_DIR="$nvmDir" && [ -s "$nvmScript" ] && \\. "$nvmScript" && nvm which default"""
+      val whichRes = os.proc("bash", "-c", whichCmd).call(check = false)
+      if whichRes.exitCode == 0 && whichRes.out.trim().nonEmpty then
+        val nodeBinPath = os.Path(whichRes.out.trim())
+        if os.exists(nodeBinPath) then
+          val nodeBinDir = nodeBinPath / os.up
+          val localBin = ctx.home / ".local" / "bin"
+          os.makeDir.all(localBin)
+          for binName <- Seq("node", "npm", "npx", "corepack") do
+            val srcBin = nodeBinDir / binName
+            val targetBin = localBin / binName
+            if os.exists(srcBin) then
+              try
+                if os.exists(targetBin) || os.isLink(targetBin) then os.remove(targetBin)
+                os.symlink(targetBin, srcBin)
+              catch case _: Exception => ()
+          println("  \u001b[32m[OK]\u001b[0m Symlinked node, npm, and npx to ~/.local/bin")
+      Right(())
+    catch
+      case e: Exception =>
+        println(s"  \u001b[33m[NOTE]\u001b[0m Node.js LTS installation via NVM skipped: ${e.getMessage}")
+        Right(())
 
   private def installYazi(ctx: Context): Either[PolyominoError, Unit] =
     println(s"\u001b[1;36m[polyomino install-yazi]\u001b[0m Installing yazi file manager & plugins...")
@@ -744,18 +803,28 @@ object ToolInstallers:
         val (flagsAndCmds, potentialPackages) = args.partition(arg => arg.startsWith("-") || knownNonPackages.contains(arg))
         
         for pkg <- potentialPackages do
-          val singleCmd: Seq[os.Shellable] = (cmd +: flagsAndCmds :+ pkg).map(s => (s: os.Shellable))
-          val singleRes = os.proc(singleCmd*).call(stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit, check = false)
-          if singleRes.exitCode == 0 then
-            println(s"  \u001b[32m[OK]\u001b[0m Installed: $pkg")
+          if args.contains("pacman") && isPackageSatisfied(pkg) then
+            println(s"  \u001b[32m[OK]\u001b[0m Package '$pkg' is already satisfied.")
           else
-            println(s"  \u001b[31m[FAIL]\u001b[0m Could not install: $pkg (code ${singleRes.exitCode})")
+            val singleCmd: Seq[os.Shellable] = (cmd +: flagsAndCmds :+ pkg).map(s => (s: os.Shellable))
+            val singleRes = os.proc(singleCmd*).call(stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit, check = false)
+            if singleRes.exitCode == 0 then
+              println(s"  \u001b[32m[OK]\u001b[0m Installed: $pkg")
+            else
+              println(s"  \u001b[31m[FAIL]\u001b[0m Could not install: $pkg (code ${singleRes.exitCode})")
             
         Right(())
     catch
       case e: Exception =>
         println(s"  \u001b[33m[NOTE]\u001b[0m Package installation skipped: ${e.getMessage}")
         Right(())
+
+  private def isPackageSatisfied(pkg: String): Boolean =
+    try
+      if isAvailable("pacman") then
+        os.proc("pacman", "-T", pkg).call(check = false).exitCode == 0
+      else false
+    catch case _: Exception => false
 
   private def isAvailable(cmd: String): Boolean =
     try os.proc("which", cmd).call(check = false).exitCode == 0 catch case _: Exception => false

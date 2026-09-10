@@ -36,7 +36,7 @@ object DeployInstaller:
     "sdd", "install", "deploy", "uninstall", "screensaver", "matrix", "install-deps", "install-brew", "install-homebrew",
     "install-gh", "install-github-cli", "install-coursier", "install-cs",
     "install-fonts", "install-apps", "install-sway", "install-swayfx", "install-swaync", "install-notifications", "install-browser", "install-devops", "install-zsh", "install-sdkman",
-    "install-tools", "install-telegram", "install-node", "install-npm", "install-npx", "install-yazi", "install-fastfetch", "install-spotify", "install-spotify-player", "full-install", "theme-picker", "theme-cycle", "wallpaper", "wallpaper-picker", "whichkey", "wichkey", "menu", "rubik-lock", "preview-lock", "power-menu", "powermenu"
+    "install-tools", "install-telegram", "install-node", "install-npm", "install-npx", "install-nvm", "install-yazi", "install-fastfetch", "install-spotify", "install-spotify-player", "full-install", "theme-picker", "theme-cycle", "wallpaper", "wallpaper-picker", "whichkey", "wichkey", "menu", "rubik-lock", "preview-lock", "power-menu", "powermenu"
   )
 
   def run(ctx: Context, args: List[String]): Either[PolyominoError, Unit] =

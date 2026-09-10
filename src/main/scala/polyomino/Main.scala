@@ -116,6 +116,8 @@ object Main:
       |  install-devops   install devops & cloud tooling (docker/terraform/ansible/aws/gcp/oci/kubectl/etc.)
       |  install-zsh      install zsh + oh-my-zsh + plugins and set the shell
       |  install-sdkman   install SDKMAN! and JVM tooling
+      |  install-node     install Node.js & npm via NVM (Node Version Manager)
+      |  install-nvm      alias for install-node
       |  install-tools    install TUI tools (spotify_player, bluetui, aerc)
       |  install-fastfetch install Fastfetch system information tool
       |  full-install     install all system packages, desktop apps, fonts, and tooling
