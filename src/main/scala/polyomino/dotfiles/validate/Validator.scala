@@ -2,18 +2,12 @@ package polyomino.dotfiles.validate
 
 import polyomino.dotfiles.context.Context
 import polyomino.dotfiles.error.{CommandError, PolyominoError}
+import polyomino.dotfiles.install.DeployInstaller
 
 object Validator:
   val VersionStr = "0.1.0 (Scala 3.5.2 Native Image)"
 
-  val Subcommands: Seq[String] = Seq(
-    "theme", "runtime-refresh", "os-colorscheme", "lock", "idle",
-    "screenshot", "draw-window", "sway-draw-window", "autotiling", "healthcheck", "backup", "restore", "update",
-    "sdd", "install", "deploy", "install-fonts", "install-apps", "install-browser",
-    "install-devops", "install-zsh", "install-sdkman", "install-tools",
-    "theme-picker", "wallpaper", "wallpaper-picker", "whichkey", "wichkey", "menu", "rubik-lock", "preview-lock",
-    "power-menu", "powermenu"
-  )
+  val Subcommands: Seq[String] = DeployInstaller.Subcommands
 
   def run(ctx: Context, args: List[String]): Either[PolyominoError, Unit] =
     println(s"\u001b[1;36m[polyomino healthcheck]\u001b[0m Running 25+ point desktop health & symlink audit...")

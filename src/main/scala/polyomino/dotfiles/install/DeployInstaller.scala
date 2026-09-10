@@ -36,7 +36,7 @@ object DeployInstaller:
     "sdd", "install", "deploy", "install-deps", "install-brew", "install-homebrew",
     "install-gh", "install-github-cli", "install-coursier", "install-cs",
     "install-fonts", "install-apps", "install-sway", "install-swayfx", "install-swaync", "install-notifications", "install-browser", "install-devops", "install-zsh", "install-sdkman",
-    "install-tools", "install-telegram", "install-node", "install-npm", "install-npx", "install-yazi", "install-fastfetch", "install-spotify", "install-spotify-player", "full-install", "theme-picker", "wallpaper", "wallpaper-picker", "whichkey", "wichkey", "menu", "rubik-lock", "preview-lock", "power-menu", "powermenu"
+    "install-tools", "install-telegram", "install-node", "install-npm", "install-npx", "install-yazi", "install-fastfetch", "install-spotify", "install-spotify-player", "full-install", "theme-picker", "theme-cycle", "wallpaper", "wallpaper-picker", "whichkey", "wichkey", "menu", "rubik-lock", "preview-lock", "power-menu", "powermenu"
   )
 
   def run(ctx: Context, args: List[String]): Either[PolyominoError, Unit] =
@@ -78,7 +78,7 @@ object DeployInstaller:
       (ctx.configDir / "mako", ctx.dotfilesDir / "config" / "mako"),
       (ctx.configDir / "fastfetch", ctx.dotfilesDir / "config" / "fastfetch"),
       (ctx.configDir / "spotify-player", ctx.dotfilesDir / "config" / "spotify-player"),
-      (ctx.configDir / "systemd" / "user", ctx.dotfilesDir / "config" / "systemd" / "user")
+      (ctx.configDir / "systemd" / "user" / "mako.service", ctx.dotfilesDir / "config" / "systemd" / "user" / "mako.service")
     )
 
     var configSymlinkCount = 0
@@ -106,9 +106,7 @@ object DeployInstaller:
         // Create symlink if path was successfully removed
         if !os.exists(targetPath) && !os.isLink(targetPath) then
           try
-            val parentStr = targetPath.toString
-            val parentPath = os.Path(parentStr.substring(0, parentStr.lastIndexOf('/')))
-            os.makeDir.all(parentPath)
+            os.makeDir.all(targetPath / os.up)
             // Use ln command for more reliable symlink creation
             os.proc("ln", "-s", sourcePath.toString, targetPath.toString).call()
             configSymlinkCount += 1
@@ -144,6 +142,8 @@ object DeployInstaller:
       val symlinkPath = binDir / s"polyomino-$cmd"
       val scriptSource = if cmd == "rubik-lock" then
         ctx.dotfilesDir / "config" / "sway" / "scripts" / "polyomino-rubik-lock"
+      else if cmd == "theme-cycle" then
+        ctx.dotfilesDir / "scripts" / "polyomino-theme-cycle"
       else mainBinary
       try
         if os.exists(symlinkPath) || os.isLink(symlinkPath) then os.remove(symlinkPath)

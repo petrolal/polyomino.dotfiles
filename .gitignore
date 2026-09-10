@@ -29,6 +29,11 @@ Thumbs.db
 *.class
 *.log
 
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+
 # GraalVM native-image build artifacts
 *.o
 *.so

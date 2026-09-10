@@ -31,9 +31,8 @@ class MainSuite extends FunSuite:
     assert(code != 0)
 
   test("Main.dispatch routes sdd command"):
-    // TODO: sdd requires proper path handling for nested files
-    // Skip for now - pre-existing issue
-    assertEquals(true, true)
+    val code = dispatch(Array("sdd", "--tokens"))
+    assertEquals(code, 0)
 
   test("Main.dispatch routes theme command"):
     val code = dispatch(Array("theme", "list"))

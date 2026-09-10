@@ -77,7 +77,7 @@ object SysUtils:
 
     val screenshotsDir = ctx.home / "Pictures" / "Screenshots"
     os.makeDir.all(screenshotsDir)
-    val timestamp = os.proc("date", "+%Y-%m-%d_%H-%M-%S").call(check = false).out.text().trim
+    val timestamp = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
     val file = screenshotsDir / s"$timestamp.png"
 
     println(s"\u001b[1;34m[polyomino screenshot]\u001b[0m Capturing $mode screenshot to $file...")
@@ -111,7 +111,7 @@ object SysUtils:
         // Copy screenshot image bytes to wl-copy clipboard if available
         try
           if isCommandAvailable("wl-copy") then
-            os.proc("wl-copy").call(stdin = os.read.bytes(file), check = false)
+            os.proc("wl-copy", "--type", "image/png").call(stdin = os.read.bytes(file), check = false)
         catch
           case _: Exception => ()
 

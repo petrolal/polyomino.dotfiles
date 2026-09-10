@@ -101,8 +101,6 @@ if [[ "$MODE" == "current" ]] || ([[ "$MODE" == "auto" ]] && [[ "$FOCUSED_TYPE" 
 else
     # Spawn a new floating window fitted to the drawn region
     UNIQUE_APP_ID="polyomino-draw-$RANDOM"
-    swaymsg "for_window [app_id=\"$UNIQUE_APP_ID\"] floating enable; for_window [app_id=\"$UNIQUE_APP_ID\"] move absolute position $X $Y; for_window [app_id=\"$UNIQUE_APP_ID\"] resize set $W $H" >/dev/null 2>&1
-
     TERM_BIN="${TERM_PROGRAM:-kitty}"
     command -v "$TERM_BIN" >/dev/null 2>&1 || TERM_BIN="kitty"
 
@@ -112,4 +110,12 @@ else
         # If user passed a command (e.g. yazi, btop, or custom shell)
         "$TERM_BIN" --class "$UNIQUE_APP_ID" -e "${TARGET_CMD[@]}" &
     fi
+
+    # Position the spawned window directly without leaking permanent for_window criteria into Sway
+    for _ in {1..30}; do
+        if swaymsg "[app_id=\"$UNIQUE_APP_ID\"] floating enable, move absolute position $X $Y, resize set $W $H" >/dev/null 2>&1; then
+            break
+        fi
+        sleep 0.02
+    done
 fi

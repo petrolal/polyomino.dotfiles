@@ -17,6 +17,7 @@ set $right l
 set $term kitty
 set $launcher wofi --show drun --allow-images --conf ~/.config/wofi/config --style ~/.config/wofi/style.css
 set $lock ~/.config/sway/scripts/polyomino-rubik-lock
+set $send-notify exec notify-send -a polyomino
 
 set $ws1 "1:web"
 set $ws2 "2:code"
@@ -92,8 +93,8 @@ exec_always sh -c 'pkill -f "^$HOME/.local/bin/polyomino-autotiling"; ~/.local/b
 exec_always --no-startup-id ~/.config/fastfetch/set_logo.sh
 
 # Polkit authentication agent — required for GUI privilege prompts (Intune, NetworkManager, disk mounts).
-# GNOME's polkit agent is reused since it is desktop-agnostic; no separate install needed.
-exec /usr/libexec/polkit-gnome-authentication-agent-1
+# Dynamically resolves across Arch (/usr/lib/polkit-gnome), Debian/Ubuntu (/usr/libexec or /usr/lib/policykit-1-gnome), and Fedora.
+exec sh -c 'for p in /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 /usr/libexec/polkit-gnome-authentication-agent-1 /usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1 /usr/bin/lxpolkit; do if [ -x "$p" ]; then exec "$p"; fi; done'
 
 ### ────────────────────────────────────────────────────────────────
 ### Environment variables (Wayland-first app behavior)
