@@ -248,5 +248,20 @@ object SysUtils:
     else
       Left(CommandError(s"Matrix script not found at $scriptToRun"))
 
+  def runWelcome(ctx: Context, args: List[String] = Nil): Either[PolyominoError, Unit] =
+    val script = ctx.dotfilesDir / "config" / "sway" / "scripts" / "polyomino-welcome.py"
+    val scriptToRun = if os.exists(script) then script else ctx.configDir / "sway" / "scripts" / "polyomino-welcome.py"
+    if os.exists(scriptToRun) then
+      if ctx.isTest then Right(())
+      else
+        try
+          val fullCmd: Seq[os.Shellable] = Seq("python3": os.Shellable, scriptToRun.toString: os.Shellable) ++ args.map(a => (a: os.Shellable))
+          os.proc(fullCmd*).spawn(stdout = os.Inherit, stderr = os.Inherit)
+          Right(())
+        catch
+          case e: Exception => Left(CommandError(s"Welcome Center failed: ${e.getMessage}"))
+    else
+      Left(CommandError(s"Welcome Center script not found at $scriptToRun"))
+
   private def isCommandAvailable(cmd: String): Boolean =
     try os.proc("which", cmd).call(check = false).exitCode == 0 catch case _: Exception => false

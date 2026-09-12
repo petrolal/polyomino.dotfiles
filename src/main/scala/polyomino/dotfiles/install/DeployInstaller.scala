@@ -33,7 +33,7 @@ object DeployInstaller:
   val Subcommands: Seq[String] = Seq(
     "theme", "runtime-refresh", "os-colorscheme", "lock", "idle",
     "screenshot", "draw-window", "sway-draw-window", "calendar", "autotiling", "healthcheck", "backup", "restore", "update", "notify-config",
-    "sdd", "install", "deploy", "uninstall", "screensaver", "matrix", "install-deps", "install-brew", "install-homebrew",
+    "sdd", "install", "deploy", "uninstall", "welcome", "gamemode", "screensaver", "matrix", "install-deps", "install-gaming", "install-games", "install-gamemode", "install-brew", "install-homebrew",
     "install-gh", "install-github-cli", "install-coursier", "install-cs",
     "install-fonts", "install-apps", "install-sway", "install-swayfx", "install-swaync", "install-notifications", "install-browser", "install-devops", "install-zsh", "install-sdkman",
     "install-tools", "install-telegram", "install-node", "install-npm", "install-npx", "install-nvm", "install-yazi", "install-fastfetch", "install-spotify", "install-spotify-player", "full-install", "theme-picker", "theme-cycle", "wallpaper", "wallpaper-picker", "whichkey", "wichkey", "menu", "rubik-lock", "preview-lock", "power-menu", "powermenu"
@@ -151,6 +151,8 @@ object DeployInstaller:
         ctx.dotfilesDir / "config" / "sway" / "scripts" / "screensaver.py"
       else if cmd == "matrix" then
         ctx.dotfilesDir / "config" / "sway" / "scripts" / "matrix.sh"
+      else if cmd == "welcome" then
+        ctx.dotfilesDir / "config" / "sway" / "scripts" / "polyomino-welcome.py"
       else mainBinary
       try
         if os.exists(symlinkPath) || os.isLink(symlinkPath) then os.remove(symlinkPath)

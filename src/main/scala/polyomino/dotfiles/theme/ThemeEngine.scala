@@ -323,6 +323,7 @@ object ThemeEngine:
         |#battery,
         |#cpu,
         |#memory,
+        |#custom-gamemode,
         |#custom-notification,
         |#custom-spotify,
         |#mode {
@@ -385,6 +386,17 @@ object ThemeEngine:
         |    color: @green;
         |}
         |
+        |#custom-gamemode {
+        |    color: #94A3B8;
+        |    padding: 0 10px;
+        |    margin: 0;
+        |}
+        |
+        |#custom-gamemode.active {
+        |    color: @accent;
+        |    font-weight: bold;
+        |}
+        |
         |/* Trailing POLYOMINO pill */
         |#custom-polyomino {
         |    background-color: @accent;
@@ -413,6 +425,8 @@ object ThemeEngine:
         |#cpu.active,
         |#memory:hover,
         |#memory.active,
+        |#custom-gamemode:hover,
+        |#custom-gamemode.active,
         |#custom-notification:hover,
         |#custom-notification.active,
         |#custom-notification.open,

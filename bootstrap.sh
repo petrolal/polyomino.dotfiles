@@ -306,6 +306,35 @@ install_swayfx() {
   esac
 }
 
+install_gaming() {
+  local pkg_mgr="$1"
+  echo -e "  \033[1;36m[polyomino]\033[0m Installing gaming performance tools & dependencies ($pkg_mgr)..."
+  case "$pkg_mgr" in
+    pacman)
+      sudo pacman -S --needed --noconfirm \
+        gamemode gamescope mangohud vulkan-icd-loader vulkan-tools nvidia-prime 2>/dev/null || true
+      if pacman -Si lib32-gamemode &>/dev/null; then
+        sudo pacman -S --needed --noconfirm lib32-gamemode lib32-mangohud lib32-vulkan-icd-loader 2>/dev/null || true
+      fi
+      if command -v yay &>/dev/null; then
+        yay -S --needed --noconfirm --answerclean None --answerdiff None steam 2>/dev/null || true
+      fi
+      echo -e "  \033[32m[OK]\033[0m Gaming dependencies installed (gamemode, gamescope, mangohud, vulkan, nvidia-prime)"
+      ;;
+    dnf)
+      sudo dnf install -y gamemode gamescope mangohud vulkan-tools steam 2>/dev/null || true
+      echo -e "  \033[32m[OK]\033[0m Gaming dependencies installed"
+      ;;
+    apt-get)
+      sudo apt-get install -y gamemode gamescope mangohud vulkan-tools 2>/dev/null || true
+      echo -e "  \033[32m[OK]\033[0m Gaming dependencies installed"
+      ;;
+    *)
+      echo -e "  \033[33m[NOTE]\033[0m Gaming installation skipped for $pkg_mgr"
+      ;;
+  esac
+}
+
 enable_path() {
   if ! echo "$PATH" | grep -q "$BIN_DIR"; then
     echo -e "  \033[36m[INFO]\033[0m Adding $BIN_DIR to PATH..."
@@ -343,6 +372,25 @@ echo ""
 install_swayfx "$PKG_MGR"
 echo ""
 
+# Optional Gaming Stack
+INSTALL_GAMING=false
+for arg in "$@"; do
+  if [[ "$arg" == "--gaming" || "$arg" == "--with-gaming" || "$arg" == "-g" ]]; then
+    INSTALL_GAMING=true
+  fi
+done
+
+if [ "$INSTALL_GAMING" = true ]; then
+  install_gaming "$PKG_MGR"
+  echo ""
+elif [ -t 0 ]; then
+  read -r -p "  Install optional gaming optimizations & tools (gamemode, gamescope, mangohud)? [y/N] " game_choice || game_choice="n"
+  if [[ "$game_choice" =~ ^[Yy]$ ]]; then
+    install_gaming "$PKG_MGR"
+    echo ""
+  fi
+fi
+
 # Install Java
 install_java
 echo ""
@@ -365,7 +413,11 @@ echo ""
 echo -e "  2. Run the interactive installer:"
 echo -e "     \033[33mpolyomino install\033[0m"
 echo ""
-echo -e "  3. Follow the interactive prompts to:"
+echo -e "  3. Optional: Install or toggle gaming optimization:"
+echo -e "     \033[33mpolyomino install-gaming\033[0m    (install GameMode, Gamescope, MangoHud)"
+echo -e "     \033[33mpolyomino gamemode toggle\033[0m   (toggle Game Mode ON/OFF live)"
+echo ""
+echo -e "  4. Follow the interactive prompts to:"
 echo -e "     - Choose your preferred tools and versions"
 echo -e "     - Deploy dotfiles and symlinks"
 echo -e "     - Run system health check"

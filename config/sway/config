@@ -47,6 +47,9 @@ exec_always pgrep -x waybar >/dev/null || waybar
 # Floating calendar popup rule
 for_window [app_id="polyomino-calendar"] floating enable, resize set 680 440, move position center
 
+# Floating welcome center window
+for_window [app_id="polyomino-welcome"] floating enable, resize set 840 620, move position center
+
 # Floating lockscreen preview window
 for_window [app_id="polyomino-lock-preview"] floating enable, resize set 1024 720, move position center
 
@@ -59,6 +62,15 @@ for_window [app_id="bluetui"] floating enable, border pixel 2, resize set 900 60
 for_window [app_id="ncpamixer"] floating enable, border pixel 2, resize set 700 500, move position center
 for_window [app_id="pavucontrol"] floating enable, border pixel 2, resize set 750 500, move position center
 for_window [app_id="org.pulseaudio.pavucontrol"] floating enable, border pixel 2, resize set 750 500, move position center
+
+# Gaming window rules (Steam dialogs, Lutris, Heroic, Gamescope)
+for_window [class="^Steam$" title="^Friends List$"] floating enable
+for_window [class="^Steam$" title=".* - Chat"] floating enable
+for_window [class="^Steam$" title="^Settings$"] floating enable
+for_window [class="^gamescope$"] fullscreen enable, floating enable
+for_window [app_id="gamescope"] fullscreen enable, floating enable
+for_window [class="^heroic$"] floating enable
+for_window [class="^lutris$"] floating enable
 
 # Tetris-themed power / exit modal (polyomino power-menu). A borderless floating
 # window sized to the whole output — its own dark backdrop — rather than a real
@@ -95,6 +107,9 @@ exec_always --no-startup-id ~/.config/fastfetch/set_logo.sh
 # Polkit authentication agent — required for GUI privilege prompts (Intune, NetworkManager, disk mounts).
 # Dynamically resolves across Arch (/usr/lib/polkit-gnome), Debian/Ubuntu (/usr/libexec or /usr/lib/policykit-1-gnome), and Fedora.
 exec sh -c 'for p in /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 /usr/libexec/polkit-gnome-authentication-agent-1 /usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1 /usr/bin/lxpolkit; do if [ -x "$p" ]; then exec "$p"; fi; done'
+
+# Welcome Center (checked against ~/.config/polyomino/welcome.json autostart preference)
+exec ~/.local/bin/polyomino-welcome --autostart
 
 ### ────────────────────────────────────────────────────────────────
 ### Environment variables (Wayland-first app behavior)
@@ -247,6 +262,7 @@ bindsym $mod+Shift+u exec $term --title bluetui -e bluetui
 bindsym $mod+Shift+v exec $term --title ncpamixer -e ncpamixer
 bindsym $mod+Shift+a exec $term --title aerc -e aerc
 bindsym $mod+Shift+n exec swaync-client -t -sw
+bindsym $mod+Shift+g exec ~/.local/bin/polyomino-gamemode toggle # Toggle Gaming Performance Mode
 floating_modifier $mod normal
 bindsym $mod+Shift+c reload
 bindsym $mod+Shift+r restart

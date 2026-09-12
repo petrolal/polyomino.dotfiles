@@ -73,6 +73,8 @@ object Main:
       case "uninstall" => polyomino.dotfiles.install.DeployInstaller.uninstall(ctx, args)
       case "screensaver" => polyomino.dotfiles.sysutils.SysUtils.runScreensaver(ctx, args)
       case "matrix" => polyomino.dotfiles.sysutils.SysUtils.runMatrix(ctx, args)
+      case "gamemode" => polyomino.dotfiles.gamemode.GameModeEngine.run(ctx, args)
+      case "welcome" | "hello" => polyomino.dotfiles.sysutils.SysUtils.runWelcome(ctx, args)
       case name if name.startsWith("install-") => polyomino.dotfiles.install.ToolInstallers.runTool(name, ctx, args)
       case "full-install" => polyomino.dotfiles.install.ToolInstallers.runTool("full-install", ctx, args)
       case other => Left(UnknownCommandError(other))
@@ -87,6 +89,8 @@ object Main:
       |Commands:
       |  install          full setup: symlinks config + installs/updates all dependencies
       |  uninstall        clean up symlinks and restore original configurations
+      |  welcome          launch the Polyomino Welcome Center GUI
+      |  gamemode         toggle gaming performance optimizations (status|toggle|on|off|--waybar)
       |  screensaver      launch the kinetic terminal screensaver
       |  matrix           terminal matrix / screensaver animation
       |  theme            select a desktop flavor + background mode and apply it live
@@ -106,6 +110,7 @@ object Main:
       |  notify-config    configure installed apps to use system notifications
       |  sdd              token-efficient spec-driven development for AI workflows
       |  install-deps     install system & build dependencies (sbt, gcc, git, etc.)
+      |  install-gaming   install gaming dependencies & tools (gamemode/gamescope/mangohud/etc.)
       |  install-brew     install Homebrew package manager
       |  install-gh       install GitHub CLI (gh)
       |  install-coursier install Coursier (cs) Scala application manager

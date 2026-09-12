@@ -34,6 +34,7 @@ object ToolInstallers:
       case "install-yazi" => installYazi(ctx)
       case "install-fastfetch" => installFastfetch(ctx)
       case "install-spotify" | "install-spotify-player" => installSpotifyPlayer(ctx)
+      case "install-gaming" | "install-games" | "install-gamemode" => installGaming(ctx)
       case "full-install" => installAll(ctx)
       case _ => Left(CommandError(s"Unknown installer task '$name'", 1))
 
@@ -765,6 +766,30 @@ object ToolInstallers:
         runPkgInstall("brew", Seq("install", "fastfetch"))
       case _ =>
         Right(println("  \u001b[33m[NOTE]\u001b[0m Manual installation of fastfetch required for current OS."))
+
+  private def installGaming(ctx: Context): Either[PolyominoError, Unit] =
+    val pm = detectPackageManager()
+    println(s"\u001b[1;36m[polyomino install-gaming]\u001b[0m Installing gaming dependencies & tools (PM: $pm)...")
+    pm match
+      case PackageManager.Pacman =>
+        val pkgs = Seq(
+          "gamemode", "gamescope", "mangohud",
+          "vulkan-icd-loader", "vulkan-tools",
+          "lib32-gamemode", "lib32-mangohud", "lib32-vulkan-icd-loader",
+          "nvidia-prime"
+        )
+        val res = runPkgInstall("sudo", Seq("pacman", "-S", "--needed", "--noconfirm") ++ pkgs)
+        if isAvailable("yay") then
+          runPkgInstall("yay", Seq("-S", "--needed", "--noconfirm", "--answerclean", "None", "--answerdiff", "None", "steam"))
+        res
+      case PackageManager.Dnf =>
+        runPkgInstall("sudo", Seq("dnf", "install", "-y", "gamemode", "gamescope", "mangohud", "vulkan-tools", "steam"))
+      case PackageManager.Apt =>
+        runPkgInstall("sudo", Seq("apt-get", "install", "-y", "gamemode", "gamescope", "mangohud", "vulkan-tools"))
+      case PackageManager.Brew =>
+        runPkgInstall("brew", Seq("install", "gamemode", "vulkan-tools"))
+      case _ =>
+        Right(println("  \u001b[33m[NOTE]\u001b[0m Manual installation of gaming tools recommended for this OS."))
 
   private def installAll(ctx: Context): Either[PolyominoError, Unit] =
     println("\u001b[1;36m[polyomino full-install]\u001b[0m Installing all system dependencies, desktop apps, fonts, and tooling...")

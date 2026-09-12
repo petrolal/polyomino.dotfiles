@@ -19,7 +19,7 @@
       "memory",
       "battery",
       "custom/matriz",
-      "tray",
+      "custom/gamemode",
       "custom/notification",
       "custom/polyomino",
     ],
@@ -243,5 +243,15 @@
     "on-click": "swaync-client -t -sw",
     "on-click-right": "swaync-client -d -sw",
     "escape": true,
+  },
+  // waybar-gamemode toggle
+  "custom/gamemode": {
+    "format": "{}",
+    "return-type": "json",
+    "interval": 3,
+    "signal": 8,
+    "exec": "polyomino gamemode --waybar",
+    "on-click": "polyomino gamemode toggle",
+    "tooltip": true,
   },
 }

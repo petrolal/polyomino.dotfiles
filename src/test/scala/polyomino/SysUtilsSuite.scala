@@ -134,3 +134,14 @@ class SysUtilsSuite extends FunSuite:
       val missingRes = SysUtils.runMatrix(missingCtx)
       assert(missingRes.isLeft)
     }
+
+  test("SysUtils.runWelcome succeeds when script exists and fails when missing"):
+    withIsolatedContext { ctx =>
+      val res = SysUtils.runWelcome(ctx)
+      assert(res.isRight)
+
+      val missingCtx = ctx.copy(dotfilesDir = ctx.home / "empty")
+      val missingRes = SysUtils.runWelcome(missingCtx)
+      assert(missingRes.isLeft)
+    }
+

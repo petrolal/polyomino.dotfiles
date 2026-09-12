@@ -211,12 +211,14 @@ object WofiPickers:
         case Seq("--output" | "-o", name) if name.nonEmpty => Seq("-o", name)
       }.getOrElse(Seq.empty)
 
+    val Welcome   = "✨   Welcome center"
+    val GameMode  = "🎮   Game mode (Toggle)"
     val PowerMenu = "⏻   Power menu"
     val ThemePick = "🎨   Theme and wallpaper"
     val Wallpaper = "🖼   Wallpaper"
     val EditConf  = "⚙   Edit a config file…"
     val Health    = "🩺   Healthcheck"
-    val entries = Seq(PowerMenu, ThemePick, Wallpaper, EditConf, Health)
+    val entries = Seq(Welcome, GameMode, PowerMenu, ThemePick, Wallpaper, EditConf, Health)
 
     val wofiConfigFile = ctx.configDir / "wofi" / "config"
     val wofiStyleFile = ctx.configDir / "wofi" / "style.css"
@@ -252,6 +254,12 @@ object WofiPickers:
     try
       wofiPick("[ ⊞ ] polyomino", entries.size, entries, width = 500) match
         case s if s.isEmpty => Right(())
+        case s if s.contains("Welcome") =>
+          spawn(Seq((binDir / "polyomino-welcome").toString))
+          Right(())
+        case s if s.contains("Game") =>
+          spawn(Seq(polyomino, "gamemode", "toggle"))
+          Right(())
         case s if s.contains("Power") =>
           spawn(Seq(term, "--class=polyomino-power-menu", "-o", "font_size=14", "-e", polyomino, "power-menu"))
           Right(())
