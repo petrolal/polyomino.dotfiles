@@ -11,6 +11,13 @@ alias cn='[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/polyomino/init.lua" ] && NVIM_
 alias c='clear'
 alias reload='source ~/.zshrc'
 alias matrix='~/.config/sway/scripts/matrix.sh'
+alias nvp='nvim-project'
+
+# ── Project launcher (routes Neovim to workspace 2:code) ──
+nvim-project() {
+    local target_dir="${1:-.}"
+    kitty --class nvim-project -d "$target_dir" nvim . >/dev/null 2>&1 &|
+}
 
 # ── Terminal idle screensaver (3 minutes of inactivity at prompt) ──
 TMOUT=180

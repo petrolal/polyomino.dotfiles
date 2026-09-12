@@ -38,16 +38,38 @@
     padding: 4px;
 }
 
-.close-button {
+.notification-default-action,
+.notification-action {
     background: transparent;
-    color: #F8FAFC;
+    border: none;
     border-radius: 0px;
+    box-shadow: none;
     padding: 4px;
+    margin: 0;
+    color: #F8FAFC;
+}
+
+.notification-default-action:hover,
+.notification-action:hover {
+    background-color: #122232;
+}
+
+.close-button {
+    background-color: #191C24;
+    color: #F8FAFC;
+    border: 1px solid #EBB434;
+    border-radius: 0px;
+    margin: 6px;
+    padding: 2px;
+    min-width: 24px;
+    min-height: 24px;
+    box-shadow: none;
 }
 
 .close-button:hover {
     background-color: #EF4444;
     color: #0F1117;
+    border-color: #EF4444;
 }
 
 .widget-title {

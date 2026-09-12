@@ -34,11 +34,11 @@ object GameModeEngine:
   def printWaybarJson(ctx: Context): Unit =
     if isActive(ctx) then
       val json =
-        """{"text": "󰊴  GAME", "alt": "active", "tooltip": "Game Mode ACTIVE\n• SwayFX Blur: Disabled\n• VRR (Adaptive Sync): Enabled\n• Shortcuts Inhibitor: Enabled\n• CPU/Power: Performance\n• Screen Lock: Inhibited\n• Notifications: Do Not Disturb", "class": "active"}"""
+        """{"text": "󰊴 GAME", "alt": "active", "tooltip": "Game Mode ACTIVE\n• SwayFX Blur: Disabled\n• VRR (Adaptive Sync): Enabled\n• Shortcuts Inhibitor: Enabled\n• CPU/Power: Performance\n• Screen Sleep: Inhibited", "class": "active"}"""
       println(json)
     else
       val json =
-        """{"text": "󰊴 ", "alt": "inactive", "tooltip": "Game Mode INACTIVE\nClick to activate gaming optimizations", "class": "inactive"}"""
+        """{"text": "󰊴", "alt": "inactive", "tooltip": "Game Mode INACTIVE\nClick to activate gaming optimizations", "class": "inactive"}"""
       println(json)
 
   private def printHumanStatus(ctx: Context): Unit =
@@ -49,7 +49,6 @@ object GameModeEngine:
       println("  • Shortcuts Inhibitor: Enabled")
       println("  • Power Profile: Performance")
       println("  • Screen Sleep/Lock: Inhibited")
-      println("  • SwayNC: Do Not Disturb ON")
     else
       println("\u001b[1;36m[polyomino gamemode]\u001b[0m State: \u001b[1;30mINACTIVE\u001b[0m")
       println("  Run 'polyomino gamemode toggle' or 'polyomino gamemode on' to activate.")
@@ -75,11 +74,7 @@ object GameModeEngine:
     try os.proc("swaymsg", "output * adaptive_sync on").call(check = false)
     catch case _: Exception => ()
 
-    // 3. Enable shortcuts inhibitor to pass all keyboard input to the game
-    try os.proc("swaymsg", "seat * shortcuts_inhibitor enable").call(check = false)
-    catch case _: Exception => ()
-
-    // 4. Boost power profile / CPU governor
+    // 3. Boost power profile / CPU governor
     try
       if isCommandAvailable("powerprofilesctl") then
         os.proc("powerprofilesctl", "set", "performance").call(check = false)
@@ -87,25 +82,25 @@ object GameModeEngine:
         os.proc("sudo", "cpupower", "frequency-set", "-g", "performance").call(check = false)
     catch case _: Exception => ()
 
-    // 5. Turn on Do Not Disturb in SwayNC
-    try
-      if isCommandAvailable("swaync-client") then
-        os.proc("swaync-client", "-d", "on").call(check = false)
-    catch case _: Exception => ()
-
-    // 6. Inhibit screen sleep and lock
+    // 4. Inhibit screen sleep and lock
     try
       if isCommandAvailable("systemd-inhibit") then
-        val subproc = os.proc("systemd-inhibit", "--what=idle", "--who=polyomino-gamemode", "--why=Gaming Active", "sleep", "infinity").spawn()
-        // Save pid
-        try os.write.over(pidFile(ctx), subproc.wrapped.pid().toString)
+        val pb = new java.lang.ProcessBuilder("systemd-inhibit", "--what=idle", "--who=polyomino-gamemode", "--why=Gaming Active", "sleep", "infinity")
+        pb.redirectInput(java.lang.ProcessBuilder.Redirect.DISCARD)
+        pb.redirectOutput(java.lang.ProcessBuilder.Redirect.DISCARD)
+        pb.redirectError(java.lang.ProcessBuilder.Redirect.DISCARD)
+        val proc = pb.start()
+        try os.write.over(pidFile(ctx), proc.pid().toString)
         catch case _: Exception => ()
     catch case _: Exception => ()
 
-    // 7. Desktop notification
-    notifyDesktop("Game Mode Activated", "Performance optimizations ENABLED 🚀 (VRR On, Blur Off, Performance Profile)")
+    // 5. Desktop notification (appears immediately on activation)
+    notifyDesktop(
+      "Game Mode Activated",
+      "Performance optimizations ENABLED 🚀\n• VRR: On | Blur: Off | Profile: Performance"
+    )
 
-    // 8. Trigger Waybar update
+    // 6. Trigger Waybar update
     triggerWaybarSignal()
 
     println("  \u001b[32m[OK]\u001b[0m Game Mode ACTIVE")
@@ -126,19 +121,19 @@ object GameModeEngine:
     try os.proc("swaymsg", "blur enable").call(check = false)
     catch case _: Exception => ()
 
-    // 2. Restore power profile
+    // 2. Restore Adaptive Sync (VRR off)
+    try os.proc("swaymsg", "output * adaptive_sync off").call(check = false)
+    catch case _: Exception => ()
+
+    // 3. Restore power profile
     try
       if isCommandAvailable("powerprofilesctl") then
         os.proc("powerprofilesctl", "set", "balanced").call(check = false)
+      else if isCommandAvailable("cpupower") then
+        os.proc("sudo", "cpupower", "frequency-set", "-g", "powersave").call(check = false)
     catch case _: Exception => ()
 
-    // 3. Restore SwayNC Do Not Disturb
-    try
-      if isCommandAvailable("swaync-client") then
-        os.proc("swaync-client", "-d", "off").call(check = false)
-    catch case _: Exception => ()
-
-    // 4. Kill idle inhibitor process
+    // 5. Kill idle inhibitor process
     if os.exists(pidFile(ctx)) then
       try
         val pid = os.read(pidFile(ctx)).trim
@@ -150,10 +145,13 @@ object GameModeEngine:
     try os.proc("pkill", "-f", "systemd-inhibit --what=idle --who=polyomino-gamemode").call(check = false)
     catch case _: Exception => ()
 
-    // 5. Desktop notification
-    notifyDesktop("Game Mode Deactivated", "Standard desktop configuration restored.")
+    // 6. Desktop notification (appears immediately on deactivation)
+    notifyDesktop(
+      "Game Mode Deactivated",
+      "Standard desktop configuration restored.\n• VRR: Off | Blur: On | Profile: Balanced"
+    )
 
-    // 6. Trigger Waybar update
+    // 7. Trigger Waybar update
     triggerWaybarSignal()
 
     println("  \u001b[32m[OK]\u001b[0m Game Mode DEACTIVATED")
@@ -166,7 +164,17 @@ object GameModeEngine:
   private def notifyDesktop(title: String, body: String): Unit =
     try
       if isCommandAvailable("notify-send") then
-        os.proc("notify-send", "-u", "normal", "-t", "3000", "-a", "polyomino", "-i", "applications-games", title, body).call(check = false)
+        os.proc(
+          "notify-send",
+          "-u", "normal",
+          "-t", "3000",
+          "-a", "polyomino",
+          "-i", "input-gaming",
+          "-h", "string:synchronous:gamemode",
+          "-h", "string:transient:true",
+          title,
+          body
+        ).call(check = false)
     catch case _: Exception => ()
 
   private def isCommandAvailable(cmd: String): Boolean =

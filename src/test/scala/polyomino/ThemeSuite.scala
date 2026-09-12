@@ -101,9 +101,9 @@ class ThemeSuite extends FunSuite {
     val fxConfig = if os.exists(ctx.dotfilesDir / "config" / "sway" / "fx.conf") then os.read(ctx.dotfilesDir / "config" / "sway" / "fx.conf") else ""
     assert(swayConfig.contains("corner_radius 4") || fxConfig.contains("corner_radius 4") || swayConfig.contains("include fx.conf"), "sway: expected `corner_radius 4` or `include fx.conf`")
     val waybarConfig = os.read(ctx.dotfilesDir / "config" / "waybar" / "config.jsonc")
-    assert(waybarConfig.contains("\"group/left\""), "waybar: missing group/left segment")
-    assert(waybarConfig.contains("\"group/center\""), "waybar: missing group/center segment")
-    assert(waybarConfig.contains("\"group/right\""), "waybar: missing group/right segment")
+    assert(waybarConfig.contains("\"modules-left\""), "waybar: missing modules-left segment")
+    assert(waybarConfig.contains("\"modules-center\""), "waybar: missing modules-center segment")
+    assert(waybarConfig.contains("\"modules-right\""), "waybar: missing modules-right segment")
   }
 
   test("ThemeEngine.run with rotate mode") {

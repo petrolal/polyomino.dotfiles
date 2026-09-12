@@ -1,29 +1,4 @@
 {
-  // ── Floating Island segments (3 detached groups) ──
-  "group/left": {
-    "orientation": "horizontal",
-    "modules": ["sway/workspaces", "custom/spotify"],
-  },
-  "group/center": {
-    "orientation": "horizontal",
-    "modules": ["sway/mode", "sway/window", "custom/matriz", "clock"],
-  },
-  "group/right": {
-    "orientation": "horizontal",
-    "modules": [
-      "pulseaudio",
-      "bluetooth",
-      "network",
-      "custom/matriz",
-      "cpu",
-      "memory",
-      "battery",
-      "custom/matriz",
-      "custom/gamemode",
-      "custom/notification",
-      "custom/polyomino",
-    ],
-  },
   // trailing brand pill — click opens the polyomino launcher (power / theme / config),
   // right-click jumps straight to the Tetris power menu. Each bar object in
   // config.jsonc overrides on-click with `--output <name>` so the wofi menu
@@ -248,10 +223,10 @@
   "custom/gamemode": {
     "format": "{}",
     "return-type": "json",
-    "interval": 3,
+    "interval": "once",
     "signal": 8,
-    "exec": "polyomino gamemode --waybar",
-    "on-click": "polyomino gamemode toggle",
+    "exec": "~/.local/bin/polyomino gamemode --waybar",
+    "on-click": "~/.local/bin/polyomino gamemode toggle",
     "tooltip": true,
   },
 }

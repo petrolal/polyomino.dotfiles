@@ -13,3 +13,7 @@ text-color=#F8FAFC
 font=JetBrainsMono Nerd Font 10
 format=[ ⊞ ] %s\n%b
 default-timeout=5000
+on-button-left=dismiss
+on-button-middle=dismiss-all
+on-button-right=dismiss-all
+on-touch=dismiss

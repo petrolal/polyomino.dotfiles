@@ -1,5 +1,5 @@
 ### ~/.config/sway/config
-### Production Sway configuration — Ubuntu 24.04, enterprise/dev workstation.
+### Production Sway configuration — Ubuntu 24.04 / Arch Linux, enterprise/dev workstation.
 ### Style: native Sway defaults + Polyomino "matriz" palette (Gold/Teal), running
 ### on SwayFX for rounded corners/blur/shadows. ML4W-inspired keybindings.
 ###
@@ -44,26 +44,43 @@ exec_always pgrep -x swaync >/dev/null || swaync
 # Status bar
 exec_always pgrep -x waybar >/dev/null || waybar
 
-# Floating calendar popup rule
-for_window [app_id="polyomino-calendar"] floating enable, resize set 680 440, move position center
+# ── Floating Window Rules & Standardized Geometry ──
+# Dedicated Floating Terminal Profile
+for_window [app_id="floating-term"] floating enable, border pixel 2, resize set 900 550, move position center
+for_window [class="floating-term"] floating enable, border pixel 2, resize set 900 550, move position center
+for_window [app_id="kitty" title="floating-term"] floating enable, border pixel 2, resize set 900 550, move position center
+for_window [app_id="Alacritty" title="floating-term"] floating enable, border pixel 2, resize set 900 550, move position center
+for_window [app_id="foot" title="floating-term"] floating enable, border pixel 2, resize set 900 550, move position center
 
-# Floating welcome center window
-for_window [app_id="polyomino-welcome"] floating enable, resize set 840 620, move position center
+# Standard Dialogs, Popups & Utilities
+for_window [window_role="pop-up"] floating enable, resize set 900 550, move position center
+for_window [window_role="bubble"] floating enable
+for_window [window_role="dialog"] floating enable, resize set 900 550, move position center
+for_window [window_type="dialog"] floating enable, resize set 900 550, move position center
+for_window [app_id="pavucontrol"] floating enable, border pixel 2, resize set 900 550, move position center
+for_window [app_id="org.pulseaudio.pavucontrol"] floating enable, border pixel 2, resize set 900 550, move position center
+for_window [app_id="blueman-manager"] floating enable, border pixel 2, resize set 900 550, move position center
+for_window [app_id="nm-connection-editor"] floating enable, border pixel 2, resize set 900 550, move position center
+for_window [app_id="wdisplays"] floating enable, border pixel 2, resize set 950 600, move position center
+for_window [app_id="(?i).*polkit.*"] floating enable, border pixel 2, move position center
+for_window [app_id="pinentry.*"] floating enable, border pixel 2, move position center
+for_window [class="(?i).*polkit.*"] floating enable, border pixel 2, move position center
+for_window [class="(?i).*pinentry.*"] floating enable, border pixel 2, move position center
 
-# Floating lockscreen preview window
-for_window [app_id="polyomino-lock-preview"] floating enable, resize set 1024 720, move position center
+# Floating Polyomino System Windows
+for_window [app_id="polyomino-calendar"] floating enable, border pixel 2, resize set 680 440, move position center
+for_window [app_id="polyomino-welcome"] floating enable, border pixel 2, resize set 840 620, move position center
+for_window [app_id="polyomino-lock-preview"] floating enable, border pixel 2, resize set 1024 720, move position center
 
-# Quick system-status & TUI popups (bluetooth, audio mixer, network) — float centered with sharp 2px CAD borders
-for_window [app_id="kitty" title="(?i).*(wiremix|pulsemixer|ncpamixer).*"] floating enable, border pixel 2, resize set 800 500, move position center
-for_window [app_id="kitty" title="(?i).*(impala|wifui|nmtui|bluetui).*"] floating enable, border pixel 2, resize set 800 520, move position center
-for_window [app_id="kitty" title="bluetui"] floating enable, border pixel 2, resize set 800 520, move position center
-for_window [app_id="kitty" title="ncpamixer"] floating enable, border pixel 2, resize set 800 500, move position center
-for_window [app_id="bluetui"] floating enable, border pixel 2, resize set 800 520, move position center
-for_window [app_id="ncpamixer"] floating enable, border pixel 2, resize set 800 500, move position center
-for_window [app_id="pavucontrol"] floating enable, border pixel 2, resize set 750 500, move position center
-for_window [app_id="org.pulseaudio.pavucontrol"] floating enable, border pixel 2, resize set 750 500, move position center
+# Quick system-status & TUI popups (bluetooth, audio mixer, network)
+for_window [app_id="kitty" title="(?i).*(wiremix|pulsemixer|ncpamixer).*"] floating enable, border pixel 2, resize set 900 550, move position center
+for_window [app_id="kitty" title="(?i).*(impala|wifui|nmtui|bluetui).*"] floating enable, border pixel 2, resize set 900 550, move position center
+for_window [app_id="kitty" title="bluetui"] floating enable, border pixel 2, resize set 900 550, move position center
+for_window [app_id="kitty" title="ncpamixer"] floating enable, border pixel 2, resize set 900 550, move position center
+for_window [app_id="bluetui"] floating enable, border pixel 2, resize set 900 550, move position center
+for_window [app_id="ncpamixer"] floating enable, border pixel 2, resize set 900 550, move position center
 
-# Dedicated scratchpads (terminal & comms) — floating centered with fixed 1000x700 geometry
+# Dedicated Scratchpad Windows
 for_window [app_id="kitty" title="(?i).*scratchpad.*"] floating enable, border pixel 2, resize set 1000 700, move position center
 for_window [app_id="scratchpad-term"] floating enable, border pixel 2, resize set 1000 700, move position center
 for_window [app_id="scratchpad-comms"] floating enable, border pixel 2, resize set 1000 700, move position center
@@ -77,40 +94,35 @@ for_window [app_id="gamescope"] fullscreen enable, floating enable
 for_window [class="^heroic$"] floating enable
 for_window [class="^lutris$"] floating enable
 
-# Tetris-themed power / exit modal (polyomino power-menu). Centered/fullscreen over Waybar without bar overlap.
+# Tetris-themed power / exit modal (polyomino power-menu)
 for_window [app_id="polyomino-power-menu"] fullscreen enable, floating enable, border none, resize set width 100 ppt height 100 ppt, move position center
 for_window [class="polyomino-power-menu"] fullscreen enable, floating enable, border none, resize set width 100 ppt height 100 ppt, move position center
 for_window [app_id="kitty" title="(?i).*polyomino.*power-menu.*"] fullscreen enable, floating enable, border none, resize set width 100 ppt height 100 ppt, move position center
 
-# System tray helper for network/VPN status (OpenVPN3 is CLI-only; nm-applet shows NetworkManager
-# connection state including VPN tunnels started via `nmcli` or the openvpn3 CLI-managed profiles).
+# System tray helper for network/VPN status
 exec nm-applet --indicator
 
-# 1Password — starts minimized to tray, unlocks against the already-running gnome-keyring/PAM session.
+# 1Password — starts minimized to tray
 exec 1password --silent
 
 # Idle management (lock -> screen off -> suspend). Integrated with polyomino-rubik-lock.
 exec swayidle -w timeout 300 '~/.local/bin/polyomino-rubik-lock' timeout 600 'swaymsg "output * power off"' resume 'swaymsg "output * power on"'
 
-# Fibonacci spiral autotiling — splits focused window along its longer axis automatically.
-# pkill guard prevents a leaked duplicate `swaymsg subscribe` process on every reload.
+# Fibonacci spiral autotiling daemon
 exec_always autotiling || sh -c 'pkill -f "^$HOME/.local/bin/polyomino-autotiling"; ~/.local/bin/polyomino-autotiling'
 
 # Set FastFetch logo 
 exec_always --no-startup-id ~/.config/fastfetch/set_logo.sh
 
-# Polkit authentication agent — required for GUI privilege prompts (Intune, NetworkManager, disk mounts).
-# Dynamically resolves across Arch (/usr/lib/polkit-gnome), Debian/Ubuntu (/usr/libexec or /usr/lib/policykit-1-gnome), and Fedora.
+# Polkit authentication agent
 exec sh -c 'for p in /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 /usr/libexec/polkit-gnome-authentication-agent-1 /usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1 /usr/bin/lxpolkit; do if [ -x "$p" ]; then exec "$p"; fi; done'
 
-# Welcome Center (checked against ~/.config/polyomino/welcome.json autostart preference)
+# Welcome Center
 exec ~/.local/bin/polyomino-welcome --autostart
 
 ### ────────────────────────────────────────────────────────────────
 ### Environment variables (Wayland-first app behavior)
 ### ────────────────────────────────────────────────────────────────
-# Force Wayland-native rendering where supported; apps without Wayland support automatically fall
-# back to XWayland (already provided by the `sway` package dependency chain), so nothing breaks.
 exec_always systemctl --user import-environment DISPLAY WAYLAND_DISPLAY SWAYSOCK
 exec_always hash dbus-update-activation-environment 2>/dev/null && \
   dbus-update-activation-environment --systemd DISPLAY WAYLAND_DISPLAY SWAYSOCK XDG_CURRENT_DESKTOP
@@ -121,17 +133,14 @@ set $MOZ_ENABLE_WAYLAND 1
 set $NIXOS_OZONE_WL 1
 
 ### ────────────────────────────────────────────────────────────────
-### Output (monitor) configuration — auto-detect + sane fallback
+### Output (monitor) configuration
 ### ────────────────────────────────────────────────────────────────
-# Default display layout: built-in screen on left, HDMI monitor on right
 output eDP-1 position 0 0
 output HDMI-A-1 position 1920 0
 output HDMI-* position 1920 0
 
-# Discover exact output names any time with: swaymsg -t get_outputs
-
 ### ────────────────────────────────────────────────────────────────
-### Input configuration
+### Input configuration & Mouse Interactions
 ### ────────────────────────────────────────────────────────────────
 seat * shortcuts_inhibitor disable
 
@@ -148,13 +157,15 @@ input type:touchpad {
     dwt enabled
 }
 
+# Mouse Drag & Instantaneous Floating Detachment
+floating_modifier $mod normal
+bindsym --whole-window $mod+button2 floating toggle
+bindsym --whole-window $mod+button3 floating toggle
+
 ### ────────────────────────────────────────────────────────────────
-### Appearance — Polyomino palette (flavor selectable via `polyomino-theme`, default matriz)
+### Appearance — Polyomino palette & SwayFX Effects
 ### ────────────────────────────────────────────────────────────────
 font pango:JetBrainsMono Nerd Font 10
-
-# class/border/bg/text/indicator/child_border colors are generated by
-# `polyomino-theme` into colors.conf (included above, near the top of this file).
 
 default_border pixel 2
 default_floating_border pixel 2
@@ -165,11 +176,11 @@ smart_borders on
 focus_follows_mouse yes
 workspace_auto_back_and_forth yes
 
-# SwayFX-specific effects are conditionally included via fx.conf (omitted on standard Sway to prevent redbar errors)
+# SwayFX-specific effects (blur, shadows, dimming)
 include fx.conf
 
 ### ────────────────────────────────────────────────────────────────
-### Workspace names (mapped to numbers so SUPER+1..9 still works)
+### Workspace names
 ### ────────────────────────────────────────────────────────────────
 workspace $ws1
 workspace $ws2
@@ -184,9 +195,6 @@ workspace $ws9
 ### ────────────────────────────────────────────────────────────────
 ### Application -> workspace assignment
 ### ────────────────────────────────────────────────────────────────
-# Matched by Wayland app_id where the app supports Wayland natively, and by X11 window class
-# as a fallback for apps still running under XWayland (IntelliJ, some Electron builds).
-
 # 1: web
 assign [app_id="microsoft-edge"] $ws1
 assign [class="Microsoft-edge"] $ws1
@@ -200,17 +208,13 @@ assign [class="jetbrains-idea"] $ws2
 assign [class="jetbrains-idea-ce"] $ws2
 assign [app_id="code"] $ws2
 assign [class="Code"] $ws2
+for_window [app_id="nvim-project"] move to workspace $ws2, workspace $ws2
+for_window [class="nvim-project"] move to workspace $ws2, workspace $ws2
 
-# TUI apps launched via `$term -e <cmd>` all report app_id="kitty" — they never get their own
-# app_id/class, so they must be matched by the --title kitty is launched with below, and those
-# title rules must come before the generic kitty rule, since `assign` is first-match-wins.
-
-# 7: infra — terminal windows explicitly titled for VPN/infra work land here; move others
-# manually with SUPER+SHIFT+7, since ad hoc CLI (openvpn3, kubectl, etc.) has no window of its
-# own to match on.
+# 7: infra
 assign [app_id="kitty" title="infra"] $ws7
 
-# 5: comms (email + chat)
+# 5: comms
 assign [app_id="kitty" title="aerc"] $ws5
 assign [app_id="thunderbird"] $ws5
 assign [class="Thunderbird"] $ws5
@@ -239,11 +243,12 @@ assign [app_id="obsidian"] $ws6
 assign [class="obsidian"] $ws6
 
 ### ────────────────────────────────────────────────────────────────
-### Key bindings — stock Sway defaults + Polyomino ergonomics
+### Key bindings
 ### ────────────────────────────────────────────────────────────────
 
-# Basics & TUI Tools
+# Basics, Terminal & Floating Terminal
 bindsym $mod+Return exec $term
+bindsym $mod+Shift+Return exec $term --app-id=floating-term --class=floating-term --title=floating-term
 bindsym $mod+Shift+q kill
 bindsym $mod+d exec $launcher
 bindsym $mod+Shift+b exec google-chrome-stable
@@ -252,10 +257,11 @@ bindsym $mod+Shift+m exec $term --app-id spotify_player --title spotify -e spoti
 bindsym $mod+Shift+u exec $term --title bluetui -e bluetui
 bindsym $mod+Shift+v exec $term --title pulsemixer -e sh -c 'wiremix || pulsemixer || ncpamixer'
 bindsym $mod+Shift+i exec $term --title nmtui -e sh -c 'impala || wifui || nmtui'
-bindsym $mod+Shift+a exec $term --title aerc -e aerc
-bindsym $mod+Shift+n exec swaync-client -t -sw
+bindsym $mod+Shift+n exec swaync-client -t -sw # Toggle Notification Center
+bindsym $mod+n exec swaync-client --close-latest # Dismiss latest notification popup
+bindsym $mod+Control+n exec swaync-client --close-all # Dismiss all notification popups
+bindsym $mod+Mod1+n exec swaync-client -d -sw # Toggle Do Not Disturb
 bindsym $mod+Shift+g exec ~/.local/bin/polyomino-gamemode toggle # Toggle Gaming Performance Mode
-floating_modifier $mod normal
 bindsym $mod+Shift+c reload
 bindsym $mod+Shift+r restart
 bindsym $mod+Shift+e exec swaynag -t warning -m 'You pressed the exit shortcut. Do you really want to exit sway? This will end your Wayland session.' -B 'Yes, exit sway' 'swaymsg exit'
@@ -314,8 +320,7 @@ bindsym $mod+space focus mode_toggle
 bindsym $mod+a focus parent
 
 # Draw interactive floating window with slurp
-bindsym $mod+Shift+w exec ~/.local/bin/sway-draw-window # Draw window geometry (resize current or spawn)
-bindsym $mod+Shift+Return exec ~/.local/bin/sway-draw-window --spawn # Draw and spawn new floating terminal
+bindsym $mod+Shift+w exec ~/.local/bin/sway-draw-window --spawn
 
 # Scratchpads (Generic & Dedicated Shortcuts)
 bindsym $mod+Shift+minus move scratchpad, $send-notify 'Scratchpad'
@@ -326,35 +331,27 @@ bindsym $mod+apostrophe [app_id="kitty" title="aerc"] scratchpad show
 # Resizing
 bindsym $mod+r mode "resize"
 
-# which-key style cheatsheet — shows all bindings from this config in wofi
+# Cheatsheet & Pickers
 bindsym $mod+slash exec ~/.local/bin/polyomino-whichkey
 bindsym $mod+question exec ~/.local/bin/polyomino-whichkey
-
-# Display configuration — wdisplays GUI for multi-monitor setup
 bindsym $mod+Shift+d exec wdisplays
-
-# Theme picker — wofi GUI to pick a flavor + background mode
 bindsym $mod+Shift+t exec ~/.local/bin/polyomino-theme-picker
 bindsym $mod+F5 exec ~/.local/bin/polyomino-theme-cycle
-
-# Wallpaper picker — swap the wallpaper *within* the active flavor without
-# re-theming. $mod+Shift+p opens a wofi list of that flavor's wallpapers;
-# $mod+F6 cycles to the next one.
 bindsym $mod+Shift+p exec ~/.local/bin/polyomino-wallpaper
 bindsym $mod+F6 exec ~/.local/bin/polyomino wallpaper next
 
 # Lock screen & Power menu
 bindsym $mod+Escape exec ~/.local/bin/polyomino-rubik-lock
-bindsym $mod+Control+Escape exec $term --class=polyomino-power-menu -o font_size=14 -e ~/.local/bin/polyomino power-menu # Power menu (Session & Power Control)
+bindsym $mod+Control+Escape exec $term --class=polyomino-power-menu -o font_size=14 -e ~/.local/bin/polyomino power-menu
 
-# Screenshots — saved to ~/Pictures/Screenshots and copied to clipboard
+# Screenshots
 bindsym Print exec ~/.local/bin/polyomino screenshot full
 bindsym --release Print exec ~/.local/bin/polyomino screenshot full
 bindcode 107 exec ~/.local/bin/polyomino screenshot full
 bindsym $mod+Print exec ~/.local/bin/polyomino screenshot region
 bindsym $mod+Shift+Print exec ~/.local/bin/polyomino screenshot window
 
-# Audio, Media & Hardware Keys (WirePlumber / PipeWire / playerctl)
+# Audio, Media & Hardware Keys
 bindsym --locked XF86AudioRaiseVolume exec wpctl set-volume -l 1.5 @DEFAULT_AUDIO_SINK@ 5%+
 bindsym --locked XF86AudioLowerVolume exec wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-
 bindsym --locked XF86AudioMute        exec wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
@@ -383,20 +380,8 @@ mode "resize" {
 }
 
 ### ────────────────────────────────────────────────────────────────
-### Bar (disabled — Waybar replaces the built-in swaybar entirely)
+### Bar (disabled — Waybar replaces the built-in swaybar)
 ### ────────────────────────────────────────────────────────────────
 bar {
     mode invisible
 }
-
-### ────────────────────────────────────────────────────────────────
-### Corporate/Wayland compatibility notes (read before editing further)
-### ────────────────────────────────────────────────────────────────
-# - Microsoft Edge: launched via `microsoft-edge-stable`, which auto-detects the Wayland session
-#   and enables `--ozone-platform=wayland` internally on 24.04's packaged build. No flag needed.
-# - Intune Company Portal / Microsoft Identity Broker / Entra SSO: pure D-Bus/systemd services,
-#   unaffected by window manager. No Sway-specific configuration required.
-# - OpenVPN3: CLI-driven (`openvpn3 session-start --config ...`); NetworkManager/nm-applet in the
-#   tray reflects VPN state if the profile is imported into NetworkManager instead of used standalone.
-# - Screen sharing (Teams/Zoom in Chromium/Firefox): requires xdg-desktop-portal-wlr + PipeWire,
-#   both installed/enabled by install.sh. Browsers will prompt for a portal screen picker.
