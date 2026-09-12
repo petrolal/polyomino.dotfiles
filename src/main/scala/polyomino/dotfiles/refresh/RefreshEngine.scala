@@ -33,10 +33,14 @@ object RefreshEngine:
         catch
           case _: Exception => ()
 
-      // Mako reload via systemctl (legacy compatibility)
+      // Mako non-destructive reload
       try
-        os.proc("timeout", "2", "systemctl", "--user", "restart", "mako").call(check = false, stdout = os.Pipe, stderr = os.Pipe)
-        println("  \u001b[32m[OK]\u001b[0m Restarted Mako with new theme colors")
+        if isCommandAvailable("makoctl") then
+          os.proc("timeout", "2", "makoctl", "reload").call(check = false, stdout = os.Pipe, stderr = os.Pipe)
+          println("  \u001b[32m[OK]\u001b[0m Sent makoctl reload")
+        else
+          os.proc("timeout", "2", "systemctl", "--user", "restart", "mako").call(check = false, stdout = os.Pipe, stderr = os.Pipe)
+          println("  \u001b[32m[OK]\u001b[0m Restarted Mako with new theme colors")
       catch
         case _: Exception => ()
 

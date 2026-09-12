@@ -15,7 +15,7 @@ set $up k
 set $right l
 
 set $term kitty
-set $launcher wofi --show drun --allow-images --conf ~/.config/wofi/config --style ~/.config/wofi/style.css
+set $launcher fuzzel || wofi --show drun --allow-images --conf ~/.config/wofi/config --style ~/.config/wofi/style.css
 set $lock ~/.config/sway/scripts/polyomino-rubik-lock
 set $send-notify exec notify-send -a polyomino
 
@@ -53,15 +53,20 @@ for_window [app_id="polyomino-welcome"] floating enable, resize set 840 620, mov
 # Floating lockscreen preview window
 for_window [app_id="polyomino-lock-preview"] floating enable, resize set 1024 720, move position center
 
-# Quick system-status popups (bluetooth, audio mixer) — float centered with sharp 2px CAD borders
-for_window [app_id="kitty" title="bluetui"] floating enable, border pixel 2, resize set 900 600, move position center
-for_window [app_id="kitty" title="ncpamixer"] floating enable, border pixel 2, resize set 700 500, move position center
-for_window [app_id="kitty" title="(?i).*bluetui.*"] floating enable, border pixel 2, resize set 900 600, move position center
-for_window [app_id="kitty" title="(?i).*ncpamixer.*"] floating enable, border pixel 2, resize set 700 500, move position center
-for_window [app_id="bluetui"] floating enable, border pixel 2, resize set 900 600, move position center
-for_window [app_id="ncpamixer"] floating enable, border pixel 2, resize set 700 500, move position center
+# Quick system-status & TUI popups (bluetooth, audio mixer, network) — float centered with sharp 2px CAD borders
+for_window [app_id="kitty" title="(?i).*(wiremix|pulsemixer|ncpamixer).*"] floating enable, border pixel 2, resize set 800 500, move position center
+for_window [app_id="kitty" title="(?i).*(impala|wifui|nmtui|bluetui).*"] floating enable, border pixel 2, resize set 800 520, move position center
+for_window [app_id="kitty" title="bluetui"] floating enable, border pixel 2, resize set 800 520, move position center
+for_window [app_id="kitty" title="ncpamixer"] floating enable, border pixel 2, resize set 800 500, move position center
+for_window [app_id="bluetui"] floating enable, border pixel 2, resize set 800 520, move position center
+for_window [app_id="ncpamixer"] floating enable, border pixel 2, resize set 800 500, move position center
 for_window [app_id="pavucontrol"] floating enable, border pixel 2, resize set 750 500, move position center
 for_window [app_id="org.pulseaudio.pavucontrol"] floating enable, border pixel 2, resize set 750 500, move position center
+
+# Dedicated scratchpads (terminal & comms) — floating centered with fixed 1000x700 geometry
+for_window [app_id="kitty" title="(?i).*scratchpad.*"] floating enable, border pixel 2, resize set 1000 700, move position center
+for_window [app_id="scratchpad-term"] floating enable, border pixel 2, resize set 1000 700, move position center
+for_window [app_id="scratchpad-comms"] floating enable, border pixel 2, resize set 1000 700, move position center
 
 # Gaming window rules (Steam dialogs, Lutris, Heroic, Gamescope)
 for_window [class="^Steam$" title="^Friends List$"] floating enable
@@ -89,14 +94,7 @@ exec swayidle -w timeout 300 '~/.local/bin/polyomino-rubik-lock' timeout 600 'sw
 
 # Fibonacci spiral autotiling — splits focused window along its longer axis automatically.
 # pkill guard prevents a leaked duplicate `swaymsg subscribe` process on every reload.
-# Pattern is anchored to the absolute path so it matches only the daemon process itself,
-# not the `sh -c '...polyomino-autotiling'` wrapper this exec_always line runs in
-# (an unanchored pattern would match that wrapper's own command line and kill it first).
-# Wrapped in `sh -c` because sway's config parser splits a line on ';' into separate
-# top-level commands before exec_always gets a chance to hand it to a shell — without
-# this wrapper the second half was sent to sway itself as an (invalid) sway command,
-# so the daemon never actually started.
-exec_always sh -c 'pkill -f "^$HOME/.local/bin/polyomino-autotiling"; ~/.local/bin/polyomino-autotiling'
+exec_always autotiling || sh -c 'pkill -f "^$HOME/.local/bin/polyomino-autotiling"; ~/.local/bin/polyomino-autotiling'
 
 # Set FastFetch logo 
 exec_always --no-startup-id ~/.config/fastfetch/set_logo.sh
@@ -160,9 +158,10 @@ font pango:JetBrainsMono Nerd Font 10
 
 default_border pixel 2
 default_floating_border pixel 2
-gaps inner 6
+gaps inner 8
 gaps outer 4
-smart_borders off
+smart_gaps on
+smart_borders on
 focus_follows_mouse yes
 workspace_auto_back_and_forth yes
 
@@ -239,12 +238,8 @@ assign [class="Lens"] $ws4
 assign [app_id="obsidian"] $ws6
 assign [class="obsidian"] $ws6
 
-# bluetui/ncpamixer are quick system-status popups, not persistent work — they float on
-# whatever workspace you invoked them from instead of tiling into one (see for_window rules
-# in the Autostart section below the calendar/lock-preview floating rules).
-
 ### ────────────────────────────────────────────────────────────────
-### Key bindings — stock Sway defaults (overrides previous ML4W custom set)
+### Key bindings — stock Sway defaults + Polyomino ergonomics
 ### ────────────────────────────────────────────────────────────────
 
 # Basics & TUI Tools
@@ -255,7 +250,8 @@ bindsym $mod+Shift+b exec google-chrome-stable
 bindsym $mod+Shift+f exec $term -e yazi
 bindsym $mod+Shift+m exec $term --app-id spotify_player --title spotify -e spotify_player
 bindsym $mod+Shift+u exec $term --title bluetui -e bluetui
-bindsym $mod+Shift+v exec $term --title ncpamixer -e ncpamixer
+bindsym $mod+Shift+v exec $term --title pulsemixer -e sh -c 'wiremix || pulsemixer || ncpamixer'
+bindsym $mod+Shift+i exec $term --title nmtui -e sh -c 'impala || wifui || nmtui'
 bindsym $mod+Shift+a exec $term --title aerc -e aerc
 bindsym $mod+Shift+n exec swaync-client -t -sw
 bindsym $mod+Shift+g exec ~/.local/bin/polyomino-gamemode toggle # Toggle Gaming Performance Mode
@@ -321,9 +317,11 @@ bindsym $mod+a focus parent
 bindsym $mod+Shift+w exec ~/.local/bin/sway-draw-window # Draw window geometry (resize current or spawn)
 bindsym $mod+Shift+Return exec ~/.local/bin/sway-draw-window --spawn # Draw and spawn new floating terminal
 
-# Scratchpad
+# Scratchpads (Generic & Dedicated Shortcuts)
 bindsym $mod+Shift+minus move scratchpad, $send-notify 'Scratchpad'
 bindsym $mod+minus scratchpad show
+bindsym $mod+grave exec $term --title "scratchpad-term" -e zsh
+bindsym $mod+apostrophe [app_id="kitty" title="aerc"] scratchpad show
 
 # Resizing
 bindsym $mod+r mode "resize"
@@ -332,33 +330,21 @@ bindsym $mod+r mode "resize"
 bindsym $mod+slash exec ~/.local/bin/polyomino-whichkey
 bindsym $mod+question exec ~/.local/bin/polyomino-whichkey
 
-
 # Display configuration — wdisplays GUI for multi-monitor setup
 bindsym $mod+Shift+d exec wdisplays
 
 # Theme picker — wofi GUI to pick a flavor + background mode
-# (flat color / wallpaper / rotate), front-end for polyomino-theme.
 bindsym $mod+Shift+t exec ~/.local/bin/polyomino-theme-picker
 bindsym $mod+F5 exec ~/.local/bin/polyomino-theme-cycle
 
 # Wallpaper picker — swap the wallpaper *within* the active flavor without
 # re-theming. $mod+Shift+p opens a wofi list of that flavor's wallpapers;
-# $mod+F6 cycles to the next one. Add more wallpapers as
-# themes/wallpapers/<flavor>-<name>.{svg,png,jpg}.
+# $mod+F6 cycles to the next one.
 bindsym $mod+Shift+p exec ~/.local/bin/polyomino-wallpaper
 bindsym $mod+F6 exec ~/.local/bin/polyomino wallpaper next
 
-# Lock screen. Suspend/reboot/shutdown live in the Tetris power menu below
-# ($mod+Ctrl+Escape); a bare $mod+Shift+Escape suspend was dropped as redundant
-# with the menu's lock+suspend lane. Automatic suspend is still handled by swayidle
-# and the lid switch.
-# Note: lock is bound to $mod+Escape (not $mod+Shift+l — that collides with $mod+Shift+$right
-# (vim-style "l" = right, see `set $right l` above), which silently wins
-# and made sway show a "there are errors in your config" banner).
+# Lock screen & Power menu
 bindsym $mod+Escape exec ~/.local/bin/polyomino-rubik-lock
-
-# Enterprise power menu: reboot / shutdown / lock+suspend
-# Left/Right, h/l, or 1/2/3 select action, Enter confirms, Esc cancels.
 bindsym $mod+Control+Escape exec $term --class=polyomino-power-menu -o font_size=14 -e ~/.local/bin/polyomino power-menu # Power menu (Session & Power Control)
 
 # Screenshots — saved to ~/Pictures/Screenshots and copied to clipboard
@@ -378,7 +364,6 @@ bindsym --locked XF86AudioNext        exec playerctl next
 bindsym --locked XF86AudioPrev        exec playerctl previous
 bindsym --locked XF86MonBrightnessUp   exec brightnessctl set +5%
 bindsym --locked XF86MonBrightnessDown exec brightnessctl set 5%-
-
 
 ### ────────────────────────────────────────────────────────────────
 ### Modes

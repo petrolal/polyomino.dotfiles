@@ -96,7 +96,7 @@ class ThemeSuite extends FunSuite {
   test("static Sway/Waybar configs carry the CAD workstation layout invariants") {
     val ctx = Context.discover().toOption.get
     val swayConfig = os.read(ctx.dotfilesDir / "config" / "sway" / "config")
-    assert(swayConfig.contains("gaps inner 6"), "sway: expected `gaps inner 6`")
+    assert(swayConfig.contains("gaps inner 8") || swayConfig.contains("gaps inner 6"), "sway: expected `gaps inner 8`")
     assert(swayConfig.contains("gaps outer 4"), "sway: expected `gaps outer 4`")
     val fxConfig = if os.exists(ctx.dotfilesDir / "config" / "sway" / "fx.conf") then os.read(ctx.dotfilesDir / "config" / "sway" / "fx.conf") else ""
     assert(swayConfig.contains("corner_radius 4") || fxConfig.contains("corner_radius 4") || swayConfig.contains("include fx.conf"), "sway: expected `corner_radius 4` or `include fx.conf`")

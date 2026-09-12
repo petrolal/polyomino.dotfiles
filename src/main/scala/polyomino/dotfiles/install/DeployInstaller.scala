@@ -79,6 +79,7 @@ object DeployInstaller:
       (ctx.configDir / "rofi", ctx.dotfilesDir / "config" / "rofi"),
       (ctx.configDir / "swaync", ctx.dotfilesDir / "config" / "swaync"),
       (ctx.configDir / "mako", ctx.dotfilesDir / "config" / "mako"),
+      (ctx.configDir / "fuzzel", ctx.dotfilesDir / "config" / "fuzzel"),
       (ctx.configDir / "fastfetch", ctx.dotfilesDir / "config" / "fastfetch"),
       (ctx.configDir / "spotify-player", ctx.dotfilesDir / "config" / "spotify-player"),
       (ctx.configDir / "systemd" / "user" / "mako.service", ctx.dotfilesDir / "config" / "systemd" / "user" / "mako.service")
