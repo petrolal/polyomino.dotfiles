@@ -1,68 +1,114 @@
-/* ~/.config/waybar/style.css.tmpl — template for scripts/theme.sh; placeholders (@@NAME@@) substituted with hex colors */
+/* ~/.config/waybar/style.css.tmpl — template for polyomino theming pipeline */
 
 * {
-    font-family: "JetBrainsMono Nerd Font", sans-serif;
+    font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
     font-size: 13px;
     min-height: 0;
     border: none;
-    border-radius: 0;
+    border-radius: 0px;
     transition: none;
 }
 
 window#waybar {
-    background-color: @@BASE@@;
+    background-color: alpha(@@BASE@@, 0.95);
     color: @@TEXT@@;
-    border-bottom: 2px solid @@BASE@@;
-    transition-property: background-color;
-    transition-duration: .5s;
+    border-bottom: 1px solid @@OVERLAY0@@;
+    border-radius: 0px;
+    margin: 0;
 }
 
 window#waybar.hidden {
     opacity: 0.5;
 }
 
+.modules-left,
+.modules-center,
+.modules-right {
+    background: transparent;
+    border: none;
+    border-radius: 0px;
+    padding: 0;
+}
+
+#left,
+#center,
+#right {
+    background-color: transparent;
+    border: none;
+    border-radius: 0px;
+    padding: 0;
+    margin: 0;
+}
+
+#custom-matriz {
+    color: @@OVERLAY0@@;
+    font-size: 13px;
+    padding: 0 6px;
+}
+
 tooltip {
     background-color: @@BASE@@;
     color: @@TEXT@@;
-    border: 2px solid @@BLUE@@;
-    border-radius: 8px;
-    padding: 12px 16px;
+    border: 1px solid @@BLUE@@;
+    border-radius: 0px;
+    padding: 8px 12px;
 }
 
 tooltip label {
     color: @@TEXT@@;
-    padding: 6px 12px;
-    font-size: 15px;
+    padding: 4px 8px;
+    font-size: 13px;
+}
+
+#workspaces {
+    background-color: transparent;
+    color: @@BLUE@@;
+    padding: 0;
+    margin: 0;
 }
 
 #workspaces button {
-    padding: 0 8px;
+    min-width: 20px;
+    padding: 0 10px;
+    margin: 0 2px;
     background-color: transparent;
     color: @@SUBTEXT0@@;
-    border-bottom: 2px solid transparent;
+    border: none;
+    border-bottom: 1px solid transparent;
+    border-radius: 0px;
+    font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
+}
+
+#workspaces button label {
+    padding: 0;
 }
 
 #workspaces button.focused,
 #workspaces button.active {
     background-color: @@SURFACE0@@;
     color: @@BLUE@@;
-    border-bottom: 2px solid @@BLUE@@;
+    border-bottom: 1px solid @@BLUE@@;
+    border-radius: 0px;
+    font-weight: bold;
 }
 
 #workspaces button:hover {
     background-color: @@SURFACE0@@;
     color: @@BLUE@@;
-    border-bottom: 2px solid @@BLUE@@;
+    border-bottom: 1px solid @@BLUE@@;
+    border-radius: 0px;
 }
 
 #workspaces button.urgent {
     background-color: @@RED@@;
     color: @@BASE@@;
-    border-bottom: 2px solid @@RED@@;
+    border-bottom: 1px solid @@RED@@;
+    border-radius: 0px;
 }
 
 #clock,
 #tray,
+#window,
 #network,
 #bluetooth,
 #pulseaudio,
@@ -72,78 +118,118 @@ tooltip label {
 #memory,
 #custom-gamemode,
 #custom-notification,
+#custom-spotify,
 #mode {
+    background-color: transparent;
     padding: 0 10px;
-    margin: 0 2px;
+    margin: 0 1px;
     color: @@TEXT@@;
-    border-bottom: 2px solid transparent;
+    border: none;
+    border-bottom: 1px solid transparent;
+    border-radius: 0px;
+    font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
 }
 
-/* Polyomino Pill Accent Colors */
+#tray {
+    padding: 0 8px;
+}
+
+#window.empty,
+#mode.empty {
+    padding: 0;
+    margin: 0;
+    border: none;
+}
+
+#clock {
+    color: @@TEXT@@;
+    font-weight: bold;
+    padding: 0 12px;
+    border-bottom: 1px solid transparent;
+}
+
 #pulseaudio {
-    color: #10AC84;
-    border-bottom: 2px solid #10AC84;
+    color: @@GREEN@@;
 }
 
 #network,
 #network.wifi {
-    color: #00D2D3;
-    border-bottom: 2px solid #00D2D3;
+    color: @@TEAL@@;
+}
+
+#bluetooth {
+    color: @@SAPPHIRE@@;
 }
 
 #battery {
-    color: #EBB434;
-    border-bottom: 2px solid #EBB434;
+    color: @@BLUE@@;
 }
 
 #cpu {
-    color: #EBB434;
-    border-bottom: 2px solid #EBB434;
+    color: @@PEACH@@;
 }
 
 #memory {
-    color: #00D2D3;
-    border-bottom: 2px solid #00D2D3;
+    color: @@MAUVE@@;
+}
+
+#custom-spotify {
+    color: @@GREEN@@;
+}
+
+#custom-gamemode {
+    color: @@SUBTEXT0@@;
+    padding: 0 10px;
+    margin: 0;
+}
+
+#custom-gamemode.active {
+    color: @@BLUE@@;
+    font-weight: bold;
+    border-bottom: 1px solid @@BLUE@@;
+    background-color: @@SURFACE0@@;
+}
+
+#custom-polyomino {
+    background-color: @@BLUE@@;
+    color: @@BASE@@;
+    font-weight: bold;
+    padding: 0 12px;
+    margin: 0 0 0 6px;
+    border-radius: 0px;
+    border: none;
+    border-bottom: 1px solid @@BLUE@@;
 }
 
 #clock:hover,
-#clock:active,
 #clock.active,
 #tray:hover,
 #network:hover,
-#network:active,
 #network.active,
 #bluetooth:hover,
-#bluetooth:active,
 #bluetooth.active,
 #pulseaudio:hover,
-#pulseaudio:active,
 #pulseaudio.active,
 #backlight:hover,
-#backlight:active,
 #backlight.active,
 #battery:hover,
-#battery:active,
 #battery.active,
 #cpu:hover,
-#cpu:active,
 #cpu.active,
 #memory:hover,
-#memory:active,
 #memory.active,
+#custom-gamemode:hover,
 #custom-notification:hover,
-#custom-notification:active,
 #custom-notification.active,
 #custom-notification.open,
 #custom-notification.open-window,
+#custom-spotify:hover,
 #mode:hover,
-#mode:active,
 #mode.active {
     background-color: @@SURFACE0@@;
-    color: @@BLUE@@;
-    border-bottom: 2px solid @@BLUE@@;
+    border-bottom: 1px solid @@BLUE@@;
+    border-radius: 0px;
 }
-
 
 #battery.warning {
     color: @@YELLOW@@;
@@ -168,41 +254,5 @@ tooltip label {
     opacity: 0.6;
 }
 
-#tray > .passive {
-    opacity: 0.6;
-}
-
-#tray > .needs-attention {
-    background-color: @@RED@@;
-}
-
-#custom-spotify {
-    color: @@GREEN@@;
-    padding: 0 6px;
-}
-
-#custom-spotify.playing {
-    color: @@GREEN@@;
-    font-weight: bold;
-}
-
-#custom-spotify.paused {
-    color: @@SUBTEXT0@@;
-    font-style: italic;
-}
-
-#custom-spotify.offline {
-    color: @@SURFACE2@@;
-}
-
-#custom-spotify.ad {
-    color: @@RED@@;
-}
-
-#custom-gamemode.active {
-    color: @@YELLOW@@;
-    font-weight: bold;
-    border-bottom: 2px solid @@YELLOW@@;
-}
 
 

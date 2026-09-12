@@ -1,9 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3840 2160" width="100%" height="100%">
-  <!-- Abyssal Navy Canvas -->
-  <rect width="3840" height="2160" fill="#0A0E17"/>
+  <!-- Monolith Dark Canvas -->
+  <rect width="3840" height="2160" fill="#0F1117"/>
+
+  <!-- CAD Coordinate Dot Matrix Grid -->
+  <defs>
+    <pattern id="dot-matrix" x="0" y="0" width="60" height="60" patternUnits="userSpaceOnUse">
+      <circle cx="30" cy="30" r="2.0" fill="#2E4057" fill-opacity="0.6"/>
+    </pattern>
+  </defs>
+  <rect width="3840" height="2160" fill="url(#dot-matrix)"/>
 
   <!-- Bathymetric / Latitude Background Grids -->
-  <g stroke="#162238" stroke-width="1.5" fill="none">
+  <g stroke="#2B303C" stroke-width="1.5" fill="none" opacity="0.4">
     <circle cx="1920" cy="1080" r="850"/>
     <circle cx="1920" cy="1080" r="620"/>
     <circle cx="1920" cy="1080" r="400"/>
@@ -14,16 +22,16 @@
   <!-- Nautical Astrolabe & Rhumb Lines -->
   <g transform="translate(1920, 1080)" fill="none" stroke-linecap="round">
     <!-- Outer Navigation Ring -->
-    <circle r="280" stroke="#223354" stroke-width="2"/>
-    <circle r="260" stroke="#223354" stroke-width="1" stroke-dasharray="4,8"/>
+    <circle r="280" stroke="#2B303C" stroke-width="2"/>
+    <circle r="260" stroke="#2E4057" stroke-width="1" stroke-dasharray="4,8"/>
 
     <!-- Diagonal Bearing Rays (Muted Navy) -->
-    <line x1="-380" y1="-380" x2="380" y2="380" stroke="#1B2A4A" stroke-width="2"/>
-    <line x1="-380" y1="380" x2="380" y2="-380" stroke="#1B2A4A" stroke-width="2"/>
+    <line x1="-380" y1="-380" x2="380" y2="380" stroke="#2E4057" stroke-width="2"/>
+    <line x1="-380" y1="380" x2="380" y2="-380" stroke="#2E4057" stroke-width="2"/>
 
     <!-- Portuguese Caravela Cross / Compass Star (Deep Ocean #0984E3) -->
     <path d="M 0,-180 L 25,-40 L 180,0 L 25,40 L 0,180 L -25,40 L -180,0 L -25,-40 Z" 
-          stroke="#0984E3" stroke-width="2.5" fill="#0E1B30" fill-opacity="0.6"/>
+          stroke="#0984E3" stroke-width="2.5" fill="#122232" fill-opacity="0.6"/>
 
     <!-- Transatlantic Route Vector (Maré Teal #00CEC9) -->
     <!-- Represents the South-West to North-East heading (BSB -> LIS) -->
@@ -32,8 +40,20 @@
     <circle cx="180" cy="-140" r="5" fill="#00CEC9"/>
 
     <!-- Astrolabe Center Pivot -->
-    <circle r="12" fill="#0A0E17" stroke="#0984E3" stroke-width="2"/>
+    <circle r="12" fill="#0F1117" stroke="#0984E3" stroke-width="2"/>
     <circle r="4" fill="#00CEC9"/>
+  </g>
+
+  <!-- Bottom-Left Technical HUD: Name & Polyomino -->
+  <g transform="translate(140, 1970)">
+    <path d="M 0,-70 L 0,35 L 280,35" stroke="#2B303C" stroke-width="1.5" fill="none" />
+    <rect x="-4" y="-70" width="8" height="8" fill="#0984E3" />
+    <text x="25" y="-20" fill="#F8FAFC"
+      font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="32"
+      font-weight="700" letter-spacing="0.25em">CARAVELA</text>
+    <text x="26" y="18" fill="#0984E3"
+      font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="16"
+      font-weight="600" letter-spacing="0.2em">POLYOMINO</text>
   </g>
 </svg>
 

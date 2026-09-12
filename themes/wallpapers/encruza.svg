@@ -1,9 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3840 2160" width="100%" height="100%">
-  <!-- Deep Obsidian Canvas -->
-  <rect width="3840" height="2160" fill="#0A0B0E"/>
+  <!-- Monolith Dark Canvas -->
+  <rect width="3840" height="2160" fill="#0F1117"/>
+
+  <!-- CAD Coordinate Dot Matrix Grid -->
+  <defs>
+    <pattern id="dot-matrix" x="0" y="0" width="60" height="60" patternUnits="userSpaceOnUse">
+      <circle cx="30" cy="30" r="2.0" fill="#2E4057" fill-opacity="0.6"/>
+    </pattern>
+  </defs>
+  <rect width="3840" height="2160" fill="url(#dot-matrix)"/>
 
   <!-- Background Tiling Grid -->
-  <g stroke="#16181F" stroke-width="2" fill="none">
+  <g stroke="#2B303C" stroke-width="1.5" fill="none" opacity="0.4">
     <path d="M 0,540 H 3840" />
     <path d="M 0,1620 H 3840" />
     <path d="M 960,0 V 2160" />
@@ -13,16 +21,16 @@
   <!-- Industrial Crossroads / Intersection Geometry -->
   <g transform="translate(1920, 1080)" fill="none" stroke-linecap="square">
     <!-- Outer Iron Framing -->
-    <rect x="-350" y="-350" width="700" height="700" stroke="#232731" stroke-width="3"/>
-    <circle r="220" stroke="#1E222B" stroke-width="2"/>
+    <rect x="-350" y="-350" width="700" height="700" stroke="#2B303C" stroke-width="3"/>
+    <circle r="220" stroke="#2E4057" stroke-width="2"/>
 
     <!-- Structural Slate Cross (Axes) -->
     <line x1="-500" y1="0" x2="500" y2="0" stroke="#2B303C" stroke-width="3"/>
     <line x1="0" y1="-500" x2="0" y2="500" stroke="#2B303C" stroke-width="3"/>
 
     <!-- Diagonal Intersection Guides -->
-    <line x1="-160" y1="-160" x2="160" y2="160" stroke="#1E222B" stroke-width="2" stroke-dasharray="8,8"/>
-    <line x1="160" y1="-160" x2="-160" y2="160" stroke="#1E222B" stroke-width="2" stroke-dasharray="8,8"/>
+    <line x1="-160" y1="-160" x2="160" y2="160" stroke="#2E4057" stroke-width="2" stroke-dasharray="8,8"/>
+    <line x1="160" y1="-160" x2="-160" y2="160" stroke="#2E4057" stroke-width="2" stroke-dasharray="8,8"/>
 
     <!-- Glowing Carmine Red Interlocking Seams (#EE5253) -->
     <path d="M -120,-120 H 0 V 0 H 120 V 120" stroke="#EE5253" stroke-width="4"/>
@@ -30,5 +38,17 @@
 
     <!-- Central Focal Core -->
     <rect x="-18" y="-18" width="36" height="36" fill="#EE5253"/>
+  </g>
+
+  <!-- Bottom-Left Technical HUD: Name & Polyomino -->
+  <g transform="translate(140, 1970)">
+    <path d="M 0,-70 L 0,35 L 280,35" stroke="#2B303C" stroke-width="1.5" fill="none" />
+    <rect x="-4" y="-70" width="8" height="8" fill="#EE5253" />
+    <text x="25" y="-20" fill="#F8FAFC"
+      font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="32"
+      font-weight="700" letter-spacing="0.25em">ENCRUZA</text>
+    <text x="26" y="18" fill="#EE5253"
+      font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="16"
+      font-weight="600" letter-spacing="0.2em">POLYOMINO</text>
   </g>
 </svg>

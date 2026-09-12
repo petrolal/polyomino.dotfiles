@@ -1,9 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3840 2160" width="100%" height="100%">
-  <!-- Deep Midnight Forest Canvas -->
-  <rect width="3840" height="2160" fill="#0B120F"/>
+  <!-- Monolith Dark Canvas -->
+  <rect width="3840" height="2160" fill="#0F1117"/>
+
+  <!-- CAD Coordinate Dot Matrix Grid -->
+  <defs>
+    <pattern id="dot-matrix" x="0" y="0" width="60" height="60" patternUnits="userSpaceOnUse">
+      <circle cx="30" cy="30" r="2.0" fill="#2E4057" fill-opacity="0.6"/>
+    </pattern>
+  </defs>
+  <rect width="3840" height="2160" fill="url(#dot-matrix)"/>
 
   <!-- Background Canopy & Geometric Contour Lines -->
-  <g stroke="#14261C" stroke-width="1.5" fill="none">
+  <g stroke="#2B303C" stroke-width="1.5" fill="none" opacity="0.4">
     <polygon points="1920,380 2520,780 2520,1380 1920,1780 1320,1380 1320,780"/>
     <line x1="0" y1="1080" x2="3840" y2="1080" stroke-dasharray="10,14"/>
     <line x1="1920" y1="0" x2="1920" y2="2160" stroke-dasharray="10,14"/>
@@ -12,11 +20,11 @@
   <!-- Sacred Geometry: Branching Arrows & Solar Core -->
   <g transform="translate(1920, 1080)" fill="none" stroke-linecap="round" stroke-linejoin="round">
     <!-- Outer Shield / Hexagonal Framing -->
-    <polygon points="0,-320 277,-160 277,160 0,320 -277,160 -277,-160" stroke="#1D3627" stroke-width="2"/>
+    <polygon points="0,-320 277,-160 277,160 0,320 -277,160 -277,-160" stroke="#2B303C" stroke-width="2"/>
 
     <!-- Concentric Foliage Guidance Rings -->
-    <circle r="220" stroke="#172B1F" stroke-width="2"/>
-    <circle r="140" stroke="#172B1F" stroke-width="1.5" stroke-dasharray="6,8"/>
+    <circle r="220" stroke="#2E4057" stroke-width="2"/>
+    <circle r="140" stroke="#2E4057" stroke-width="1.5" stroke-dasharray="6,8"/>
 
     <!-- Mata Green Foliage Vectors (#10AC84) - Sacred Bow & Growth -->
     <path d="M 0,260 L 0,-240" stroke="#10AC84" stroke-width="3"/>
@@ -27,7 +35,7 @@
     <!-- Warm Amber Sunlight Nodes (#F5CD79) -->
     <!-- Solar Core -->
     <circle cx="0" cy="-240" r="6" fill="#F5CD79"/>
-    <circle cx="0" cy="0" r="8" stroke="#F5CD79" stroke-width="2" fill="#0B120F"/>
+    <circle cx="0" cy="0" r="8" stroke="#F5CD79" stroke-width="2" fill="#0F1117"/>
     <circle cx="0" cy="0" r="3" fill="#F5CD79"/>
 
     <!-- Accent Solar Rays -->
@@ -37,6 +45,18 @@
     <circle cx="160" cy="-90" r="4" fill="#F5CD79"/>
 
     <!-- Base Root Anchor -->
-    <path d="M -70,200 L 0,260 L 70,200" stroke="#1D3627" stroke-width="2"/>
+    <path d="M -70,200 L 0,260 L 70,200" stroke="#2B303C" stroke-width="2"/>
+  </g>
+
+  <!-- Bottom-Left Technical HUD: Name & Polyomino -->
+  <g transform="translate(140, 1970)">
+    <path d="M 0,-70 L 0,35 L 280,35" stroke="#2B303C" stroke-width="1.5" fill="none" />
+    <rect x="-4" y="-70" width="8" height="8" fill="#10AC84" />
+    <text x="25" y="-20" fill="#F8FAFC"
+      font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="32"
+      font-weight="700" letter-spacing="0.25em">ARUANDA</text>
+    <text x="26" y="18" fill="#10AC84"
+      font-family="'JetBrains Mono', 'Fira Code', monospace" font-size="16"
+      font-weight="600" letter-spacing="0.2em">POLYOMINO</text>
   </g>
 </svg>

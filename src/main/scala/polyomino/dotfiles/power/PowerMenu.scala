@@ -482,18 +482,19 @@ object PowerMenu:
     )
 
     def from(p: Palette): Theme =
-      val acc  = rgb(p.accent, (235, 180, 52))
+      val acc  = rgb(p.blue, (235, 180, 52))
       val base = rgb(p.base, (15, 17, 23))
       val txt  = rgb(p.text, (248, 250, 252))
-      val teal = (0, 210, 211)
-      val red  = (239, 68, 68)
+      val teal = rgb(p.teal, (0, 210, 211))
+      val red  = rgb(p.red, (239, 68, 68))
+      val overlay = rgb(p.overlay0, (46, 64, 87))
       def tone(t: Double): String = fgSeq(mix(txt, base, t))
 
       Theme(
         bg         = bgSeq(base),
         wall       = tone(0.60),
         floor      = tone(0.50),
-        divider    = tone(0.85),
+        divider    = fgSeq(mix(overlay, base, 0.40)),
         dividerHot = fgSeq(mix(acc, base, 0.25)),
         ghost      = tone(0.72),
         dim        = tone(0.70),

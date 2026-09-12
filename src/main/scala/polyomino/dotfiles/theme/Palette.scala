@@ -8,12 +8,29 @@ case class Palette(
     label: String,
     base: String,
     mantle: String,
+    crust: String = "#2B303C",
     text: String,
+    subtext0: String = "#94A3B8",
+    subtext1: String = "#B8C4D1",
+    surface0: String = "#122232",
+    surface1: String = "#0E1C28",
+    surface2: String = "#1E3850",
+    overlay0: String = "#2E4057",
     accent: String,
-    red: String,
+    blue: String,
+    teal: String = "#00D2D3",
+    lavender: String = "#38BDF8",
+    sapphire: String = "#3B82F6",
+    sky: String = "#06B6D4",
     green: String,
     yellow: String,
-    blue: String,
+    peach: String = "#FFB347",
+    maroon: String = "#C2413B",
+    red: String,
+    mauve: String = "#A855F7",
+    pink: String = "#C084FC",
+    flamingo: String = "#D9E2EC",
+    rosewater: String = "#E0E6ED",
     wallpaper: Option[String] = None
 ) derives ReadWriter
 
@@ -23,12 +40,29 @@ object Palette:
     label = "Matriz (Gold/Teal)",
     base = "#0F1117",
     mantle = "#191C24",
+    crust = "#2B303C",
     text = "#F8FAFC",
+    subtext0 = "#94A3B8",
+    subtext1 = "#B8C4D1",
+    surface0 = "#122232",
+    surface1 = "#0E1C28",
+    surface2 = "#1E3850",
+    overlay0 = "#2E4057",
     accent = "#EBB434",
-    red = "#EF4444",
+    blue = "#EBB434",
+    teal = "#00D2D3",
+    lavender = "#38BDF8",
+    sapphire = "#3B82F6",
+    sky = "#06B6D4",
     green = "#10B981",
     yellow = "#F59E0B",
-    blue = "#EBB434"
+    peach = "#FFB347",
+    maroon = "#C2413B",
+    red = "#EF4444",
+    mauve = "#A855F7",
+    pink = "#C084FC",
+    flamingo = "#D9E2EC",
+    rosewater = "#E0E6ED"
   )
 
   def listAll(ctx: Context): Seq[String] = {
@@ -84,24 +118,58 @@ object Palette:
       val label = kvMap.getOrElse("THEME_LABEL", name)
       val base = kvMap.getOrElse("BASE", "#0F1117")
       val mantle = kvMap.getOrElse("MANTLE", base)
+      val crust = kvMap.getOrElse("CRUST", "#2B303C")
       val text = kvMap.getOrElse("TEXT", "#F8FAFC")
-      val accent = kvMap.getOrElse("BLUE", kvMap.getOrElse("ACCENT", "#EBB434"))
-      val red = kvMap.getOrElse("RED", "#EF4444")
+      val subtext0 = kvMap.getOrElse("SUBTEXT0", "#94A3B8")
+      val subtext1 = kvMap.getOrElse("SUBTEXT1", "#B8C4D1")
+      val surface0 = kvMap.getOrElse("SURFACE0", "#122232")
+      val surface1 = kvMap.getOrElse("SURFACE1", "#0E1C28")
+      val surface2 = kvMap.getOrElse("SURFACE2", "#1E3850")
+      val overlay0 = kvMap.getOrElse("OVERLAY0", "#2E4057")
+      val blue = kvMap.getOrElse("BLUE", "#EBB434")
+      val accent = kvMap.getOrElse("ACCENT", blue)
+      val teal = kvMap.getOrElse("TEAL", "#00D2D3")
+      val lavender = kvMap.getOrElse("LAVENDER", "#38BDF8")
+      val sapphire = kvMap.getOrElse("SAPPHIRE", "#3B82F6")
+      val sky = kvMap.getOrElse("SKY", "#06B6D4")
       val green = kvMap.getOrElse("GREEN", "#10B981")
       val yellow = kvMap.getOrElse("YELLOW", "#F59E0B")
-      val blue = kvMap.getOrElse("BLUE", accent)
+      val peach = kvMap.getOrElse("PEACH", "#FFB347")
+      val maroon = kvMap.getOrElse("MAROON", "#C2413B")
+      val red = kvMap.getOrElse("RED", "#EF4444")
+      val mauve = kvMap.getOrElse("MAUVE", "#A855F7")
+      val pink = kvMap.getOrElse("PINK", "#C084FC")
+      val flamingo = kvMap.getOrElse("FLAMINGO", "#D9E2EC")
+      val rosewater = kvMap.getOrElse("ROSEWATER", "#E0E6ED")
 
       Some(Palette(
         name = name,
         label = label,
         base = base,
         mantle = mantle,
+        crust = crust,
         text = text,
+        subtext0 = subtext0,
+        subtext1 = subtext1,
+        surface0 = surface0,
+        surface1 = surface1,
+        surface2 = surface2,
+        overlay0 = overlay0,
         accent = accent,
-        red = red,
+        blue = blue,
+        teal = teal,
+        lavender = lavender,
+        sapphire = sapphire,
+        sky = sky,
         green = green,
         yellow = yellow,
-        blue = blue
+        peach = peach,
+        maroon = maroon,
+        red = red,
+        mauve = mauve,
+        pink = pink,
+        flamingo = flamingo,
+        rosewater = rosewater
       ))
     catch
       case _: Exception => None

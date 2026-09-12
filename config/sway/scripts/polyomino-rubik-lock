@@ -226,6 +226,11 @@ def _load_theme_colors():
         "COLOR_ACTIVE_GOLD": (235 / 255, 180 / 255, 52 / 255),  # #EBB434
         "COLOR_CLEAR_CYAN": (85 / 255, 239 / 255, 196 / 255),   # #55EFC4
         "COLOR_REJECT_RED": (238 / 255, 82 / 255, 83 / 255),    # #EE5253
+        "COLOR_TEXT": (248 / 255, 250 / 255, 252 / 255),        # #F8FAFC
+        "COLOR_HELP": (148 / 255, 163 / 255, 184 / 255),        # #94A3B8 (SUBTEXT0)
+        "COLOR_DOT": (46 / 255, 64 / 255, 87 / 255),            # #2E4057 (OVERLAY0)
+        "COLOR_WALL": (43 / 255, 48 / 255, 60 / 255),           # #2B303C (CRUST)
+        "COLOR_WALL_DIM": (30 / 255, 34 / 255, 44 / 255),       # subtle border
     }
 
     palette = _load_theme_palette()
@@ -233,11 +238,15 @@ def _load_theme_colors():
         return defaults
 
     try:
-        base = _hex_to_rgb(palette["BASE"])
-        glass = _hex_to_rgb(palette["MANTLE"])
-        active = _hex_to_rgb(palette["BLUE"])    # primary accent token
-        resting = _hex_to_rgb(palette["TEAL"])   # secondary accent token
-        reject = _hex_to_rgb(palette["RED"])
+        base = _hex_to_rgb(palette.get("BASE", "#0F1117"))
+        glass = _hex_to_rgb(palette.get("MANTLE", "#191C24"))
+        active = _hex_to_rgb(palette.get("BLUE", "#EBB434"))    # primary accent token
+        resting = _hex_to_rgb(palette.get("TEAL", "#00D2D3"))   # secondary accent token
+        reject = _hex_to_rgb(palette.get("RED", "#EE5253"))
+        text = _hex_to_rgb(palette.get("TEXT", "#F8FAFC"))
+        subtext0 = _hex_to_rgb(palette.get("SUBTEXT0", "#94A3B8"))
+        overlay0 = _hex_to_rgb(palette.get("OVERLAY0", "#2E4057"))
+        crust = _hex_to_rgb(palette.get("CRUST", "#2B303C"))
         clear = _lighten(resting, 0.35)
         return {
             "COLOR_BG": base,
@@ -246,6 +255,11 @@ def _load_theme_colors():
             "COLOR_ACTIVE_GOLD": active,
             "COLOR_CLEAR_CYAN": clear,
             "COLOR_REJECT_RED": reject,
+            "COLOR_TEXT": text,
+            "COLOR_HELP": subtext0,
+            "COLOR_DOT": overlay0,
+            "COLOR_WALL": crust,
+            "COLOR_WALL_DIM": (crust[0] * 0.7, crust[1] * 0.7, crust[2] * 0.7),
         }
     except (KeyError, ValueError):
         return defaults
@@ -259,6 +273,15 @@ COLOR_ACTIVE_GOLD = _THEME_COLORS["COLOR_ACTIVE_GOLD"]
 COLOR_GOLD = COLOR_ACTIVE_GOLD
 COLOR_CLEAR_CYAN = _THEME_COLORS["COLOR_CLEAR_CYAN"]
 COLOR_REJECT_RED = _THEME_COLORS["COLOR_REJECT_RED"]
+
+COLOR_TEXT = _THEME_COLORS["COLOR_TEXT"]
+COLOR_HELP = _THEME_COLORS["COLOR_HELP"]
+COLOR_DOT = _THEME_COLORS["COLOR_DOT"]
+COLOR_WALL = _THEME_COLORS["COLOR_WALL"]
+COLOR_WALL_DIM = _THEME_COLORS["COLOR_WALL_DIM"]
+COLOR_MUTED = (110 / 255, 125 / 255, 145 / 255)   # #6E7D91 Enterprise Steel
+COLOR_SUBTLE = (65 / 255, 75 / 255, 92 / 255)      # #414B5C Structural Grid
+COLOR_DIM = (85 / 255, 90 / 255, 105 / 255)         # #555A69 Dim
 
 # White-blended "core" highlight variants, used for the sharp vector cores
 # drawn on top of the reject/caps-lock indicator glyphs.
@@ -343,16 +366,6 @@ LOCAL_FACES = [
     ((1, 5, 6, 2), (1, 0, 0)),   # Right (+X)
     ((0, 4, 7, 3), (-1, 0, 0)),  # Left (-X)
 ]
-
-# Enterprise CAD & Precision Palette tokens matching PowerMenu.scala
-COLOR_MUTED = (110 / 255, 125 / 255, 145 / 255)   # #6E7D91 Enterprise Steel
-COLOR_SUBTLE = (65 / 255, 75 / 255, 92 / 255)      # #414B5C Structural Grid
-COLOR_WALL = (108 / 255, 110 / 255, 115 / 255)     # #6C6E73 CAD Viewport border
-COLOR_WALL_DIM = (50 / 255, 54 / 255, 68 / 255)    # #323644 Subtle border
-COLOR_DOT = (42 / 255, 46 / 255, 60 / 255)          # #2A2E3C Matrix dots
-COLOR_TEXT = (248 / 255, 250 / 255, 252 / 255)      # #F8FAFC Primary text
-COLOR_HELP = (124 / 255, 129 / 255, 148 / 255)     # #7C8194 Subtext & help
-COLOR_DIM = (85 / 255, 90 / 255, 105 / 255)         # #555A69 Dim
 
 def _clamp(v, lo=0.0, hi=1.0):
     return max(lo, min(hi, v))

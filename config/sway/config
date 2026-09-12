@@ -72,13 +72,10 @@ for_window [app_id="gamescope"] fullscreen enable, floating enable
 for_window [class="^heroic$"] floating enable
 for_window [class="^lutris$"] floating enable
 
-# Tetris-themed power / exit modal (polyomino power-menu). A borderless floating
-# window sized to the whole output — its own dark backdrop — rather than a real
-# fullscreen toggle: the toggle + opacity change raced with kitty's keyboard-focus
-# setup at map time and left the modal unresponsive until clicked. The binary grabs
-# focus and sets opacity once the surface has settled. Only this output is covered;
-# other monitors are left as they are.
-for_window [app_id="polyomino-power-menu"] floating enable, border none, resize set width 100 ppt height 100 ppt, move position center
+# Tetris-themed power / exit modal (polyomino power-menu). Centered/fullscreen over Waybar without bar overlap.
+for_window [app_id="polyomino-power-menu"] fullscreen enable, floating enable, border none, resize set width 100 ppt height 100 ppt, move position center
+for_window [class="polyomino-power-menu"] fullscreen enable, floating enable, border none, resize set width 100 ppt height 100 ppt, move position center
+for_window [app_id="kitty" title="(?i).*polyomino.*power-menu.*"] fullscreen enable, floating enable, border none, resize set width 100 ppt height 100 ppt, move position center
 
 # System tray helper for network/VPN status (OpenVPN3 is CLI-only; nm-applet shows NetworkManager
 # connection state including VPN tunnels started via `nmcli` or the openvpn3 CLI-managed profiles).
@@ -154,7 +151,7 @@ input type:touchpad {
 }
 
 ### ────────────────────────────────────────────────────────────────
-### Appearance — Polyomino palette (flavor selectable via `polyomino-theme`, default matriz), no animations/effects
+### Appearance — Polyomino palette (flavor selectable via `polyomino-theme`, default matriz)
 ### ────────────────────────────────────────────────────────────────
 font pango:JetBrainsMono Nerd Font 10
 
@@ -163,13 +160,12 @@ font pango:JetBrainsMono Nerd Font 10
 
 default_border pixel 2
 default_floating_border pixel 2
-gaps inner 4
-gaps outer 2
+gaps inner 6
+gaps outer 4
 smart_borders off
 focus_follows_mouse yes
 workspace_auto_back_and_forth yes
 
-# Enterprise CAD styling — sharp precision corners, no fuzzy drop shadows
 # SwayFX-specific effects are conditionally included via fx.conf (omitted on standard Sway to prevent redbar errors)
 include fx.conf
 

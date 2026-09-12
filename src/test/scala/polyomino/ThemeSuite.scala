@@ -86,7 +86,7 @@ class ThemeSuite extends FunSuite {
         val res = ThemeEngine.run(ctx, List(flavor, "--flat"))
         assert(res.isRight, s"$flavor theme apply failed: $res")
         val css = os.read(waybarStyle)
-        assert(css.contains("window#waybar") && css.contains("margin: 8px 12px 0 12px;"), s"$flavor: missing floating CAD bar margin")
+        assert(css.contains("window#waybar") && css.contains("border-bottom: 1px solid @overlay0;"), s"$flavor: missing waybar overlay bottom border")
         assert(css.contains("border-radius: 0px") || css.contains("border-radius: 0;"), s"$flavor: missing CAD 0px border radius")
         assert(css.contains("#left") && css.contains("#center") && css.contains("#right"),
           s"$flavor: missing the 3 segment selectors")
@@ -96,10 +96,10 @@ class ThemeSuite extends FunSuite {
   test("static Sway/Waybar configs carry the CAD workstation layout invariants") {
     val ctx = Context.discover().toOption.get
     val swayConfig = os.read(ctx.dotfilesDir / "config" / "sway" / "config")
-    assert(swayConfig.contains("gaps inner 4"), "sway: expected `gaps inner 4`")
-    assert(swayConfig.contains("gaps outer 2"), "sway: expected `gaps outer 2`")
+    assert(swayConfig.contains("gaps inner 6"), "sway: expected `gaps inner 6`")
+    assert(swayConfig.contains("gaps outer 4"), "sway: expected `gaps outer 4`")
     val fxConfig = if os.exists(ctx.dotfilesDir / "config" / "sway" / "fx.conf") then os.read(ctx.dotfilesDir / "config" / "sway" / "fx.conf") else ""
-    assert(swayConfig.contains("corner_radius 0") || fxConfig.contains("corner_radius 0") || swayConfig.contains("include fx.conf"), "sway: expected `corner_radius 0` or `include fx.conf`")
+    assert(swayConfig.contains("corner_radius 4") || fxConfig.contains("corner_radius 4") || swayConfig.contains("include fx.conf"), "sway: expected `corner_radius 4` or `include fx.conf`")
     val waybarConfig = os.read(ctx.dotfilesDir / "config" / "waybar" / "config.jsonc")
     assert(waybarConfig.contains("\"group/left\""), "waybar: missing group/left segment")
     assert(waybarConfig.contains("\"group/center\""), "waybar: missing group/center segment")
