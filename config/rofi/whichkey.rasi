@@ -18,7 +18,6 @@
     background-color: transparent;
     text-color:       @fg-primary;
 }
-
 window {
     background-color: @bg-base;
     text-color:       @fg-primary;
@@ -30,27 +29,22 @@ window {
     location:         center;
     anchor:           center;
 }
-
 mainbox {
     spacing:          10px;
     children:         [ header-box, inputbar, listview, footer-box ];
 }
-
-/* 1. Header Row */
 header-box {
     orientation:      horizontal;
     spacing:          12px;
     padding:          2px 4px 6px 4px;
     children:         [ header-left, header-badge ];
 }
-
 header-left {
     orientation:      horizontal;
     spacing:          12px;
     expand:           true;
     children:         [ header-glyph-box, header-text-box ];
 }
-
 header-glyph-box {
     orientation:      horizontal;
     padding:          4px 10px;
@@ -61,7 +55,6 @@ header-glyph-box {
     vertical-align:   0.5;
     children:         [ textbox-header-glyph ];
 }
-
 textbox-header-glyph {
     expand:           false;
     str:              "[ ⮽ ]";
@@ -69,35 +62,30 @@ textbox-header-glyph {
     text-color:       @accent-violet;
     vertical-align:   0.5;
 }
-
 header-text-box {
     orientation:      vertical;
     spacing:          2px;
     vertical-align:   0.5;
     children:         [ textbox-header-title, textbox-header-subtitle ];
 }
-
 textbox-header-title {
     expand:           false;
     str:              "POLYOMINO // WHICH-KEY";
     font:             "JetBrainsMono Nerd Font Bold 12";
     text-color:       @fg-primary;
 }
-
 textbox-header-subtitle {
     expand:           false;
     str:              "Arch Linux · SwayFX";
     font:             "JetBrainsMono Nerd Font 9";
     text-color:       @fg-secondary;
 }
-
 header-badge {
     expand:           false;
     orientation:      horizontal;
     vertical-align:   0.5;
     children:         [ textbox-header-badge ];
 }
-
 textbox-header-badge {
     expand:           false;
     str:              "SHORTCUTS";
@@ -110,8 +98,6 @@ textbox-header-badge {
     padding:          4px 10px;
     vertical-align:   0.5;
 }
-
-/* 2. Search / Filter Input Bar */
 inputbar {
     enabled:          true;
     children:         [ prompt, entry ];
@@ -123,7 +109,6 @@ inputbar {
     spacing:          10px;
     margin:           0px 0px 4px 0px;
 }
-
 prompt {
     enabled:          true;
     str:              "❯";
@@ -134,7 +119,6 @@ prompt {
     font:             "JetBrainsMono Nerd Font Bold 11";
     vertical-align:   0.5;
 }
-
 entry {
     enabled:          true;
     placeholder:      "Search shortcuts & actions... (Press / for Insert Mode)";
@@ -145,8 +129,6 @@ entry {
     font:             "JetBrainsMono Nerd Font 11";
     vertical-align:   0.5;
 }
-
-/* 3. Content Grid (Welcome Center Bento Card Style) */
 listview {
     enabled:          true;
     columns:          2;
@@ -158,7 +140,6 @@ listview {
     layout:           vertical;
     fixed-height:     false;
 }
-
 element {
     orientation:      horizontal;
     children:         [ element-text ];
@@ -170,7 +151,6 @@ element {
     border-color:     @border-subtle;
     text-color:       @fg-primary;
 }
-
 element normal.normal {
     background-color: @bg-surface;
     text-color:       @fg-primary;
@@ -178,7 +158,6 @@ element normal.normal {
     border-color:     @border-subtle;
     border-radius:    2px;
 }
-
 element selected.normal, element selected.active {
     background-color: @bg-surface-hover;
     text-color:       @fg-primary;
@@ -186,7 +165,6 @@ element selected.normal, element selected.active {
     border-color:     @border-active;
     border-radius:    2px;
 }
-
 element-text {
     markup:           true;
     text-color:       inherit;
@@ -194,8 +172,6 @@ element-text {
     font:             "JetBrainsMono Nerd Font 10";
     expand:           true;
 }
-
-/* 4. Bottom Status & Vim Mode Bar */
 footer-box {
     orientation:      horizontal;
     children:         [ textbox-mode-badge, textbox-mode-hints, textbox-close-badge ];
@@ -208,7 +184,6 @@ footer-box {
     margin:           4px 0px 0px 0px;
     vertical-align:   0.5;
 }
-
 textbox-mode-badge {
     expand:           false;
     str:              "[ NORMAL ]";
@@ -219,7 +194,6 @@ textbox-mode-badge {
     font:             "JetBrainsMono Nerd Font Bold 10";
     vertical-align:   0.5;
 }
-
 textbox-mode-hints {
     expand:           true;
     str:              "h/j/k/l Navigate  •  / Search  •  Enter Select";
@@ -227,7 +201,6 @@ textbox-mode-hints {
     font:             "JetBrainsMono Nerd Font 10";
     vertical-align:   0.5;
 }
-
 textbox-close-badge {
     expand:           false;
     str:              "[ Esc Close ]";

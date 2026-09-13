@@ -5,7 +5,6 @@
     box-shadow: none;
     -gtk-outline-radius: 0;
 }
-
 window {
     background-color: rgba(15, 17, 26, 0.85);
     color: #F0F6FC;
@@ -15,8 +14,6 @@ window {
     font-size: 12px;
     padding: 14px;
 }
-
-/* 2. Search / Filter Input Bar */
 #input {
     background-color: #161B22;
     color: #F0F6FC;
@@ -31,7 +28,6 @@ window {
     font-size: 12px;
     min-height: 32px;
 }
-
 #input:focus {
     background-color: #161B22;
     color: #F0F6FC;
@@ -39,21 +35,68 @@ window {
     outline: none;
     box-shadow: none;
 }
-
 #input placeholder {
     color: #8B949E;
     font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
     font-size: 12px;
     opacity: 0.85;
 }
-
 #input image {
     color: #8B5CF6;
     border: none;
     background: transparent;
     margin-right: 8px;
 }
-
+#inner-box {
+    background-color: transparent;
+    margin: 2px;
+}
+#outer-box {
+    padding: 2px;
+}
+#scroll {
+    margin: 2px;
+}
+#entry {
+    padding: 12px 14px;
+    margin: 4px;
+    border-radius: 2px;
+    background-color: #1C2128;
+    color: #F0F6FC;
+    border: 1px solid rgba(139, 92, 246, 0.35);
+    min-height: 44px;
+    transition: all 120ms ease-in-out;
+}
+#entry:hover {
+    background-color: #21262D;
+    border-color: rgba(168, 85, 247, 0.6);
+}
+#entry:selected {
+    background-color: #21262D;
+    color: #F0F6FC;
+    border-radius: 2px;
+    outline: none;
+    border: 1px solid #a855f7;
+    box-shadow: 0 0 12px rgba(168, 85, 247, 0.25);
+}
+#entry:selected #text,
+#text:selected {
+    color: #F0F6FC;
+    font-weight: bold;
+}
+#img,
+#entry image {
+    margin-right: 12px;
+    margin-left: 2px;
+    vertical-align: middle;
+}
+#text {
+    color: #F0F6FC;
+    font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
+    font-size: 12px;
+    margin: auto 0;
+    padding: 2px 0;
+}
 #prompt {
     background-color: #8B5CF6;
     color: #0D1117;
@@ -65,67 +108,7 @@ window {
     padding: 4px 8px;
 }
 
-/* 3. Content Grid (Welcome Center Bento Card Style) */
-#inner-box {
-    background-color: transparent;
-    margin: 2px;
-}
-
-#outer-box {
-    padding: 2px;
-}
-
-#scroll {
-    margin: 2px;
-}
-
-#entry {
-    padding: 12px 14px;
-    margin: 4px;
-    border-radius: 2px;
-    background-color: #1C2128;
-    color: #F0F6FC;
-    border: 1px solid rgba(139, 92, 246, 0.35);
-    min-height: 44px;
-    transition: all 120ms ease-in-out;
-}
-
-#entry:hover {
-    background-color: #21262D;
-    border-color: rgba(168, 85, 247, 0.6);
-}
-
-#entry:selected {
-    background-color: #21262D;
-    color: #F0F6FC;
-    border-radius: 2px;
-    outline: none;
-    border: 1px solid #a855f7;
-    box-shadow: 0 0 12px rgba(168, 85, 247, 0.25);
-}
-
-#entry:selected #text,
-#text:selected {
-    color: #F0F6FC;
-    font-weight: bold;
-}
-
-#img,
-#entry image {
-    margin-right: 12px;
-    margin-left: 2px;
-    vertical-align: middle;
-}
-
-#text {
-    color: #F0F6FC;
-    font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
-    font-size: 12px;
-    margin: auto 0;
-    padding: 2px 0;
-}
-
-/* 4. Bottom Status & Vim Mode Bar */
+/* Bottom Status & Vim Mode Bar */
 #mode-indicator,
 #status-bar,
 #footer {
@@ -148,7 +131,7 @@ window {
 }
 
 .mode-badge-insert {
-    background-color: #06B6D4;
+    background-color: #22D3EE;
     color: #0D1117;
     border-radius: 2px;
     font-weight: bold;

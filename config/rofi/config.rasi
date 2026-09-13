@@ -17,4 +17,4 @@ configuration {
     kb-accept-entry: "Return,KP_Enter";
     kb-cancel: "Escape,Control+bracketleft";
 }
-@theme "theme"
+@theme "/home/petrolal/.config/rofi/theme.rasi"

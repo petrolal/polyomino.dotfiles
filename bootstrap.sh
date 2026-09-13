@@ -532,14 +532,14 @@ install_polyomino_binary() {
 
   # 1. If local native binary exists, install it
   if [ -f "$SCRIPT_DIR/target/native-image/polyomino" ]; then
-    cp "$SCRIPT_DIR/target/native-image/polyomino" "$BIN_DIR/polyomino"
+    cp --remove-destination "$SCRIPT_DIR/target/native-image/polyomino" "$BIN_DIR/polyomino"
     chmod +x "$BIN_DIR/polyomino"
     echo -e "  \033[32m[OK]\033[0m Installed local native binary to $BIN_DIR/polyomino"
   elif command -v sbt &>/dev/null && [ -f "$SCRIPT_DIR/build.sbt" ]; then
     echo -e "  \033[36m[INFO]\033[0m Compiling standalone GraalVM native binary..."
     (cd "$SCRIPT_DIR" && sbt nativeImage) || true
     if [ -f "$SCRIPT_DIR/target/native-image/polyomino" ]; then
-      cp "$SCRIPT_DIR/target/native-image/polyomino" "$BIN_DIR/polyomino"
+      cp --remove-destination "$SCRIPT_DIR/target/native-image/polyomino" "$BIN_DIR/polyomino"
       chmod +x "$BIN_DIR/polyomino"
       echo -e "  \033[32m[OK]\033[0m Built & installed native binary to $BIN_DIR/polyomino"
     fi
