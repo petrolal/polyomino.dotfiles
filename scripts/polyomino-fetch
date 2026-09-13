@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+LOGOS_DIR="${HOME}/.config/fastfetch/logos"
+FALLBACK_LOGO="${LOGOS_DIR}/polyomino_arch_tetris.txt"
+
+resolve_logo() {
+    if [[ -f /etc/os-release ]]; then
+        # shellcheck disable=SC1091
+        source /etc/os-release
+        local match="${ID:-} ${ID_LIKE:-}"
+        case "${match}" in
+            *arch*|*endeavouros*|*cachyos*|*artix*|*manjaro*)
+                echo "${LOGOS_DIR}/polyomino_arch_tetris.txt" ;;
+            *debian*)
+                echo "${LOGOS_DIR}/polyomino_debian_tetris.txt" ;;
+            *ubuntu*|*pop*|*mint*)
+                echo "${LOGOS_DIR}/polyomino_ubuntu_tetris.txt" ;;
+            *fedora*|*rhel*|*centos*|*rocky*)
+                echo "${LOGOS_DIR}/polyomino_fedora_tetris.txt" ;;
+            *nixos*)
+                echo "${LOGOS_DIR}/polyomino_nixos_tetris.txt" ;;
+            *)
+                echo "${FALLBACK_LOGO}" ;;
+        esac
+    else
+        echo "${FALLBACK_LOGO}"
+    fi
+}
+
+TARGET_LOGO="$(resolve_logo)"
+[[ ! -f "${TARGET_LOGO}" ]] && TARGET_LOGO="${FALLBACK_LOGO}"
+
+exec fastfetch --logo "${TARGET_LOGO}" "$@"
