@@ -31,15 +31,52 @@ object GameModeEngine:
         else
           Left(CommandError(s"Unknown gamemode subcommand: ${args.mkString(" ")}", 1))
 
+  // Same window classes routed to the MEDIA workspace in config/sway/config's
+  // "# 4: MEDIA" section — keep the two lists in sync.
+  private val gameAppPattern =
+    "(?i)^(steam|heroic|lutris|gamescope|mesen|bsnes|sameboy|mgba-qt|mgba|mame|flycast|blastem|duckstation|simple64|retroarch|dolphin-emu|citra-qt|yuzu|ryujinx|cemu|ppsspp|pcsx2-qt|pcsx2|rpcs3)$".r
+
+  private def runningGameWindows(): List[String] =
+    try
+      val res = os.proc("swaymsg", "-t", "get_tree").call(check = false)
+      if res.exitCode != 0 then Nil
+      else
+        val tree = ujson.read(res.out.text())
+        collectGameWindows(tree).distinct
+    catch
+      case _: Exception => Nil
+
+  private def collectGameWindows(node: ujson.Value): List[String] =
+    try
+      val obj = node.obj
+      val appId = obj.get("app_id").flatMap(v => if v.isNull then None else Some(v.str))
+      val windowClass = obj.get("window_properties").flatMap(_.obj.get("class")).flatMap(v => if v.isNull then None else Some(v.str))
+      val here = (appId ++ windowClass).collectFirst { case name if gameAppPattern.matches(name) => name }.toList
+      val tiledNodes = obj.get("nodes").map(_.arr).getOrElse(Vector.empty)
+      val floatingNodes = obj.get("floating_nodes").map(_.arr).getOrElse(Vector.empty)
+      here ++ (tiledNodes ++ floatingNodes).flatMap(collectGameWindows)
+    catch
+      case _: Exception => Nil
+
   def printWaybarJson(ctx: Context): Unit =
     if isActive(ctx) then
       val json =
         """{"text": "󰊴 GAME", "alt": "active", "tooltip": "Game Mode ACTIVE\n• SwayFX Blur: Disabled\n• VRR (Adaptive Sync): Enabled\n• CPU/Power: Performance\n• Screen Sleep: Inhibited", "class": "active"}"""
       println(json)
     else
-      val json =
-        """{"text": "󰊴", "alt": "inactive", "tooltip": "Game Mode INACTIVE\nClick to activate gaming optimizations", "class": "inactive"}"""
-      println(json)
+      val running = if ctx.isTest then Nil else runningGameWindows()
+      if running.nonEmpty then
+        val tooltip = s"Running: ${running.mkString(", ")}\nWorkspace 4 (MEDIA) · click to enable performance optimizations"
+        println(ujson.write(ujson.Obj(
+          "text" -> "󰊴 GAME",
+          "alt" -> "running",
+          "tooltip" -> tooltip,
+          "class" -> "running"
+        )))
+      else
+        val json =
+          """{"text": "󰊴", "alt": "inactive", "tooltip": "Game Mode INACTIVE\nClick to activate gaming optimizations", "class": "inactive"}"""
+        println(json)
 
   private def printHumanStatus(ctx: Context): Unit =
     if isActive(ctx) then
