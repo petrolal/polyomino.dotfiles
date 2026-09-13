@@ -32,7 +32,7 @@ object DeployInstaller:
 
   val Subcommands: Seq[String] = Seq(
     "theme", "runtime-refresh", "os-colorscheme", "lock", "preview-lock", "rubik-lock", "idle",
-    "screenshot", "draw-window", "sway-draw-window", "calendar", "autotiling", "healthcheck", "backup", "restore", "update", "release", "notify-config",
+    "screenshot", "draw-window", "sway-draw-window", "calendar", "autotiling", "healthcheck", "backup", "restore", "update", "release", "sdk", "notify-config",
     "sdd", "install", "deploy", "uninstall", "welcome", "gamemode", "install-deps", "install-gaming", "install-games", "install-gamemode", "install-brew", "install-homebrew",
     "install-gh", "install-github-cli",
     "install-fonts", "install-apps", "install-sway", "install-swayfx", "install-swaync", "install-notifications", "install-browser", "install-devops", "install-zsh", "install-sdkman",

@@ -75,6 +75,7 @@ object Main:
       case "restore" => polyomino.dotfiles.maintenance.Maintenance.runRestore(ctx, args)
       case "update" => polyomino.dotfiles.maintenance.Maintenance.runUpdate(ctx, args)
       case "release" => polyomino.dotfiles.maintenance.Maintenance.runRelease(ctx, args)
+      case "sdk" | "sdkman" => polyomino.dotfiles.install.ToolInstallers.runSdk(ctx, args)
       case "install" | "deploy" => polyomino.dotfiles.install.DeployInstaller.run(ctx, args)
       case "uninstall" => polyomino.dotfiles.install.DeployInstaller.uninstall(ctx, args)
       case "gamemode" => polyomino.dotfiles.gamemode.GameModeEngine.run(ctx, args)
@@ -111,6 +112,7 @@ object Main:
       |  restore          restore a snapshot created by backup
       |  update           git pull the dotfiles and re-run the installer
       |  release          prepare semver release, bump PKGBUILD/.SRCINFO/build.sbt, git tag
+      |  sdk              SDKMAN! JVM & toolchain manager (list|upgrade|update-java|update-all)
       |  notify-config    configure installed apps to use system notifications
       |  media-status     Waybar MPRIS player metadata monitor (JSON)
       |  fastfetch-logo   set distro-specific Fastfetch ASCII logo

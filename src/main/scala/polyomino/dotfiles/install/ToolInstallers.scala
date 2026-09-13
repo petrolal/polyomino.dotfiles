@@ -278,6 +278,166 @@ object ToolInstallers:
           println(s"  \u001b[33m[NOTE]\u001b[0m SDKMAN! install skipped: ${e.getMessage}")
           Right(())
 
+  def runSdk(ctx: Context, args: List[String]): Either[PolyominoError, Unit] =
+    val sdkmanDir = if ctx.isTest then ctx.home / ".sdkman" else sys.env.get("SDKMAN_DIR").map(os.Path(_)).getOrElse(ctx.home / ".sdkman")
+    val initScript = sdkmanDir / "bin" / "sdkman-init.sh"
+    val cmd = args.headOption.getOrElse("help")
+    val extraArg = args.drop(1).headOption
+
+    def runSdkCmd(sdkAction: String): Int =
+      if !os.exists(initScript) then
+        println(s"  \u001b[31m[ERROR]\u001b[0m SDKMAN! not found at $sdkmanDir. Run 'polyomino install-sdkman' first.")
+        1
+      else
+        val bashCmd = s"""source "$initScript" && $sdkAction"""
+        val res = os.proc("bash", "-c", bashCmd).call(stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit, check = false)
+        res.exitCode
+
+    cmd match
+      case "check" =>
+        if os.exists(sdkmanDir) then
+          println(s"  \u001b[32m[OK]\u001b[0m SDKMan found at $sdkmanDir")
+          Right(())
+        else
+          println(s"  \u001b[31m[ERROR]\u001b[0m SDKMan not found at $sdkmanDir")
+          Left(CommandError(s"SDKMan not found at $sdkmanDir", 1))
+
+      case "list" | "current" =>
+        println("\u001b[1;36m[polyomino-sdkman]\u001b[0m Listing installed SDKs...")
+        if ctx.isTest then
+          Right(println("  \u001b[32m[OK]\u001b[0m Test environment detected; SDK listing simulated."))
+        else
+          val code = runSdkCmd("sdk current")
+          if code == 0 then Right(()) else Left(CommandError("Failed to list SDKs", code))
+
+      case "upgrade" | "selfupdate" =>
+        println("\u001b[1;36m[polyomino-sdkman]\u001b[0m Upgrading SDKMan...")
+        if ctx.isTest then
+          Right(println("  \u001b[32m[OK]\u001b[0m Test environment detected; SDK upgrade simulated."))
+        else
+          val code = runSdkCmd("sdk selfupdate force")
+          if code == 0 then Right(()) else Left(CommandError("Failed to upgrade SDKMan", code))
+
+      case "available" =>
+        val tool = extraArg.getOrElse("java")
+        println(s"\u001b[1;36m[polyomino-sdkman]\u001b[0m Available versions for $tool...")
+        if ctx.isTest then
+          Right(println(s"  \u001b[32m[OK]\u001b[0m Test environment detected; available versions for $tool simulated."))
+        else
+          val code = runSdkCmd(s"sdk list $tool | head -20")
+          if code == 0 then Right(()) else Left(CommandError(s"Failed to list versions for $tool", code))
+
+      case "update-java" =>
+        val ver = extraArg.getOrElse("21.0.1-graal")
+        println(s"\u001b[1;36m[polyomino-sdkman]\u001b[0m Updating Java to $ver...")
+        if ctx.isTest then
+          Right(println(s"  \u001b[32m[OK]\u001b[0m Test environment detected; Java update simulated."))
+        else
+          val code = runSdkCmd(s"echo 'Y' | sdk install java $ver --default")
+          if code == 0 then Right(()) else Left(CommandError(s"Failed to update Java to $ver", code))
+
+      case "update-scala" =>
+        val ver = extraArg.getOrElse("3.5.2")
+        println(s"\u001b[1;36m[polyomino-sdkman]\u001b[0m Updating Scala to $ver...")
+        if ctx.isTest then
+          Right(println(s"  \u001b[32m[OK]\u001b[0m Test environment detected; Scala update simulated."))
+        else
+          val code = runSdkCmd(s"echo 'Y' | sdk install scala $ver --default")
+          if code == 0 then Right(()) else Left(CommandError(s"Failed to update Scala to $ver", code))
+
+      case "update-sbt" =>
+        val ver = extraArg.getOrElse("1.9.9")
+        println(s"\u001b[1;36m[polyomino-sdkman]\u001b[0m Updating sbt to $ver...")
+        if ctx.isTest then
+          Right(println(s"  \u001b[32m[OK]\u001b[0m Test environment detected; sbt update simulated."))
+        else
+          val code = runSdkCmd(s"echo 'Y' | sdk install sbt $ver --default")
+          if code == 0 then Right(()) else Left(CommandError(s"Failed to update sbt to $ver", code))
+
+      case "update-maven" =>
+        val ver = extraArg.getOrElse("3.9.6")
+        println(s"\u001b[1;36m[polyomino-sdkman]\u001b[0m Updating Maven to $ver...")
+        if ctx.isTest then
+          Right(println(s"  \u001b[32m[OK]\u001b[0m Test environment detected; Maven update simulated."))
+        else
+          val code = runSdkCmd(s"echo 'Y' | sdk install maven $ver --default")
+          if code == 0 then Right(()) else Left(CommandError(s"Failed to update Maven to $ver", code))
+
+      case "update-gradle" =>
+        val ver = extraArg.getOrElse("8.5")
+        println(s"\u001b[1;36m[polyomino-sdkman]\u001b[0m Updating Gradle to $ver...")
+        if ctx.isTest then
+          Right(println(s"  \u001b[32m[OK]\u001b[0m Test environment detected; Gradle update simulated."))
+        else
+          val code = runSdkCmd(s"echo 'Y' | sdk install gradle $ver --default")
+          if code == 0 then Right(()) else Left(CommandError(s"Failed to update Gradle to $ver", code))
+
+      case "update-kotlin" =>
+        val ver = extraArg.getOrElse("1.9.22")
+        println(s"\u001b[1;36m[polyomino-sdkman]\u001b[0m Updating Kotlin to $ver...")
+        if ctx.isTest then
+          Right(println(s"  \u001b[32m[OK]\u001b[0m Test environment detected; Kotlin update simulated."))
+        else
+          val code = runSdkCmd(s"echo 'Y' | sdk install kotlin $ver --default")
+          if code == 0 then Right(()) else Left(CommandError(s"Failed to update Kotlin to $ver", code))
+
+      case "update-groovy" =>
+        val ver = extraArg.getOrElse("4.0.17")
+        println(s"\u001b[1;36m[polyomino-sdkman]\u001b[0m Updating Groovy to $ver...")
+        if ctx.isTest then
+          Right(println(s"  \u001b[32m[OK]\u001b[0m Test environment detected; Groovy update simulated."))
+        else
+          val code = runSdkCmd(s"echo 'Y' | sdk install groovy $ver --default")
+          if code == 0 then Right(()) else Left(CommandError(s"Failed to update Groovy to $ver", code))
+
+      case "update-all" =>
+        println("\u001b[1;36m[polyomino-sdkman]\u001b[0m Updating all SDKMan tools...")
+        if ctx.isTest then
+          Right(println("  \u001b[32m[OK]\u001b[0m Test environment detected; full update simulated."))
+        else
+          val code = runSdkCmd("sdk selfupdate force && echo 'Y' | sdk install java 21.0.1-graal --default && echo 'Y' | sdk install scala 3.5.2 --default && echo 'Y' | sdk install sbt 1.9.9 --default && sdk current")
+          if code == 0 then Right(()) else Left(CommandError("Failed to update all tools", code))
+
+      case "clean" =>
+        println("\u001b[1;36m[polyomino-sdkman]\u001b[0m Cleaning old SDK versions...")
+        println("  \u001b[33m[WARN]\u001b[0m Manual cleanup required for old versions. Directories to remove:")
+        println(s"    rm -rf $sdkmanDir/candidates/java/<old-version>")
+        println(s"    rm -rf $sdkmanDir/candidates/scala/<old-version>")
+        println(s"    rm -rf $sdkmanDir/candidates/sbt/<old-version>")
+        Right(())
+
+      case "install" =>
+        installSdkman(ctx)
+
+      case "help" | "--help" | "-h" =>
+        println(
+          """polyomino sdk — SDKMan JVM & Toolchain Manager
+            |
+            |Usage:
+            |  polyomino sdk <command> [args]
+            |
+            |Commands:
+            |  check                 Check SDKMan installation status
+            |  list | current        List currently installed SDK versions
+            |  upgrade               Upgrade SDKMan itself
+            |  available <tool>      Show available versions (java|scala|sbt|maven|gradle|kotlin|groovy)
+            |  update-java [ver]     Update Java (default: 21.0.1-graal)
+            |  update-scala [ver]    Update Scala (default: 3.5.2)
+            |  update-sbt [ver]      Update sbt (default: 1.9.9)
+            |  update-maven [ver]    Update Maven (default: 3.9.6)
+            |  update-gradle [ver]   Update Gradle (default: 8.5)
+            |  update-kotlin [ver]   Update Kotlin (default: 1.9.22)
+            |  update-groovy [ver]   Update Groovy (default: 4.0.17)
+            |  update-all            Update Java 21 GraalVM, Scala 3.5.2, and sbt 1.9.9
+            |  clean                 Show guidance for cleaning old candidate versions
+            |  install               Bootstrap SDKMan from scratch
+            |""".stripMargin
+        )
+        Right(())
+
+      case other =>
+        Left(CommandError(s"Unknown sdk command '$other'. Run 'polyomino sdk help' for usage.", 1))
+
   private def getBrewBin(ctx: Context): Option[os.Path] =
     val standardPaths = Seq(
       ctx.home / ".linuxbrew" / "bin" / "brew",

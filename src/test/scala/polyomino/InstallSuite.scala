@@ -162,3 +162,25 @@ class InstallSuite extends FunSuite:
       val res = ToolInstallers.runTool("full-install", ctx, List("--all", "--without-gaming", "--without-devops"))
       assert(res.isRight)
     }
+
+  test("ToolInstallers.runSdk handles help, check, and update commands in test mode"):
+    withIsolatedContext { ctx =>
+      assert(ToolInstallers.runSdk(ctx, List("help")).isRight)
+      assert(ToolInstallers.runSdk(ctx, List("check")).isLeft) // not initialized yet in isolated ctx
+      
+      // Simulate sdkman directory
+      val sdkmanDir = ctx.home / ".sdkman"
+      os.makeDir.all(sdkmanDir / "bin")
+      os.write(sdkmanDir / "bin" / "sdkman-init.sh", "#!/bin/bash\n")
+      
+      assert(ToolInstallers.runSdk(ctx, List("check")).isRight)
+      assert(ToolInstallers.runSdk(ctx, List("list")).isRight)
+      assert(ToolInstallers.runSdk(ctx, List("upgrade")).isRight)
+      assert(ToolInstallers.runSdk(ctx, List("available", "java")).isRight)
+      assert(ToolInstallers.runSdk(ctx, List("update-java", "21.0.1-graal")).isRight)
+      assert(ToolInstallers.runSdk(ctx, List("update-scala", "3.5.2")).isRight)
+      assert(ToolInstallers.runSdk(ctx, List("update-sbt", "1.9.9")).isRight)
+      assert(ToolInstallers.runSdk(ctx, List("update-all")).isRight)
+      assert(ToolInstallers.runSdk(ctx, List("clean")).isRight)
+      assert(ToolInstallers.runSdk(ctx, List("unknown-cmd")).isLeft)
+    }
