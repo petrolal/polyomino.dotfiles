@@ -12,7 +12,7 @@
     "margin-bottom": 0,
     "margin-left": 0,
     "margin-right": 0,
-    "modules-left": ["custom/polyomino", "sway/workspaces", "custom/media"],
+    "modules-left": ["custom/polyomino", "sway/workspaces", "custom/gamemode", "custom/media"],
     "modules-center": ["sway/window"],
     "modules-right": ["pulseaudio", "bluetooth", "network", "cpu", "memory", "battery", "custom/notification", "clock"],
     "clock": {
@@ -42,7 +42,7 @@
     "margin-bottom": 0,
     "margin-left": 0,
     "margin-right": 0,
-    "modules-left": ["custom/polyomino", "sway/workspaces", "custom/media"],
+    "modules-left": ["custom/polyomino", "sway/workspaces", "custom/gamemode", "custom/media"],
     "modules-center": ["sway/window"],
     "modules-right": ["pulseaudio", "bluetooth", "network", "cpu", "memory", "battery", "custom/notification", "clock"],
     "clock": {

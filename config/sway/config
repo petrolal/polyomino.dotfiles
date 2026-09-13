@@ -303,6 +303,12 @@ for_window [class="^lutris$"] move container to workspace number 4, workspace nu
 for_window [class="^gamescope$"] move container to workspace number 4, workspace number 4
 for_window [app_id="gamescope"] move container to workspace number 4, workspace number 4
 
+# Emulators (polyomino install-emulator suite + common third-party emulators)
+for_window [app_id="(?i)^(mesen|bsnes|sameboy|mgba-qt|mgba|mame|flycast|blastem|duckstation|simple64|retroarch|dolphin-emu|citra-qt|yuzu|ryujinx|cemu|ppsspp|pcsx2-qt|pcsx2|rpcs3)$"] move container to workspace number 4, workspace number 4
+for_window [class="(?i)^(mesen|bsnes|sameboy|mgba-qt|mgba|mame|flycast|blastem|duckstation|simple64|retroarch|dolphin-emu|citra-qt|yuzu|ryujinx|cemu|ppsspp|pcsx2-qt|pcsx2|rpcs3)$"] move container to workspace number 4, workspace number 4
+assign [app_id="(?i)^(mesen|bsnes|sameboy|mgba-qt|mgba|mame|flycast|blastem|duckstation|simple64|retroarch|dolphin-emu|citra-qt|yuzu|ryujinx|cemu|ppsspp|pcsx2-qt|pcsx2|rpcs3)$"] $ws4
+assign [class="(?i)^(mesen|bsnes|sameboy|mgba-qt|mgba|mame|flycast|blastem|duckstation|simple64|retroarch|dolphin-emu|citra-qt|yuzu|ryujinx|cemu|ppsspp|pcsx2-qt|pcsx2|rpcs3)$"] $ws4
+
 # 5: COMMS
 assign [app_id="kitty" title="aerc"] $ws5
 assign [app_id="thunderbird"] $ws5
