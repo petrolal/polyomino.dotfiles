@@ -4,11 +4,186 @@
 # Full setup is handled by: polyomino install
 set -euo pipefail
 
+# If running via pipe (e.g. curl ... | bash), reconnect stdin to terminal for interactive prompts
+if [ ! -t 0 ] && [ -e /dev/tty ]; then
+  exec < /dev/tty
+fi
+
 echo -e "\033[1;36m[polyomino bootstrap]\033[0m Starting polyomino.dotfiles installer..."
 echo ""
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BIN_DIR="$HOME/.local/bin"
+
+NON_INTERACTIVE=false
+ENABLE_ALL=false
+ENABLE_MINIMAL=false
+
+# Optional component flags (unset by default to allow prompting)
+ENABLE_TETRAVIM=""
+ENABLE_BROWSER=""
+ENABLE_TUI_TOOLS=""
+ENABLE_DEVOPS=""
+ENABLE_DEV_RUNTIMES=""
+ENABLE_DESKTOP_APPS=""
+ENABLE_GAMING=""
+
+for arg in "$@"; do
+  case "$arg" in
+    --all|-y|--yes)
+      ENABLE_ALL=true
+      NON_INTERACTIVE=true
+      ;;
+    --minimal|--no-optional)
+      ENABLE_MINIMAL=true
+      NON_INTERACTIVE=true
+      ;;
+    --non-interactive|-n)
+      NON_INTERACTIVE=true
+      ;;
+    --gaming|--with-gaming|-g)
+      ENABLE_GAMING=true
+      ;;
+    --without-gaming|--no-gaming)
+      ENABLE_GAMING=false
+      ;;
+    --tetravim|--with-tetravim|--neovim)
+      ENABLE_TETRAVIM=true
+      ;;
+    --without-tetravim|--no-tetravim|--no-neovim)
+      ENABLE_TETRAVIM=false
+      ;;
+    --browser|--with-browser)
+      ENABLE_BROWSER=true
+      ;;
+    --without-browser|--no-browser)
+      ENABLE_BROWSER=false
+      ;;
+    --tui|--with-tui|--tools|--with-tools)
+      ENABLE_TUI_TOOLS=true
+      ;;
+    --without-tui|--no-tui|--no-tools)
+      ENABLE_TUI_TOOLS=false
+      ;;
+    --devops|--with-devops|--docker)
+      ENABLE_DEVOPS=true
+      ;;
+    --without-devops|--no-devops|--no-docker)
+      ENABLE_DEVOPS=false
+      ;;
+    --dev-runtimes|--with-dev-runtimes|--node|--with-node)
+      ENABLE_DEV_RUNTIMES=true
+      ;;
+    --without-dev-runtimes|--no-dev-runtimes|--no-node)
+      ENABLE_DEV_RUNTIMES=false
+      ;;
+    --desktop-apps|--with-desktop-apps|--telegram|--with-telegram)
+      ENABLE_DESKTOP_APPS=true
+      ;;
+    --without-desktop-apps|--no-desktop-apps|--no-telegram)
+      ENABLE_DESKTOP_APPS=false
+      ;;
+  esac
+done
+
+prompt_optional_dependencies() {
+  if [ "$ENABLE_ALL" = true ]; then
+    ENABLE_TETRAVIM=true
+    ENABLE_BROWSER=true
+    ENABLE_TUI_TOOLS=true
+    ENABLE_DEVOPS=true
+    ENABLE_DEV_RUNTIMES=true
+    ENABLE_DESKTOP_APPS=true
+    ENABLE_GAMING=true
+    return
+  fi
+
+  if [ "$ENABLE_MINIMAL" = true ]; then
+    ENABLE_TETRAVIM="${ENABLE_TETRAVIM:-false}"
+    ENABLE_BROWSER="${ENABLE_BROWSER:-false}"
+    ENABLE_TUI_TOOLS="${ENABLE_TUI_TOOLS:-false}"
+    ENABLE_DEVOPS="${ENABLE_DEVOPS:-false}"
+    ENABLE_DEV_RUNTIMES="${ENABLE_DEV_RUNTIMES:-false}"
+    ENABLE_DESKTOP_APPS="${ENABLE_DESKTOP_APPS:-false}"
+    ENABLE_GAMING="${ENABLE_GAMING:-false}"
+    return
+  fi
+
+  echo -e "  \033[1;36m[polyomino]\033[0m Configuring non-obligatory dependency installations:"
+  echo ""
+
+  # 1. Neovim & Tetravim
+  if [ -z "$ENABLE_TETRAVIM" ]; then
+    if [ "$NON_INTERACTIVE" = true ]; then
+      ENABLE_TETRAVIM=true
+    else
+      read -r -p "  Install Neovim & Tetravim distribution? [Y/n] " choice || choice=""
+      if [[ -z "$choice" || "$choice" =~ ^[Yy]$ ]]; then ENABLE_TETRAVIM=true; else ENABLE_TETRAVIM=false; fi
+    fi
+  fi
+
+  # 2. Web Browser
+  if [ -z "$ENABLE_BROWSER" ]; then
+    if [ "$NON_INTERACTIVE" = true ]; then
+      ENABLE_BROWSER=true
+    else
+      read -r -p "  Install Web Browser (Chromium / Firefox)? [Y/n] " choice || choice=""
+      if [[ -z "$choice" || "$choice" =~ ^[Yy]$ ]]; then ENABLE_BROWSER=true; else ENABLE_BROWSER=false; fi
+    fi
+  fi
+
+  # 3. TUI Productivity Tools
+  if [ -z "$ENABLE_TUI_TOOLS" ]; then
+    if [ "$NON_INTERACTIVE" = true ]; then
+      ENABLE_TUI_TOOLS=true
+    else
+      read -r -p "  Install TUI tools (spotify_player, bluetui, impala, aerc, zoxide, fastfetch)? [Y/n] " choice || choice=""
+      if [[ -z "$choice" || "$choice" =~ ^[Yy]$ ]]; then ENABLE_TUI_TOOLS=true; else ENABLE_TUI_TOOLS=false; fi
+    fi
+  fi
+
+  # 4. DevOps & Cloud Tools
+  if [ -z "$ENABLE_DEVOPS" ]; then
+    if [ "$NON_INTERACTIVE" = true ]; then
+      ENABLE_DEVOPS=false
+    else
+      read -r -p "  Install DevOps tools (Docker, Terraform, Ansible, kubectl, Helm, cloud CLIs)? [y/N] " choice || choice=""
+      if [[ "$choice" =~ ^[Yy]$ ]]; then ENABLE_DEVOPS=true; else ENABLE_DEVOPS=false; fi
+    fi
+  fi
+
+  # 5. Developer Runtimes
+  if [ -z "$ENABLE_DEV_RUNTIMES" ]; then
+    if [ "$NON_INTERACTIVE" = true ]; then
+      ENABLE_DEV_RUNTIMES=false
+    else
+      read -r -p "  Install Developer runtimes (Node.js/npm via NVM, SDKMAN! & Kotlin)? [y/N] " choice || choice=""
+      if [[ "$choice" =~ ^[Yy]$ ]]; then ENABLE_DEV_RUNTIMES=true; else ENABLE_DEV_RUNTIMES=false; fi
+    fi
+  fi
+
+  # 6. Desktop Apps (Telegram)
+  if [ -z "$ENABLE_DESKTOP_APPS" ]; then
+    if [ "$NON_INTERACTIVE" = true ]; then
+      ENABLE_DESKTOP_APPS=false
+    else
+      read -r -p "  Install Telegram Desktop? [y/N] " choice || choice=""
+      if [[ "$choice" =~ ^[Yy]$ ]]; then ENABLE_DESKTOP_APPS=true; else ENABLE_DESKTOP_APPS=false; fi
+    fi
+  fi
+
+  # 7. Gaming Performance Stack
+  if [ -z "$ENABLE_GAMING" ]; then
+    if [ "$NON_INTERACTIVE" = true ]; then
+      ENABLE_GAMING=false
+    else
+      read -r -p "  Install gaming optimizations & tools (gamemode, gamescope, mangohud, steam)? [y/N] " choice || choice=""
+      if [[ "$choice" =~ ^[Yy]$ ]]; then ENABLE_GAMING=true; else ENABLE_GAMING=false; fi
+    fi
+  fi
+
+  echo ""
+}
 
 # Step 1: Detect package manager & install system dependencies
 detect_pkg_mgr() {
@@ -34,6 +209,9 @@ install_system_deps() {
   echo -e "  \033[1;36m[polyomino]\033[0m Installing system dependencies for $pkg_mgr..."
   echo -e "  \033[33m[INFO]\033[0m You may be prompted for your sudo password..."
 
+  # Optional packages to include
+  local opt_pkgs=""
+
   case "$pkg_mgr" in
     pacman)
       # Core system + desktop + dev tools + lockscreen & Wayland stack
@@ -44,47 +222,58 @@ install_system_deps() {
         fi
       fi
 
+      [ "$ENABLE_TETRAVIM" = true ] && opt_pkgs="$opt_pkgs neovim"
+      [ "$ENABLE_BROWSER" = true ] && opt_pkgs="$opt_pkgs chromium firefox"
+      [ "$ENABLE_TUI_TOOLS" = true ] && opt_pkgs="$opt_pkgs fastfetch cmatrix zoxide"
+      [ "$ENABLE_DEVOPS" = true ] && opt_pkgs="$opt_pkgs docker"
+      [ "$ENABLE_DESKTOP_APPS" = true ] && opt_pkgs="$opt_pkgs telegram-desktop"
+
       sudo pacman -S --needed --noconfirm \
         base-devel git curl wget \
-        zsh fontconfig fastfetch cmatrix zoxide \
+        zsh fontconfig \
         $SWAY_PKG waybar kitty wofi swaylock gtklock swayidle grim slurp \
         brightnessctl libpulse playerctl wireplumber swaync mako mpv \
         python-gobject python-cairo gtk3 gtk-layer-shell gtk-session-lock pam \
-        chromium firefox \
-        neovim \
-        docker \
-        ttf-jetbrains-mono-nerd
+        ttf-jetbrains-mono-nerd \
+        $opt_pkgs
       echo -e "  \033[32m[OK]\033[0m System packages installed"
       ;;
     apt-get)
       sudo apt-get update
       DOCKER_PKG=""
-      if ! command -v docker &> /dev/null; then
+      if [ "$ENABLE_DEVOPS" = true ] && ! command -v docker &> /dev/null; then
         DOCKER_PKG="docker.io"
       fi
 
+      [ "$ENABLE_TETRAVIM" = true ] && opt_pkgs="$opt_pkgs neovim"
+      [ "$ENABLE_BROWSER" = true ] && opt_pkgs="$opt_pkgs firefox chromium-browser"
+      [ "$ENABLE_TUI_TOOLS" = true ] && opt_pkgs="$opt_pkgs fastfetch cmatrix zoxide"
+
       sudo apt-get install -y \
         build-essential git curl wget \
-        zsh fontconfig fastfetch cmatrix zoxide \
+        zsh fontconfig \
         sway waybar kitty wofi swaylock swayidle grim slurp \
         brightnessctl playerctl wireplumber pulseaudio-utils sway-notification-center mako-notifier mpv \
         python3-gi python3-cairo gir1.2-gtk-3.0 gir1.2-gtklayershell-0.1 libpam0g-dev \
-        firefox chromium-browser \
-        neovim \
         fonts-jetbrains-mono \
-        $DOCKER_PKG
+        $DOCKER_PKG \
+        $opt_pkgs
       echo -e "  \033[32m[OK]\033[0m System packages installed"
       ;;
     dnf)
+      [ "$ENABLE_TETRAVIM" = true ] && opt_pkgs="$opt_pkgs neovim"
+      [ "$ENABLE_BROWSER" = true ] && opt_pkgs="$opt_pkgs firefox"
+      [ "$ENABLE_TUI_TOOLS" = true ] && opt_pkgs="$opt_pkgs fastfetch cmatrix zoxide"
+      [ "$ENABLE_DEVOPS" = true ] && opt_pkgs="$opt_pkgs docker"
+      [ "$ENABLE_DESKTOP_APPS" = true ] && opt_pkgs="$opt_pkgs telegram-desktop"
+
       sudo dnf install -y \
         gcc gcc-c++ git curl wget \
-        zsh fontconfig fastfetch cmatrix zoxide \
+        zsh fontconfig \
         sway waybar kitty wofi swaylock swayidle grim slurp \
         brightnessctl playerctl wireplumber pulseaudio-libs sway-notification-center mako mpv \
         python3-gobject python3-cairo gtk3 gtk-layer-shell pam-devel \
-        firefox \
-        neovim \
-        docker
+        $opt_pkgs
       echo -e "  \033[32m[OK]\033[0m System packages installed"
       ;;
     *)
@@ -414,39 +603,33 @@ PKG_MGR="$(detect_pkg_mgr)"
 echo -e "  \033[36m[INFO]\033[0m Package manager: $PKG_MGR"
 echo ""
 
-# Install system dependencies
+# Prompt or configure optional dependencies
+prompt_optional_dependencies
+
+# Install system dependencies (mandatory base + selected optional)
 install_system_deps "$PKG_MGR"
 echo ""
 
-# Install TUI tools (spotify_player, bluetui, zoxide)
-install_tools "$PKG_MGR"
-echo ""
+# Install TUI tools (spotify_player, bluetui, aerc, zoxide) if enabled
+if [ "$ENABLE_TUI_TOOLS" = true ]; then
+  install_tools "$PKG_MGR"
+  echo ""
+fi
 
-# Setup ~/Projects and Tetravim Neovim distribution
-setup_workspace_and_tetravim
-echo ""
+# Setup ~/Projects and Tetravim Neovim distribution if enabled
+if [ "$ENABLE_TETRAVIM" = true ]; then
+  setup_workspace_and_tetravim
+  echo ""
+fi
 
 # Install / Build SwayFX
 install_swayfx "$PKG_MGR"
 echo ""
 
-# Optional Gaming Stack
-INSTALL_GAMING=false
-for arg in "$@"; do
-  if [[ "$arg" == "--gaming" || "$arg" == "--with-gaming" || "$arg" == "-g" ]]; then
-    INSTALL_GAMING=true
-  fi
-done
-
-if [ "$INSTALL_GAMING" = true ]; then
+# Gaming Stack if enabled
+if [ "$ENABLE_GAMING" = true ]; then
   install_gaming "$PKG_MGR"
   echo ""
-elif [ -t 0 ]; then
-  read -r -p "  Install optional gaming optimizations & tools (gamemode, gamescope, mangohud)? [y/N] " game_choice || game_choice="n"
-  if [[ "$game_choice" =~ ^[Yy]$ ]]; then
-    install_gaming "$PKG_MGR"
-    echo ""
-  fi
 fi
 
 # Install Java

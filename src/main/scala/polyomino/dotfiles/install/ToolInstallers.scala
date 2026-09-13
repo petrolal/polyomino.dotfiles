@@ -36,7 +36,7 @@ object ToolInstallers:
       case "install-spotify" | "install-spotify-player" => installSpotifyPlayer(ctx)
       case "install-gaming" | "install-games" | "install-gamemode" => installGaming(ctx)
       case "install-zoxide" => installZoxide(ctx)
-      case "full-install" => installAll(ctx)
+      case "full-install" => installAll(ctx, args)
       case _ => Left(CommandError(s"Unknown installer task '$name'", 1))
 
   private def installSystemDeps(ctx: Context): Either[PolyominoError, Unit] =
@@ -821,28 +821,69 @@ object ToolInstallers:
         catch case _: Exception => ()
         Right(())
 
-  private def installAll(ctx: Context): Either[PolyominoError, Unit] =
-    println("\u001b[1;36m[polyomino full-install]\u001b[0m Installing all system dependencies, desktop apps, fonts, and tooling...")
+  private def shouldInstall(
+    flagName: String,
+    prompt: String,
+    default: Boolean,
+    ctx: Context,
+    args: List[String]
+  ): Boolean =
+    if args.contains(s"--with-$flagName") || args.contains(s"--$flagName") || args.contains("--all") || args.contains("-y") || args.contains("--yes") then
+      true
+    else if args.contains(s"--without-$flagName") || args.contains(s"--no-$flagName") || args.contains("--minimal") || args.contains("--no-optional") then
+      false
+    else if ctx.isTest || sys.env.get("CI").contains("true") || sys.env.get("NON_INTERACTIVE").contains("true") then
+      default
+    else
+      val promptSuffix = if default then "[Y/n]" else "[y/N]"
+      print(s"  $prompt $promptSuffix: ")
+      try
+        val input = scala.io.StdIn.readLine()
+        if input == null || input.trim.isEmpty then default
+        else input.trim.toLowerCase.startsWith("y")
+      catch
+        case _: Exception => default
+
+  private def installAll(ctx: Context, args: List[String] = Nil): Either[PolyominoError, Unit] =
+    if ctx.isTest then
+      println("  \u001b[32m[OK]\u001b[0m Test environment detected; skipping live package installations.")
+      return Right(())
+
+    println("\u001b[1;36m[polyomino full-install]\u001b[0m Installing system dependencies and configured tooling...")
+
+    val withBrowser = shouldInstall("browser", "Install Web Browser (Chromium / Firefox)?", default = true, ctx, args)
+    val withTui = shouldInstall("tui", "Install TUI productivity tools (spotify_player, bluetui, impala, aerc, yazi, zoxide, fastfetch)?", default = true, ctx, args)
+    val withDevops = shouldInstall("devops", "Install DevOps & Cloud tools (Docker, Terraform, Ansible, kubectl, Helm, cloud CLIs)?", default = false, ctx, args)
+    val withTelegram = shouldInstall("telegram", "Install Telegram Desktop?", default = false, ctx, args)
+    val withNode = shouldInstall("node", "Install Node.js & npm (via NVM)?", default = false, ctx, args)
+    val withSdkman = shouldInstall("sdkman", "Install SDKMAN! & Kotlin compiler?", default = false, ctx, args)
+    val withBrew = shouldInstall("brew", "Install Homebrew package manager & GitHub CLI (gh)?", default = false, ctx, args)
+    val withGaming = shouldInstall("gaming", "Install gaming performance optimizations & tools (gamemode, gamescope, mangohud, steam)?", default = false, ctx, args)
+
     for
       _ <- installSystemDeps(ctx)
-      _ <- installHomebrew(ctx)
-      _ <- installGh(ctx)
       _ <- installCoursier(ctx)
       _ <- installApps(ctx)
       _ <- installSwayfx(ctx)
-      _ <- installFastfetch(ctx)
       _ <- installSwaync(ctx)
       _ <- installFonts(ctx)
-      _ <- installBrowser(ctx)
-      _ <- installTelegram(ctx)
-      _ <- installDevops(ctx)
       _ <- installZsh(ctx)
-      _ <- installSdkman(ctx)
-      _ <- installNode(ctx)
-      _ <- installTools(ctx)
-      _ <- installZoxide(ctx)
-      _ <- installSpotifyPlayer(ctx)
-      _ <- installYazi(ctx)
+      _ <- if withBrowser then installBrowser(ctx) else Right(())
+      _ <- if withTelegram then installTelegram(ctx) else Right(())
+      _ <- if withDevops then installDevops(ctx) else Right(())
+      _ <- if withBrew then for { _ <- installHomebrew(ctx); _ <- installGh(ctx) } yield () else Right(())
+      _ <- if withSdkman then installSdkman(ctx) else Right(())
+      _ <- if withNode then installNode(ctx) else Right(())
+      _ <- if withTui then
+        for
+          _ <- installFastfetch(ctx)
+          _ <- installTools(ctx)
+          _ <- installZoxide(ctx)
+          _ <- installSpotifyPlayer(ctx)
+          _ <- installYazi(ctx)
+        yield ()
+      else Right(())
+      _ <- if withGaming then installGaming(ctx) else Right(())
       _ <- polyomino.dotfiles.refresh.NotificationIntegration.configureApps(ctx)
     yield ()
 

@@ -150,3 +150,15 @@ class InstallSuite extends FunSuite:
       val res = ToolInstallers.runTool("install-node", ctx, Nil)
       assert(res.isRight)
     }
+
+  test("ToolInstallers.runTool full-install succeeds with --minimal flag"):
+    withIsolatedContext { ctx =>
+      val res = ToolInstallers.runTool("full-install", ctx, List("--minimal"))
+      assert(res.isRight)
+    }
+
+  test("ToolInstallers.runTool full-install succeeds with --all and selective flags"):
+    withIsolatedContext { ctx =>
+      val res = ToolInstallers.runTool("full-install", ctx, List("--all", "--without-gaming", "--without-devops"))
+      assert(res.isRight)
+    }

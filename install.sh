@@ -5,6 +5,11 @@
 #   curl -fsSL https://raw.githubusercontent.com/petrolal/polyomino.dotfiles/master/install.sh | bash -s -- --gaming
 set -euo pipefail
 
+# If running via pipe (e.g. curl ... | bash), reconnect stdin to terminal for interactive prompts
+if [ ! -t 0 ] && [ -e /dev/tty ]; then
+  exec < /dev/tty
+fi
+
 # Visual branding
 BOLD="\033[1m"
 CYAN="\033[1;36m"
