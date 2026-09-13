@@ -15,7 +15,7 @@ set $up k
 set $right l
 
 set $term kitty
-set $launcher fuzzel || wofi --show drun --allow-images --conf ~/.config/wofi/config --style ~/.config/wofi/style.css
+set $launcher rofi -show drun -theme ~/.config/rofi/theme.rasi || wofi --show drun --allow-images --conf ~/.config/wofi/config --style ~/.config/wofi/style.css || fuzzel
 set $lock ~/.config/sway/scripts/polyomino-rubik-lock
 set $send-notify exec notify-send -a polyomino
 

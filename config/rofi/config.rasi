@@ -4,6 +4,9 @@ configuration {
     show-icons: true;
     icon-theme: "Papirus";
     terminal: "kitty";
-    drun-display-format: "⊞ {name}";
+    drun-display-format: "{name}";
+    display-drun: "[ ⊞ ] APPS";
+    display-run: "[ ⊞ ] RUN";
+    display-window: "[ ⊞ ] WINDOWS";
 }
 @theme "/home/petrolal/.config/rofi/theme.rasi"

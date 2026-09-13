@@ -58,6 +58,7 @@ class ThemeSuite extends FunSuite {
       assert(os.exists(ctx.configDir / "wofi" / "theme.css"))
       assert(os.exists(ctx.configDir / "wofi" / "style.css"))
       assert(os.exists(ctx.configDir / "rofi" / "theme.rasi"))
+      assert(os.exists(ctx.configDir / "rofi" / "whichkey.rasi"))
       assert(os.exists(ctx.configDir / "swaync" / "style.css"))
     }
   }

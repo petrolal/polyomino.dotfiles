@@ -245,9 +245,9 @@ object WofiPickers:
       case e: Exception => Left(CommandError(s"Menu failed: ${e.getMessage}"))
 
   def runWhichkey(ctx: Context, args: List[String]): Either[PolyominoError, Unit] =
-    // Toggle behavior: check if whichkey tile menu is already running
+    // Toggle behavior: check if whichkey is already running
     try
-      val checkRes = os.proc("pgrep", "-f", "polyomino-tilemenu.*which-key").call(check = false)
+      val checkRes = os.proc("pgrep", "-f", "(rofi.*whichkey|wofi.*which-key|polyomino-tilemenu.*which-key)").call(check = false)
       if checkRes.exitCode == 0 then
         val pids = checkRes.out.text().trim.split("\\s+").filter(_.nonEmpty)
         for pid <- pids do
@@ -256,22 +256,65 @@ object WofiPickers:
     catch
       case _: Exception => ()
 
-    println("[1;35m[polyomino whichkey][0m Displaying Sway keybindings cheatsheet...")
+    println(" [1;35m[polyomino whichkey] [0m Displaying Sway keybindings cheatsheet...")
     val keybindingsList = resolveSwayKeybindings(ctx)
     val entries = if keybindingsList.nonEmpty then keybindingsList else defaultKeybindings
 
-    val tiles = entries.zipWithIndex.map { case (line, idx) =>
-      val parts = line.split("→", 2)
-      val key = parts.headOption.getOrElse(line).trim
-      val action = if parts.length > 1 then parts(1).trim else ""
-      tile(idx.toString, "", action, "", "accent", badge = Some(key))
-    }
+    val rofiWhichKeyTheme = ctx.configDir / "rofi" / "whichkey.rasi"
+    val rofiFallbackTheme = ctx.dotfilesDir / "config" / "rofi" / "whichkey.rasi"
+    val wofiConfigFile = ctx.configDir / "wofi" / "config-whichkey"
+    val wofiStyleFile = ctx.configDir / "wofi" / "style.css"
 
-    try
-      tilePick(ctx, "[ ⊞ ] which-key", tiles, columns = 2, width = 820, height = 720, info = true)
-      Right(())
-    catch
-      case e: Exception => Left(CommandError(s"Whichkey failed: ${e.getMessage}"))
+    val hasRofi = os.proc("sh", "-c", "command -v rofi").call(check = false).exitCode == 0
+    val hasWofi = os.proc("sh", "-c", "command -v wofi").call(check = false).exitCode == 0
+
+    if hasRofi then
+      val rofiLines = entries.map { line =>
+        val parts = line.split("→", 2)
+        val key = parts.headOption.getOrElse(line).trim
+        val rawAction = if parts.length > 1 then parts(1).trim else ""
+        val actionColWidth = 34
+        val displayAction = if rawAction.length > actionColWidth then rawAction.take(actionColWidth - 1) + "…" else rawAction.padTo(actionColWidth, ' ')
+        s"<span foreground='#F0F6FC'>$displayAction</span>  <span background='rgba(139, 92, 246, 0.2)' foreground='#c084fc' weight='bold'>  $key  </span>"
+      }.mkString("\n")
+
+      val themePath = if os.exists(rofiWhichKeyTheme) then rofiWhichKeyTheme else rofiFallbackTheme
+      val cmd: Seq[os.Shellable] = Seq("rofi", "-dmenu", "-i", "-markup-rows", "-p", "[ ⊞ ] WHICH-KEY", "-theme", themePath.toString).map(s => (s: os.Shellable))
+      try
+        os.proc(cmd*).call(stdin = rofiLines, check = false)
+        Right(())
+      catch
+        case e: Exception => Left(CommandError(s"Whichkey rofi failed: ${e.getMessage}"))
+    else if hasWofi then
+      val wofiLines = entries.map { line =>
+        val parts = line.split("→", 2)
+        val key = parts.headOption.getOrElse(line).trim
+        val rawAction = if parts.length > 1 then parts(1).trim else ""
+        val actionColWidth = 34
+        val displayAction = if rawAction.length > actionColWidth then rawAction.take(actionColWidth - 1) + "…" else rawAction.padTo(actionColWidth, ' ')
+        s"<span foreground='#F0F6FC'>$displayAction</span>  <span background='rgba(139, 92, 246, 0.2)' foreground='#c084fc' weight='bold'>  $key  </span>"
+      }.mkString("\n")
+
+      val confArgs = if os.exists(wofiConfigFile) then Seq("--conf", wofiConfigFile.toString) else Seq("--columns", "2", "--lines", "10", "--width", "960")
+      val styleArgs = if os.exists(wofiStyleFile) then Seq("--style", wofiStyleFile.toString) else Seq.empty
+      val cmd: Seq[os.Shellable] = (Seq("wofi", "--show", "dmenu", "--prompt", "[ ⊞ ] WHICH-KEY", "--allow-markup", "--insensitive") ++ confArgs ++ styleArgs).map(s => (s: os.Shellable))
+      try
+        os.proc(cmd*).call(stdin = wofiLines, check = false)
+        Right(())
+      catch
+        case e: Exception => Left(CommandError(s"Whichkey wofi failed: ${e.getMessage}"))
+    else
+      val tiles = entries.zipWithIndex.map { case (line, idx) =>
+        val parts = line.split("→", 2)
+        val key = parts.headOption.getOrElse(line).trim
+        val action = if parts.length > 1 then parts(1).trim else ""
+        tile(idx.toString, "", action, "", "accent", badge = Some(key))
+      }
+      try
+        tilePick(ctx, "[ ⊞ ] which-key", tiles, columns = 2, width = 820, height = 720, info = true)
+        Right(())
+      catch
+        case e: Exception => Left(CommandError(s"Whichkey failed: ${e.getMessage}"))
 
   private def resolveSwayKeybindings(ctx: Context): Seq[String] =
     try

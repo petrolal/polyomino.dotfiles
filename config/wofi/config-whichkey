@@ -1,12 +1,12 @@
-### ~/.config/wofi/config
-### Polyomino 3-column horizontal card grid launcher
+### ~/.config/wofi/config-whichkey
+### Polyomino which-key 2-column horizontal card grid
 
 width=960
-height=480
+height=520
 location=center
-show=drun
-prompt=[ ⊞ ] SEARCH APPS...
-columns=3
+show=dmenu
+prompt=[ ⊞ ] WHICH-KEY
+columns=2
 filter_rate=100
 allow_markup=true
 no_actions=true
@@ -14,7 +14,6 @@ halign=fill
 orientation=vertical
 content_halign=fill
 insensitive=true
-allow_images=true
-image_size=24
+allow_images=false
 line_wrap=word
 gtk_dark=true

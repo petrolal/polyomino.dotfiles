@@ -1,9 +1,6 @@
-/* ~/.config/wofi/style.css.tmpl — template for scripts/theme.sh
- * Rendered directly into style.css (not @import, since wofi's GTK CSS
- * provider resolves @import relative to its process CWD, not this file's
- * location — an absolute path would work but would hardcode $HOME into a
- * git-tracked file, so full rendering is more portable).
- * Placeholders (@@NAME@@) are substituted with hex colors by theme.sh.
+/* ~/.config/wofi/style.css.tmpl — template for ThemeEngine
+ * Rendered directly into style.css.
+ * Placeholders (@@NAME@@) are substituted with hex colors by ThemeEngine.
  */
 
 * {
@@ -11,21 +8,22 @@
 }
 
 window {
-    background-color: #191C24;
+    background-color: @@BASE@@;
     color: @@TEXT@@;
-    border: 2px solid @@ACCENT@@;
-    border-radius: 0px;
+    border: 1px solid rgba(139, 92, 246, 0.4);
+    border-radius: 8px;
     font-family: "JetBrainsMono Nerd Font", monospace;
-    font-size: 13px;
+    font-size: 12px;
+    padding: 12px;
 }
 
 #input {
-    background-color: #0F1117;
+    background-color: @@MANTLE@@;
     color: @@TEXT@@;
-    border: 2px solid @@ACCENT@@;
-    border-radius: 0px;
-    padding: 10px 14px;
-    margin: 10px;
+    border: 1px solid rgba(139, 92, 246, 0.4);
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin: 4px 6px 12px 6px;
     outline: none;
     box-shadow: none;
     caret-color: @@ACCENT@@;
@@ -35,15 +33,15 @@ window {
 }
 
 #input:focus {
-    background-color: #0F1117;
+    background-color: @@MANTLE@@;
     color: @@TEXT@@;
-    border: 2px solid @@ACCENT@@;
+    border: 1px solid @@ACCENT@@;
     outline: none;
     box-shadow: none;
 }
 
 #input placeholder {
-    color: @@ACCENT@@;
+    color: @@SUBTEXT0@@;
     font-family: "JetBrainsMono Nerd Font", monospace;
     font-size: 13px;
     opacity: 0.85;
@@ -58,7 +56,7 @@ window {
 
 #inner-box {
     background-color: transparent;
-    margin: 4px 6px;
+    margin: 4px;
 }
 
 #outer-box {
@@ -66,36 +64,36 @@ window {
 }
 
 #scroll {
-    margin: 4px;
+    margin: 2px;
 }
 
 #entry {
     padding: 10px 14px;
-    margin: 3px 6px;
-    border-radius: 0px;
-    background-color: #0F1117;
+    margin: 4px;
+    border-radius: 6px;
+    background-color: @@SURFACE0@@;
     color: @@TEXT@@;
-    border-left: 3px solid transparent;
+    border: 1px solid rgba(139, 92, 246, 0.4);
     min-height: 36px;
 }
 
 #entry:selected {
-    background-color: @@ACCENT@@;
-    color: #0F1117;
-    border-radius: 0px;
+    background-color: @@SURFACE1@@;
+    color: @@TEXT@@;
+    border-radius: 6px;
     outline: none;
-    border-left: 3px solid @@TEXT@@;
+    border: 1px solid @@ACCENT@@;
 }
 
 #entry:selected #text,
 #text:selected {
-    color: #0F1117;
+    color: @@TEXT@@;
     font-weight: bold;
 }
 
 #img,
 #entry image {
-    margin-right: 14px;
+    margin-right: 10px;
     margin-left: 2px;
     vertical-align: middle;
 }
@@ -103,16 +101,18 @@ window {
 #text {
     color: @@TEXT@@;
     font-family: "JetBrainsMono Nerd Font", monospace;
-    font-size: 13px;
+    font-size: 12px;
     margin: auto 0;
     padding: 2px 0;
 }
 
 #prompt {
-    color: @@ACCENT@@;
+    background-color: @@ACCENT@@;
+    color: @@BASE@@;
+    border-radius: 4px;
     font-family: "JetBrainsMono Nerd Font", monospace;
-    font-size: 13px;
+    font-size: 11px;
     font-weight: bold;
     margin-right: 8px;
-    padding: 0 4px;
+    padding: 4px 8px;
 }

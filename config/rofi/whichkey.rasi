@@ -20,7 +20,7 @@ window {
     border-color: @border-subtle;
     border-radius: 8px;
     padding: 16px;
-    width: 900px;
+    width: 960px;
 }
 mainbox {
     spacing: 12px;
@@ -47,7 +47,7 @@ prompt {
 }
 entry {
     enabled: true;
-    placeholder: "Search applications...";
+    placeholder: "Search shortcuts & actions...";
     placeholder-color: #8B949E;
     padding: 4px 8px;
     text-color: @fg;
@@ -55,8 +55,8 @@ entry {
 }
 listview {
     enabled: true;
-    columns: 3;
-    lines: 6;
+    columns: 2;
+    lines: 10;
     spacing: 8px;
     cycle: true;
     dynamic: true;
@@ -66,9 +66,9 @@ listview {
 }
 element {
     orientation: horizontal;
-    children: [ element-icon, element-text ];
-    spacing: 10px;
-    padding: 12px 14px;
+    children: [ element-text ];
+    spacing: 8px;
+    padding: 10px 14px;
     border-radius: 6px;
     background-color: @surface;
     border: 1px;
@@ -89,12 +89,10 @@ element selected.normal, element selected.active {
     border-color: @border-active;
     border-radius: 6px;
 }
-element-icon {
-    size: 24px;
-    vertical-align: 0.5;
-}
 element-text {
+    markup: true;
     text-color: inherit;
     vertical-align: 0.5;
     font: "JetBrainsMono Nerd Font 11";
+    expand: true;
 }
