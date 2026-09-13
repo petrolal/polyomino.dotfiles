@@ -1525,5 +1525,6 @@ object ThemeEngine:
          |""".stripMargin
     try
       os.makeDir.all(targetPath / os.up)
-      os.write.over(targetPath, content)
+      if !os.exists(targetPath) || os.read(targetPath) != content then
+        os.write.over(targetPath, content)
     catch case _: Exception => ()

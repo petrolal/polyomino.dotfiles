@@ -138,8 +138,9 @@ object GameModeEngine:
         val pid = os.read(pidFile(ctx)).trim
         if pid.nonEmpty then
           os.proc("kill", pid).call(check = false)
-        os.remove(pidFile(ctx))
       catch case _: Exception => ()
+      finally
+        try os.remove(pidFile(ctx)) catch case _: Exception => ()
 
     try os.proc("pkill", "-f", "systemd-inhibit --what=idle --who=polyomino-gamemode").call(check = false)
     catch case _: Exception => ()
