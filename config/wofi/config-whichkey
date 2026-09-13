@@ -1,11 +1,11 @@
 ### ~/.config/wofi/config-whichkey
-### Polyomino which-key 2-column horizontal card grid
+### Polyomino Bento Grid Which-Key — Replicates Welcome Center Architecture
 
-width=960
-height=520
+width=980
+height=560
 location=center
 show=dmenu
-prompt=[ ⊞ ] WHICH-KEY
+prompt=[ ⮽ ] POLYOMINO // WHICH-KEY  ·  SHORTCUTS
 columns=2
 filter_rate=100
 allow_markup=true

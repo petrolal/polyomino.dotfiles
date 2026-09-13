@@ -5,8 +5,16 @@ configuration {
     icon-theme: "Papirus";
     terminal: "kitty";
     drun-display-format: "{name}";
-    display-drun: "[ ⊞ ] APPS";
-    display-run: "[ ⊞ ] RUN";
-    display-window: "[ ⊞ ] WINDOWS";
+    display-drun: "[ ⮽ ] APPS";
+    display-run: "[ ⮽ ] RUN";
+    display-window: "[ ⮽ ] WINDOWS";
+
+    /* Vim-style keybindings & navigation */
+    kb-row-up: "Up,Control+k";
+    kb-row-down: "Down,Control+j";
+    kb-row-left: "Left,Control+h";
+    kb-row-right: "Right,Control+l";
+    kb-accept-entry: "Return,KP_Enter";
+    kb-cancel: "Escape,Control+bracketleft";
 }
-@theme "/home/petrolal/.config/rofi/theme.rasi"
+@theme "theme"

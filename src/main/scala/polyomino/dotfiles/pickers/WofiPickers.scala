@@ -273,13 +273,13 @@ object WofiPickers:
         val parts = line.split("→", 2)
         val key = parts.headOption.getOrElse(line).trim
         val rawAction = if parts.length > 1 then parts(1).trim else ""
-        val actionColWidth = 34
+        val actionColWidth = 30
         val displayAction = if rawAction.length > actionColWidth then rawAction.take(actionColWidth - 1) + "…" else rawAction.padTo(actionColWidth, ' ')
-        s"<span foreground='#F0F6FC'>$displayAction</span>  <span background='rgba(139, 92, 246, 0.2)' foreground='#c084fc' weight='bold'>  $key  </span>"
+        s"<span background='rgba(139, 92, 246, 0.15)' foreground='#a78bfa' weight='bold'> KEY </span> <span background='rgba(139, 92, 246, 0.22)' foreground='#c084fc' weight='bold'> $key </span> <b>$displayAction</b> <span foreground='rgba(139, 92, 246, 0.6)'>Execute →</span>"
       }.mkString("\n")
 
       val themePath = if os.exists(rofiWhichKeyTheme) then rofiWhichKeyTheme else rofiFallbackTheme
-      val cmd: Seq[os.Shellable] = Seq("rofi", "-dmenu", "-i", "-markup-rows", "-p", "[ ⊞ ] WHICH-KEY", "-theme", themePath.toString).map(s => (s: os.Shellable))
+      val cmd: Seq[os.Shellable] = Seq("rofi", "-dmenu", "-i", "-markup-rows", "-p", "❯", "-theme", themePath.toString).map(s => (s: os.Shellable))
       try
         os.proc(cmd*).call(stdin = rofiLines, check = false)
         Right(())
@@ -290,14 +290,14 @@ object WofiPickers:
         val parts = line.split("→", 2)
         val key = parts.headOption.getOrElse(line).trim
         val rawAction = if parts.length > 1 then parts(1).trim else ""
-        val actionColWidth = 34
+        val actionColWidth = 30
         val displayAction = if rawAction.length > actionColWidth then rawAction.take(actionColWidth - 1) + "…" else rawAction.padTo(actionColWidth, ' ')
-        s"<span foreground='#F0F6FC'>$displayAction</span>  <span background='rgba(139, 92, 246, 0.2)' foreground='#c084fc' weight='bold'>  $key  </span>"
+        s"<span background='rgba(139, 92, 246, 0.15)' foreground='#a78bfa' weight='bold'> KEY </span> <span background='rgba(139, 92, 246, 0.22)' foreground='#c084fc' weight='bold'> $key </span> <b>$displayAction</b> <span foreground='rgba(139, 92, 246, 0.6)'>Execute →</span>"
       }.mkString("\n")
 
-      val confArgs = if os.exists(wofiConfigFile) then Seq("--conf", wofiConfigFile.toString) else Seq("--columns", "2", "--lines", "10", "--width", "960")
+      val confArgs = if os.exists(wofiConfigFile) then Seq("--conf", wofiConfigFile.toString) else Seq("--columns", "2", "--lines", "10", "--width", "980")
       val styleArgs = if os.exists(wofiStyleFile) then Seq("--style", wofiStyleFile.toString) else Seq.empty
-      val cmd: Seq[os.Shellable] = (Seq("wofi", "--show", "dmenu", "--prompt", "[ ⊞ ] WHICH-KEY", "--allow-markup", "--insensitive") ++ confArgs ++ styleArgs).map(s => (s: os.Shellable))
+      val cmd: Seq[os.Shellable] = (Seq("wofi", "--show", "dmenu", "--prompt", "[ ⮽ ] POLYOMINO // WHICH-KEY", "--allow-markup", "--insensitive") ++ confArgs ++ styleArgs).map(s => (s: os.Shellable))
       try
         os.proc(cmd*).call(stdin = wofiLines, check = false)
         Right(())

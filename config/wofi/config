@@ -1,11 +1,11 @@
 ### ~/.config/wofi/config
-### Polyomino 3-column horizontal card grid launcher
+### Polyomino Bento Grid App Launcher — Replicates Welcome Center Architecture
 
-width=960
-height=480
+width=980
+height=520
 location=center
 show=drun
-prompt=[ ⊞ ] SEARCH APPS...
+prompt=[ ⮽ ] POLYOMINO // APP LAUNCHER  ·  DRAWER
 columns=3
 filter_rate=100
 allow_markup=true
@@ -15,6 +15,6 @@ orientation=vertical
 content_halign=fill
 insensitive=true
 allow_images=true
-image_size=24
+image_size=28
 line_wrap=word
 gtk_dark=true
