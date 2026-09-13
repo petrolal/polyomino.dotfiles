@@ -49,14 +49,6 @@ class MainSuite extends FunSuite:
     val code = dispatch(Array("healthcheck"))
     assert(code == 0 || code == 1)
 
-  test("Main.dispatch routes screensaver command"):
-    val code = dispatch(Array("screensaver"))
-    assertEquals(code, 0)
-
-  test("Main.dispatch routes matrix command"):
-    val code = dispatch(Array("matrix"))
-    assertEquals(code, 0)
-
   test("Main.dispatch routes uninstall command"):
     val code = dispatch(Array("uninstall"))
     assertEquals(code, 0)

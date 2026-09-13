@@ -30,7 +30,19 @@ polyomino theme "${theme}"
 
 # Reload Waybar (SIGUSR2 forces a reload)
 if command -v killall >/dev/null 2>&1; then
-  killall -SIGUSR2 waybar || true
+  killall -SIGUSR2 waybar 2>/dev/null || true
+  killall -SIGUSR1 kitty 2>/dev/null || true
+fi
+
+# Reload SwayNC
+if command -v swaync-client >/dev/null 2>&1; then
+  swaync-client -rs >/dev/null 2>&1 || true
+  swaync-client -R >/dev/null 2>&1 || true
+fi
+
+# Reload Mako
+if command -v makoctl >/dev/null 2>&1; then
+  makoctl reload >/dev/null 2>&1 || true
 fi
 
 # Reload Sway configuration

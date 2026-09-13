@@ -62,32 +62,14 @@ object SysUtils:
       else
         "swaylock -f -c 1e1e2e"
 
-      val screensaverScript = ctx.dotfilesDir / "config" / "sway" / "scripts" / "sway-screensaver.sh"
-      val localScreensaver = ctx.home / ".local" / "bin" / "sway-screensaver"
-      val screensaverStartCmd = if os.exists(localScreensaver) then
-        s"$localScreensaver start"
-      else if os.exists(screensaverScript) then
-        s"$screensaverScript start"
-      else
-        "sway-screensaver start"
-
-      val screensaverStopCmd = if os.exists(localScreensaver) then
-        s"$localScreensaver stop"
-      else if os.exists(screensaverScript) then
-        s"$screensaverScript stop"
-      else
-        "sway-screensaver stop"
-
       try
         os.proc(
           "swayidle", "-w",
-          "timeout", "300", screensaverStartCmd,
-          "resume", screensaverStopCmd,
           "timeout", "600", lockCmd,
           "timeout", "900", "swaymsg 'output * dpms off'",
           "resume", "swaymsg 'output * dpms on'",
           "timeout", "1200", "systemctl suspend",
-          "before-sleep", s"$screensaverStopCmd; $lockCmd"
+          "before-sleep", lockCmd
         ).spawn(stdout = os.Inherit, stderr = os.Inherit)
         Right(())
       catch
@@ -235,45 +217,6 @@ object SysUtils:
           case e: Exception => Left(CommandError(s"Draw window failed: ${e.getMessage}"))
     else
       Left(CommandError(s"Script not found at $scriptToRun"))
-
-  def runScreensaver(ctx: Context, args: List[String] = Nil): Either[PolyominoError, Unit] =
-    val script = ctx.dotfilesDir / "config" / "sway" / "scripts" / "sway-screensaver.sh"
-    val localScript = ctx.home / ".local" / "bin" / "sway-screensaver"
-    val pyScript = ctx.dotfilesDir / "config" / "sway" / "scripts" / "screensaver.py"
-    val scriptToRun = if os.exists(script) then script
-      else if os.exists(localScript) then localScript
-      else if os.exists(pyScript) then pyScript
-      else ctx.configDir / "sway" / "scripts" / "sway-screensaver.sh"
-
-    if os.exists(scriptToRun) then
-      if ctx.isTest then Right(())
-      else
-        try
-          val fullCmd: Seq[os.Shellable] = if scriptToRun.ext == "py" then
-            Seq("python3": os.Shellable, scriptToRun.toString: os.Shellable) ++ args.map(a => (a: os.Shellable))
-          else
-            Seq("bash": os.Shellable, scriptToRun.toString: os.Shellable) ++ args.map(a => (a: os.Shellable))
-          os.proc(fullCmd*).call(stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit)
-          Right(())
-        catch
-          case e: Exception => Left(CommandError(s"Screensaver failed: ${e.getMessage}"))
-    else
-      Left(CommandError(s"Screensaver script not found at $scriptToRun"))
-
-  def runMatrix(ctx: Context, args: List[String] = Nil): Either[PolyominoError, Unit] =
-    val script = ctx.dotfilesDir / "config" / "sway" / "scripts" / "matrix.sh"
-    val scriptToRun = if os.exists(script) then script else ctx.configDir / "sway" / "scripts" / "matrix.sh"
-    if os.exists(scriptToRun) then
-      if ctx.isTest then Right(())
-      else
-        try
-          val fullCmd: Seq[os.Shellable] = Seq("bash": os.Shellable, scriptToRun.toString: os.Shellable) ++ args.map(a => (a: os.Shellable))
-          os.proc(fullCmd*).call(stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit)
-          Right(())
-        catch
-          case e: Exception => Left(CommandError(s"Matrix screen failed: ${e.getMessage}"))
-    else
-      Left(CommandError(s"Matrix script not found at $scriptToRun"))
 
   def runWelcome(ctx: Context, args: List[String] = Nil): Either[PolyominoError, Unit] =
     val script = ctx.dotfilesDir / "config" / "sway" / "scripts" / "polyomino-welcome.py"

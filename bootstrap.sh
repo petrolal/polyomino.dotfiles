@@ -224,7 +224,7 @@ install_system_deps() {
 
       [ "$ENABLE_TETRAVIM" = true ] && opt_pkgs="$opt_pkgs neovim"
       [ "$ENABLE_BROWSER" = true ] && opt_pkgs="$opt_pkgs chromium firefox"
-      [ "$ENABLE_TUI_TOOLS" = true ] && opt_pkgs="$opt_pkgs fastfetch cmatrix zoxide"
+      [ "$ENABLE_TUI_TOOLS" = true ] && opt_pkgs="$opt_pkgs fastfetch zoxide"
       [ "$ENABLE_DEVOPS" = true ] && opt_pkgs="$opt_pkgs docker"
       [ "$ENABLE_DESKTOP_APPS" = true ] && opt_pkgs="$opt_pkgs telegram-desktop"
 
@@ -247,7 +247,7 @@ install_system_deps() {
 
       [ "$ENABLE_TETRAVIM" = true ] && opt_pkgs="$opt_pkgs neovim"
       [ "$ENABLE_BROWSER" = true ] && opt_pkgs="$opt_pkgs firefox chromium-browser"
-      [ "$ENABLE_TUI_TOOLS" = true ] && opt_pkgs="$opt_pkgs fastfetch cmatrix zoxide"
+      [ "$ENABLE_TUI_TOOLS" = true ] && opt_pkgs="$opt_pkgs fastfetch zoxide"
 
       sudo apt-get install -y \
         build-essential git curl wget \
@@ -263,7 +263,7 @@ install_system_deps() {
     dnf)
       [ "$ENABLE_TETRAVIM" = true ] && opt_pkgs="$opt_pkgs neovim"
       [ "$ENABLE_BROWSER" = true ] && opt_pkgs="$opt_pkgs firefox"
-      [ "$ENABLE_TUI_TOOLS" = true ] && opt_pkgs="$opt_pkgs fastfetch cmatrix zoxide"
+      [ "$ENABLE_TUI_TOOLS" = true ] && opt_pkgs="$opt_pkgs fastfetch zoxide"
       [ "$ENABLE_DEVOPS" = true ] && opt_pkgs="$opt_pkgs docker"
       [ "$ENABLE_DESKTOP_APPS" = true ] && opt_pkgs="$opt_pkgs telegram-desktop"
 

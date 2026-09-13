@@ -94,9 +94,6 @@ for_window [app_id="gamescope"] fullscreen enable, floating enable
 for_window [class="^heroic$"] floating enable
 for_window [class="^lutris$"] floating enable
 
-# Screensaver Window Rules
-for_window [app_id="screensaver"] fullscreen enable
-for_window [class="screensaver"] fullscreen enable
 for_window [app_id="mpv"] fullscreen enable
 
 # Tetris-themed power / exit modal (polyomino power-menu)
@@ -110,14 +107,12 @@ exec nm-applet --indicator
 # 1Password — starts minimized to tray
 exec 1password --silent
 
-# Idle management (screensaver -> lock -> screen off -> suspend)
+# Idle management (lock -> screen off -> suspend)
 exec swayidle -w \
-    timeout 300 '~/.local/bin/sway-screensaver start' \
-    resume '~/.local/bin/sway-screensaver stop' \
     timeout 600 '~/.local/bin/polyomino-rubik-lock' \
     timeout 900 'swaymsg "output * power off"' \
     resume 'swaymsg "output * power on"' \
-    before-sleep '~/.local/bin/sway-screensaver stop; ~/.local/bin/polyomino-rubik-lock'
+    before-sleep '~/.local/bin/polyomino-rubik-lock'
 
 # Fibonacci spiral autotiling daemon
 exec_always autotiling || sh -c 'pkill -f "^$HOME/.local/bin/polyomino-autotiling"; ~/.local/bin/polyomino-autotiling'

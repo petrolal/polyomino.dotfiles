@@ -71,8 +71,6 @@ object Main:
       case "update" => polyomino.dotfiles.maintenance.Maintenance.runUpdate(ctx, args)
       case "install" | "deploy" => polyomino.dotfiles.install.DeployInstaller.run(ctx, args)
       case "uninstall" => polyomino.dotfiles.install.DeployInstaller.uninstall(ctx, args)
-      case "screensaver" | "sway-screensaver" => polyomino.dotfiles.sysutils.SysUtils.runScreensaver(ctx, args)
-      case "matrix" => polyomino.dotfiles.sysutils.SysUtils.runMatrix(ctx, args)
       case "gamemode" => polyomino.dotfiles.gamemode.GameModeEngine.run(ctx, args)
       case "welcome" | "hello" => polyomino.dotfiles.sysutils.SysUtils.runWelcome(ctx, args)
       case name if name.startsWith("install-") => polyomino.dotfiles.install.ToolInstallers.runTool(name, ctx, args)
@@ -91,8 +89,6 @@ object Main:
       |  uninstall        clean up symlinks and restore original configurations
       |  welcome          launch the Polyomino Welcome Center GUI
       |  gamemode         toggle gaming performance optimizations (status|toggle|on|off|--waybar)
-      |  screensaver      launch the kinetic terminal screensaver
-      |  matrix           terminal matrix / screensaver animation
       |  theme            select a desktop flavor + background mode and apply it live
       |  wallpaper        swap the wallpaper within the active flavor (next|prev|random|list|<name>)
       |  runtime-refresh  refresh running apps (sway/waybar/kitty/wofi/neovim/os)
