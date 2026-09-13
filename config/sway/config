@@ -296,6 +296,12 @@ assign [class="^heroic$"] $ws4
 assign [class="^lutris$"] $ws4
 assign [app_id="gamescope"] $ws4
 assign [class="^gamescope$"] $ws4
+for_window [class="(?i)^steam$"] move to workspace $ws4, workspace $ws4
+for_window [app_id="(?i)^steam$"] move to workspace $ws4, workspace $ws4
+for_window [class="^heroic$"] move to workspace $ws4, workspace $ws4
+for_window [class="^lutris$"] move to workspace $ws4, workspace $ws4
+for_window [class="^gamescope$"] move to workspace $ws4, workspace $ws4
+for_window [app_id="gamescope"] move to workspace $ws4, workspace $ws4
 
 # 5: COMMS
 assign [app_id="kitty" title="aerc"] $ws5
