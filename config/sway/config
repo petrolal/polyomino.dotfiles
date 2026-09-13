@@ -403,11 +403,11 @@ bindsym $mod+Escape exec ~/.local/bin/polyomino-rubik-lock
 bindsym $mod+Control+Escape exec $term --class=polyomino-power --app-id=polyomino-power -o initial_window_width=80c -o initial_window_height=36c -o font_size=12 -e ~/.local/bin/polyomino power-menu
 
 # Puzzle Micro-Utilities (Sokoban, 2048, Sweeper, LightsOut, Nonogram)
-bindsym $mod+Shift+s exec $term --class=polyomino-puzzle-sokoban --app-id=polyomino-puzzle-sokoban -o initial_window_width=80c -o initial_window_height=36c -o font_size=12 -e ~/.local/bin/polyomino-sokoban
-bindsym $mod+Shift+m exec $term --class=polyomino-puzzle-2048 --app-id=polyomino-puzzle-2048 -o initial_window_width=80c -o initial_window_height=36c -o font_size=12 -e ~/.local/bin/polyomino-2048
-bindsym $mod+Shift+c exec $term --class=polyomino-puzzle-sweeper --app-id=polyomino-puzzle-sweeper -o initial_window_width=80c -o initial_window_height=36c -o font_size=12 -e ~/.local/bin/polyomino-sweeper
-bindsym $mod+Shift+l exec $term --class=polyomino-puzzle-lightsout --app-id=polyomino-puzzle-lightsout -o initial_window_width=80c -o initial_window_height=36c -o font_size=12 -e ~/.local/bin/polyomino-lightsout
-bindsym $mod+Shift+n exec $term --class=polyomino-puzzle-nonogram --app-id=polyomino-puzzle-nonogram -o initial_window_width=80c -o initial_window_height=36c -o font_size=12 -e ~/.local/bin/polyomino-nonogram
+bindsym $mod+Mod1+s exec $term --class=polyomino-puzzle-sokoban --app-id=polyomino-puzzle-sokoban -o initial_window_width=80c -o initial_window_height=36c -o font_size=12 -e ~/.local/bin/polyomino-sokoban
+bindsym $mod+Mod1+m exec $term --class=polyomino-puzzle-2048 --app-id=polyomino-puzzle-2048 -o initial_window_width=80c -o initial_window_height=36c -o font_size=12 -e ~/.local/bin/polyomino-2048
+bindsym $mod+Mod1+c exec $term --class=polyomino-puzzle-sweeper --app-id=polyomino-puzzle-sweeper -o initial_window_width=80c -o initial_window_height=36c -o font_size=12 -e ~/.local/bin/polyomino-sweeper
+bindsym $mod+Mod1+l exec $term --class=polyomino-puzzle-lightsout --app-id=polyomino-puzzle-lightsout -o initial_window_width=80c -o initial_window_height=36c -o font_size=12 -e ~/.local/bin/polyomino-lightsout
+bindsym $mod+Mod1+p exec $term --class=polyomino-puzzle-nonogram --app-id=polyomino-puzzle-nonogram -o initial_window_width=80c -o initial_window_height=36c -o font_size=12 -e ~/.local/bin/polyomino-nonogram
 
 # Screenshots
 bindsym Print exec ~/.local/bin/polyomino screenshot full

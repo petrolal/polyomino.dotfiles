@@ -468,6 +468,11 @@ object WofiPickers:
 
   private def friendlyAction(action: String): String =
     action match
+      case a if a.contains("polyomino-sokoban") || a.contains("polyomino sokoban") => "Sokoban (Workspace & scratchpad arranger)"
+      case a if a.contains("polyomino-2048") || a.contains("polyomino 2048") => "2048 (Memory & cache compactor)"
+      case a if a.contains("polyomino-sweeper") || a.contains("polyomino sweeper") => "Minesweeper (Disk cache & orphan cleaner)"
+      case a if a.contains("polyomino-lightsout") || a.contains("polyomino lightsout") => "Lights Out (Hardware & settings matrix)"
+      case a if a.contains("polyomino-nonogram") || a.contains("polyomino nonogram") => "Nonogram (Theme & palette synthesizer)"
       case a if a.contains("sway-draw-window") || a.contains("draw-window") => "Draw interactive floating window (slurp)"
       case a if a.contains("floating-term") => "Floating terminal"
       case a if a.contains("sway-project-launcher") => "Project picker launcher (Neovim)"
@@ -538,6 +543,11 @@ object WofiPickers:
     "Mod4+F6                  → Next wallpaper (active theme)",
     "Mod4+? / Mod4+/          → Keybindings cheatsheet",
     "Mod4+Escape              → Lock screen (3D Rubik's Cube Lock)",
+    "Mod4+Mod1+s              → Sokoban (Workspace & scratchpad arranger)",
+    "Mod4+Mod1+m              → 2048 (Memory & cache compactor)",
+    "Mod4+Mod1+c              → Minesweeper (Disk cache & orphan cleaner)",
+    "Mod4+Mod1+l              → Lights Out (Hardware & settings matrix)",
+    "Mod4+Mod1+p              → Nonogram (Theme & palette synthesizer)",
     "Print                    → Screenshot full screen",
     "Mod4+Print               → Screenshot region selection",
     "Mod4+Shift+Print         → Screenshot active window"
