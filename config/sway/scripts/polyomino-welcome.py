@@ -8,6 +8,7 @@ import os
 import re
 import sys
 import json
+import shlex
 import shutil
 import subprocess
 from pathlib import Path
@@ -73,7 +74,8 @@ def save_settings(settings):
 def run_cmd(cmd_list, in_terminal=False):
     term = os.environ.get("TERMINAL", "kitty")
     if in_terminal:
-        full_cmd = [term, "-e", "bash", "-c", " ".join(cmd_list) + "; echo ''; read -n 1 -s -r -p 'Press any key to close...'"]
+        cmd_str = shlex.join(cmd_list)
+        full_cmd = [term, "-e", "bash", "-c", f"{cmd_str}; echo ''; read -n 1 -s -r -p 'Press any key to close...'"]
     else:
         full_cmd = cmd_list
     subprocess.Popen(full_cmd, start_new_session=True)
