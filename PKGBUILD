@@ -18,6 +18,7 @@ depends=(
   'brightnessctl'
   'libpulse'
   'playerctl'
+  'mpv'
   'chromium'
   'docker'
   'terraform'

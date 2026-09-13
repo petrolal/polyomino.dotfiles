@@ -71,7 +71,7 @@ object Main:
       case "update" => polyomino.dotfiles.maintenance.Maintenance.runUpdate(ctx, args)
       case "install" | "deploy" => polyomino.dotfiles.install.DeployInstaller.run(ctx, args)
       case "uninstall" => polyomino.dotfiles.install.DeployInstaller.uninstall(ctx, args)
-      case "screensaver" => polyomino.dotfiles.sysutils.SysUtils.runScreensaver(ctx, args)
+      case "screensaver" | "sway-screensaver" => polyomino.dotfiles.sysutils.SysUtils.runScreensaver(ctx, args)
       case "matrix" => polyomino.dotfiles.sysutils.SysUtils.runMatrix(ctx, args)
       case "gamemode" => polyomino.dotfiles.gamemode.GameModeEngine.run(ctx, args)
       case "welcome" | "hello" => polyomino.dotfiles.sysutils.SysUtils.runWelcome(ctx, args)

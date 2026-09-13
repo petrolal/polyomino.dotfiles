@@ -48,7 +48,7 @@ install_system_deps() {
         base-devel git curl wget \
         zsh fontconfig fastfetch cmatrix zoxide \
         $SWAY_PKG waybar kitty wofi swaylock gtklock swayidle grim slurp \
-        brightnessctl libpulse playerctl wireplumber swaync mako \
+        brightnessctl libpulse playerctl wireplumber swaync mako mpv \
         python-gobject python-cairo gtk3 gtk-layer-shell gtk-session-lock pam \
         chromium firefox \
         neovim \
@@ -67,7 +67,7 @@ install_system_deps() {
         build-essential git curl wget \
         zsh fontconfig fastfetch cmatrix zoxide \
         sway waybar kitty wofi swaylock swayidle grim slurp \
-        brightnessctl playerctl wireplumber pulseaudio-utils sway-notification-center mako-notifier \
+        brightnessctl playerctl wireplumber pulseaudio-utils sway-notification-center mako-notifier mpv \
         python3-gi python3-cairo gir1.2-gtk-3.0 gir1.2-gtklayershell-0.1 libpam0g-dev \
         firefox chromium-browser \
         neovim \
@@ -80,7 +80,7 @@ install_system_deps() {
         gcc gcc-c++ git curl wget \
         zsh fontconfig fastfetch cmatrix zoxide \
         sway waybar kitty wofi swaylock swayidle grim slurp \
-        brightnessctl playerctl wireplumber pulseaudio-libs sway-notification-center mako \
+        brightnessctl playerctl wireplumber pulseaudio-libs sway-notification-center mako mpv \
         python3-gobject python3-cairo gtk3 gtk-layer-shell pam-devel \
         firefox \
         neovim \

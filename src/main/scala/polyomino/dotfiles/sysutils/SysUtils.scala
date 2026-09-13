@@ -62,14 +62,32 @@ object SysUtils:
       else
         "swaylock -f -c 1e1e2e"
 
+      val screensaverScript = ctx.dotfilesDir / "config" / "sway" / "scripts" / "sway-screensaver.sh"
+      val localScreensaver = ctx.home / ".local" / "bin" / "sway-screensaver"
+      val screensaverStartCmd = if os.exists(localScreensaver) then
+        s"$localScreensaver start"
+      else if os.exists(screensaverScript) then
+        s"$screensaverScript start"
+      else
+        "sway-screensaver start"
+
+      val screensaverStopCmd = if os.exists(localScreensaver) then
+        s"$localScreensaver stop"
+      else if os.exists(screensaverScript) then
+        s"$screensaverScript stop"
+      else
+        "sway-screensaver stop"
+
       try
         os.proc(
           "swayidle", "-w",
-          "timeout", "300", lockCmd,
-          "timeout", "600", "swaymsg 'output * dpms off'",
+          "timeout", "300", screensaverStartCmd,
+          "resume", screensaverStopCmd,
+          "timeout", "600", lockCmd,
+          "timeout", "900", "swaymsg 'output * dpms off'",
           "resume", "swaymsg 'output * dpms on'",
-          "timeout", "900", "systemctl suspend",
-          "before-sleep", lockCmd
+          "timeout", "1200", "systemctl suspend",
+          "before-sleep", s"$screensaverStopCmd; $lockCmd"
         ).spawn(stdout = os.Inherit, stderr = os.Inherit)
         Right(())
       catch
@@ -219,13 +237,22 @@ object SysUtils:
       Left(CommandError(s"Script not found at $scriptToRun"))
 
   def runScreensaver(ctx: Context, args: List[String] = Nil): Either[PolyominoError, Unit] =
-    val script = ctx.dotfilesDir / "config" / "sway" / "scripts" / "screensaver.py"
-    val scriptToRun = if os.exists(script) then script else ctx.configDir / "sway" / "scripts" / "screensaver.py"
+    val script = ctx.dotfilesDir / "config" / "sway" / "scripts" / "sway-screensaver.sh"
+    val localScript = ctx.home / ".local" / "bin" / "sway-screensaver"
+    val pyScript = ctx.dotfilesDir / "config" / "sway" / "scripts" / "screensaver.py"
+    val scriptToRun = if os.exists(script) then script
+      else if os.exists(localScript) then localScript
+      else if os.exists(pyScript) then pyScript
+      else ctx.configDir / "sway" / "scripts" / "sway-screensaver.sh"
+
     if os.exists(scriptToRun) then
       if ctx.isTest then Right(())
       else
         try
-          val fullCmd: Seq[os.Shellable] = Seq("python3": os.Shellable, scriptToRun.toString: os.Shellable) ++ args.map(a => (a: os.Shellable))
+          val fullCmd: Seq[os.Shellable] = if scriptToRun.ext == "py" then
+            Seq("python3": os.Shellable, scriptToRun.toString: os.Shellable) ++ args.map(a => (a: os.Shellable))
+          else
+            Seq("bash": os.Shellable, scriptToRun.toString: os.Shellable) ++ args.map(a => (a: os.Shellable))
           os.proc(fullCmd*).call(stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit)
           Right(())
         catch

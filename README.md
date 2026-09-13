@@ -179,6 +179,7 @@ cp target/native-image/polyomino ~/.local/bin/polyomino
 | Keys                    | Action                    | Description                                                |
 | ----------------------- | ------------------------- | ---------------------------------------------------------- |
 | `Mod+Return`            | Open standard terminal    | Plain Kitty terminal in active workspace                   |
+| `Mod+M`                 | **Polyomino Menu**        | Quick menu (power, themes, wallpapers, configs, health)    |
 | `Mod+P`                 | **Neovim Project Picker** | Search `~/Projects` and open in dedicated Workspace 2      |
 | `Mod+D`                 | App launcher              | Wofi application launcher                                  |
 | `Mod+Shift+Return`      | Floating terminal         | Floating centered terminal                                 |

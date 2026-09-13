@@ -180,14 +180,24 @@ object DeployInstaller:
 
     // 3. Clean & deploy CLI subcommand symlinks in ~/.local/bin/
     var binSymlinkCount = 0
+    val swayScreensaverScript = ctx.dotfilesDir / "config" / "sway" / "scripts" / "sway-screensaver.sh"
+    if os.exists(swayScreensaverScript) then
+      val directSwayScreensaver = binDir / "sway-screensaver"
+      try
+        if os.exists(directSwayScreensaver) || os.isLink(directSwayScreensaver) then os.remove(directSwayScreensaver)
+        os.proc("ln", "-s", swayScreensaverScript.toString, directSwayScreensaver.toString).call()
+      catch case _: Exception => ()
+
     for cmd <- Subcommands do
       val symlinkPath = binDir / s"polyomino-$cmd"
       val scriptSource = if cmd == "rubik-lock" then
         ctx.dotfilesDir / "config" / "sway" / "scripts" / "polyomino-rubik-lock"
       else if cmd == "theme-cycle" then
         ctx.dotfilesDir / "scripts" / "polyomino-theme-cycle"
-      else if cmd == "screensaver" then
-        ctx.dotfilesDir / "config" / "sway" / "scripts" / "screensaver.py"
+      else if cmd == "screensaver" || cmd == "sway-screensaver" then
+        val fullScript = ctx.dotfilesDir / "config" / "sway" / "scripts" / "sway-screensaver.sh"
+        if os.exists(fullScript) then fullScript
+        else ctx.dotfilesDir / "config" / "sway" / "scripts" / "screensaver.py"
       else if cmd == "matrix" then
         ctx.dotfilesDir / "config" / "sway" / "scripts" / "matrix.sh"
       else if cmd == "welcome" then
