@@ -1,16 +1,27 @@
 #!/usr/bin/env python3
 """
-Polyomino tile menu — a generic GTK grid picker used by the wofi-replacement
-pickers (polyomino menu / theme-picker / wallpaper-picker / whichkey).
+Polyomino tile menu — a generic GTK bento-card grid picker used by every
+Wayland/SwayFX menu (App Launcher, Which-Key cheatsheet, Theme Selector,
+Wallpaper picker, Projects picker) in place of a plain wofi dmenu list, in
+the same visual language as the Welcome Center.
 
 Reads a JSON array of tiles from stdin:
     [{"id": "...", "icon": "...", "title": "...", "desc": "...",
       "accent": "violet|blue|teal|green|yellow|peach|red|mauve|sapphire|...",
-      "badge": "..."}, ...]
+      "badge": "...", "variant": "card|square"}, ...]
+
+"variant": "square" renders a compact tile with the icon centered above the
+title only (no badge/desc row) — used by the App Launcher's 4-column grid.
+The default "card" variant keeps the badge-upper-right / icon+title/desc
+layout used by the Which-Key and Theme Selector grids.
 
 Prints the selected tile's id to stdout and exits 0. Prints nothing and
 exits 1 if the window is closed/cancelled (Esc). With --info, tiles are
 inert (no selection is made; any click or Esc just closes the window).
+
+Dual input: Tab/Shift-Tab and the arrow keys move focus between tiles
+(native GtkFlowBox keynav), Return/Space activates the focused tile, Esc
+dismisses the window — all in addition to plain mouse hover/click.
 """
 
 import argparse
@@ -62,9 +73,12 @@ def build_css(p):
     for name in ACCENT_NAMES:
         hexval = p.get(name, p["accent"])
         tile_rules.append(f"""
-        button.tile-{name} {{ border: 1px solid {hexval}; }}
-        button.tile-{name}:hover {{ border-color: {hexval}; background-color: {p['surface1']}; }}
-        button.tile-{name}:active {{ background-color: {p['surface2']}; }}
+        button.tile-{name} {{ border: 1px solid alpha({hexval}, 0.4); }}
+        button.tile-{name}:hover, button.tile-{name}:focus {{
+            border: 1px solid {hexval};
+            background-color: alpha(#FFFFFF, 0.05);
+        }}
+        button.tile-{name}:active {{ background-color: alpha({hexval}, 0.12); }}
         .tile-badge-{name} {{ background-color: alpha({hexval}, 0.18); color: {hexval}; }}
         .tile-icon-{name} {{ color: {hexval}; }}
         """)
@@ -72,11 +86,13 @@ def build_css(p):
     return f"""
     * {{
         font-family: 'JetBrainsMono Nerd Font', 'JetBrains Mono', monospace;
+        outline: none;
     }}
     window, window.background, .background {{
         background-color: transparent;
         color: {p['text']};
         border: none;
+        border-radius: 0px;
     }}
     scrolledwindow, scrolledwindow viewport, viewport, flowboxchild {{
         background-color: transparent;
@@ -84,8 +100,9 @@ def build_css(p):
         border: none;
     }}
     .menu-window {{
-        background-color: alpha({p['base']}, 0.72);
-        border: 1px solid {p['accent']};
+        background-color: alpha({p['base']}, 0.78);
+        border: 1px solid alpha({p['accent']}, 0.4);
+        border-radius: 4px;
     }}
     .menu-title {{
         font-size: 13px;
@@ -96,14 +113,20 @@ def build_css(p):
     button.polyomino-tile {{
         background-color: {p['surface0']};
         background-image: none;
-        border-radius: 6px;
+        border-radius: 4px;
         padding: 12px;
         box-shadow: none;
         text-shadow: none;
-        transition: all 120ms ease-in-out;
+        transition: all 100ms ease-in-out;
+    }}
+    button.polyomino-tile.tile-square {{
+        padding: 14px 8px;
     }}
     .tile-icon {{
         font-size: 20px;
+    }}
+    .tile-square .tile-icon {{
+        font-size: 26px;
     }}
     .tile-badge {{
         font-size: 9px;
@@ -115,6 +138,9 @@ def build_css(p):
         font-size: 13px;
         font-weight: 700;
         color: {p['text']};
+    }}
+    .tile-square .tile-title {{
+        font-size: 11px;
     }}
     .tile-desc {{
         font-size: 10px;
@@ -177,14 +203,23 @@ class TileMenu(Gtk.Window):
         flow.set_margin_end(14)
         flow.set_margin_bottom(14)
 
+        self.first_tile = None
         for t in tiles:
-            flow.add(self.make_tile(t))
+            tile = self.make_tile(t)
+            if self.first_tile is None:
+                self.first_tile = tile
+            flow.add(tile)
 
         scrolled.add(flow)
         outer.pack_start(scrolled, True, True, 0)
 
         self.connect("key-press-event", self.on_key)
         self.connect("destroy", lambda w: Gtk.main_quit())
+        self.connect("map-event", self.on_map)
+
+    def on_map(self, widget, event):
+        if self.first_tile is not None:
+            self.first_tile.grab_focus()
 
     def apply_css(self):
         provider = Gtk.CssProvider()
@@ -198,37 +233,61 @@ class TileMenu(Gtk.Window):
 
     def make_tile(self, t):
         accent = t.get("accent", "accent")
+        variant = t.get("variant", "card")
         btn = Gtk.Button()
         btn.set_relief(Gtk.ReliefStyle.NONE)
+        btn.set_can_focus(True)
         btn.get_style_context().add_class("polyomino-tile")
         btn.get_style_context().add_class(f"tile-{accent}")
+        if variant == "square":
+            btn.get_style_context().add_class("tile-square")
 
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        icon_text = t.get("icon", "")
 
-        top = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        icon = Gtk.Label(label=t.get("icon", "▢"))
-        icon.get_style_context().add_class("tile-icon")
-        icon.get_style_context().add_class(f"tile-icon-{accent}")
-        top.pack_start(icon, False, False, 0)
+        if variant == "square":
+            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+            box.set_halign(Gtk.Align.CENTER)
+            box.set_valign(Gtk.Align.CENTER)
 
-        if t.get("badge"):
-            badge = Gtk.Label(label=t["badge"])
-            badge.get_style_context().add_class("tile-badge")
-            badge.get_style_context().add_class(f"tile-badge-{accent}")
-            top.pack_end(badge, False, False, 0)
+            if icon_text:
+                icon = Gtk.Label(label=icon_text)
+                icon.get_style_context().add_class("tile-icon")
+                icon.get_style_context().add_class(f"tile-icon-{accent}")
+                box.pack_start(icon, False, False, 0)
 
-        box.pack_start(top, False, False, 0)
+            title_lbl = Gtk.Label(label=t.get("title", ""), xalign=0.5, justify=Gtk.Justification.CENTER)
+            title_lbl.set_line_wrap(True)
+            title_lbl.get_style_context().add_class("tile-title")
+            box.pack_start(title_lbl, False, False, 0)
+        else:
+            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
 
-        title_lbl = Gtk.Label(label=t.get("title", ""), xalign=0)
-        title_lbl.set_line_wrap(True)
-        title_lbl.get_style_context().add_class("tile-title")
-        box.pack_start(title_lbl, False, False, 0)
+            top = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+            if icon_text:
+                icon = Gtk.Label(label=icon_text)
+                icon.get_style_context().add_class("tile-icon")
+                icon.get_style_context().add_class(f"tile-icon-{accent}")
+                top.pack_start(icon, False, False, 0)
 
-        if t.get("desc"):
-            desc_lbl = Gtk.Label(label=t["desc"], xalign=0)
-            desc_lbl.set_line_wrap(True)
-            desc_lbl.get_style_context().add_class("tile-desc")
-            box.pack_start(desc_lbl, False, False, 0)
+            if t.get("badge"):
+                badge = Gtk.Label(label=t["badge"])
+                badge.get_style_context().add_class("tile-badge")
+                badge.get_style_context().add_class(f"tile-badge-{accent}")
+                top.pack_end(badge, False, False, 0)
+
+            box.pack_start(top, False, False, 0)
+
+            title_lbl = Gtk.Label(label=t.get("title", ""), xalign=0)
+            title_lbl.set_line_wrap(True)
+            title_lbl.set_max_width_chars(28)
+            title_lbl.get_style_context().add_class("tile-title")
+            box.pack_start(title_lbl, False, False, 0)
+
+            if t.get("desc"):
+                desc_lbl = Gtk.Label(label=t["desc"], xalign=0)
+                desc_lbl.set_line_wrap(True)
+                desc_lbl.get_style_context().add_class("tile-desc")
+                box.pack_start(desc_lbl, False, False, 0)
 
         btn.add(box)
         tid = t.get("id")

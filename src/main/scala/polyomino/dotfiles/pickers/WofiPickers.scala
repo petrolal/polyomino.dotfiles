@@ -12,8 +12,8 @@ object WofiPickers:
     val script = ctx.dotfilesDir / "config" / "sway" / "scripts" / "polyomino-tilemenu.py"
     if os.exists(script) then script else ctx.configDir / "sway" / "scripts" / "polyomino-tilemenu.py"
 
-  private def tile(id: String, icon: String, title: String, desc: String, accent: String, badge: Option[String] = None): ujson.Value =
-    val obj = ujson.Obj("id" -> id, "icon" -> icon, "title" -> title, "desc" -> desc, "accent" -> accent)
+  private def tile(id: String, icon: String, title: String, desc: String, accent: String, badge: Option[String] = None, variant: String = "card"): ujson.Value =
+    val obj = ujson.Obj("id" -> id, "icon" -> icon, "title" -> title, "desc" -> desc, "accent" -> accent, "variant" -> variant)
     badge.foreach(b => obj("badge") = b)
     obj
 
@@ -171,13 +171,13 @@ object WofiPickers:
       }.getOrElse(Seq.empty)
 
     val entries = Seq(
-      tile("welcome", "✨", "Welcome center", "Tour of the desktop's features", "accent"),
-      tile("gamemode", "🎮", "Game mode", "Toggle performance mode", "green"),
-      tile("power", "⏻", "Power menu", "Lock, suspend, reboot, shutdown", "red"),
-      tile("theme", "🎨", "Theme and wallpaper", "Switch flavor or wallpaper mode", "mauve"),
-      tile("wallpaper", "🖼", "Wallpaper", "Pick a wallpaper for this flavor", "peach"),
-      tile("edit", "⚙", "Edit a config file", "Open a dotfile in your editor", "sapphire"),
-      tile("health", "🩺", "Healthcheck", "Audit symlinks, binaries, fonts", "teal")
+      tile("welcome", "✨", "Welcome center", "", "accent", variant = "square"),
+      tile("gamemode", "🎮", "Game mode", "", "green", variant = "square"),
+      tile("power", "⏻", "Power menu", "", "red", variant = "square"),
+      tile("theme", "🎨", "Theme and wallpaper", "", "mauve", variant = "square"),
+      tile("wallpaper", "🖼", "Wallpaper", "", "peach", variant = "square"),
+      tile("edit", "⚙", "Edit a config file", "", "sapphire", variant = "square"),
+      tile("health", "🩺", "Healthcheck", "", "teal", variant = "square")
     )
 
     // `polyomino menu` is a grandchild of waybar's `sh -c` on-click; when this
@@ -193,7 +193,7 @@ object WofiPickers:
       os.proc(shellable*).spawn(stdout = os.Inherit, stderr = os.Inherit)
 
     try
-      tilePick(ctx, "[ ⊞ ] polyomino", entries, columns = 3, width = 560, height = 380) match
+      tilePick(ctx, "[ ⊞ ] polyomino", entries, columns = 4, width = 760, height = 340) match
         case "" => Right(())
         case "welcome" =>
           spawn(Seq((binDir / "polyomino-welcome").toString))
@@ -264,11 +264,11 @@ object WofiPickers:
       val parts = line.split("→", 2)
       val key = parts.headOption.getOrElse(line).trim
       val action = if parts.length > 1 then parts(1).trim else ""
-      tile(idx.toString, "⌨", action, "", "accent", badge = Some(key))
+      tile(idx.toString, "", action, "", "accent", badge = Some(key))
     }
 
     try
-      tilePick(ctx, "[ ⊞ ] which-key", tiles, columns = 4, width = 1180, height = 720, info = true)
+      tilePick(ctx, "[ ⊞ ] which-key", tiles, columns = 2, width = 820, height = 720, info = true)
       Right(())
     catch
       case e: Exception => Left(CommandError(s"Whichkey failed: ${e.getMessage}"))

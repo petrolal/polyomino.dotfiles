@@ -19,6 +19,7 @@ ENABLE_MINIMAL=false
 # Optional component flags (unset by default to allow prompting)
 ENABLE_TETRAVIM=""
 ENABLE_BROWSER=""
+BROWSER_MODE=""    # chromium | firefox | both | none
 ENABLE_TUI_TOOLS=""
 ENABLE_DEVOPS=""
 ENABLE_DEV_RUNTIMES=""
@@ -94,10 +95,167 @@ prompt_read() {
   echo "$choice"
 }
 
+# ── Tetris-themed prompt palette ────────────────────────────────────────────
+# Matches the sharp box-border / colour-accent aesthetic used across the rest
+# of polyomino's TUIs (see PowerMenu): purple frames, cyan/green for active
+# selections, yellow for warnings, muted gray for the secondary option.
+T_PURPLE=$'\033[38;2;139;92;246m'
+T_CYAN=$'\033[1;36m'
+T_GREEN=$'\033[1;32m'
+T_YELLOW=$'\033[1;33m'
+T_RED=$'\033[1;31m'
+T_BLUE=$'\033[1;34m'
+T_ORANGE=$'\033[38;2;245;158;11m'
+T_GRAY=$'\033[2;37m'
+T_BOLD=$'\033[1m'
+T_RESET=$'\033[0m'
+
+# Sets globals GLYPH_TOP / GLYPH_BOTTOM to the two rows of a colored
+# tetromino block glyph. $1 = piece letter (I O T S Z J L), $2 = color code.
+_tetromino_glyph() {
+  local piece="$1" color="$2"
+  case "$piece" in
+    I) GLYPH_TOP="${color}■■■■${T_RESET}"; GLYPH_BOTTOM="    " ;;
+    O) GLYPH_TOP="${color}■■${T_RESET}"; GLYPH_BOTTOM="${color}■■${T_RESET}" ;;
+    T) GLYPH_TOP="${color} ■ ${T_RESET}"; GLYPH_BOTTOM="${color}■■■${T_RESET}" ;;
+    S) GLYPH_TOP="${color} ■■${T_RESET}"; GLYPH_BOTTOM="${color}■■ ${T_RESET}" ;;
+    Z) GLYPH_TOP="${color}■■ ${T_RESET}"; GLYPH_BOTTOM="${color} ■■${T_RESET}" ;;
+    J) GLYPH_TOP="${color}■  ${T_RESET}"; GLYPH_BOTTOM="${color}■■■${T_RESET}" ;;
+    L) GLYPH_TOP="${color}  ■${T_RESET}"; GLYPH_BOTTOM="${color}■■■${T_RESET}" ;;
+    *) GLYPH_TOP="${color}■■■■${T_RESET}"; GLYPH_BOTTOM="    " ;;
+  esac
+}
+
+# Non-blocking check: true if we should skip the interactive prompt entirely
+# (CI, forced non-interactive, or no controlling terminal at all).
+_tetris_noninteractive() {
+  [ "${CI:-}" = "1" ] || [ "${NON_INTERACTIVE:-false}" = true ] || { [ ! -t 0 ] && [ ! -e /dev/tty ]; }
+}
+
+# prompt_tetris_yn <piece> <color> <label> <default: true|false>
+# Draws a "NEXT PIECE" card and asks a Hard Drop (yes) / Hold (skip)
+# question. Prints "true" or "false" on stdout (only) so it can be
+# captured with `choice="$(prompt_tetris_yn ...)"`; all UI chrome goes
+# to stderr.
+prompt_tetris_yn() {
+  local piece="$1" color="$2" label="$3" default_yes="$4"
+  _tetromino_glyph "$piece" "$color"
+
+  {
+    echo -e "  ${T_PURPLE}┌─ NEXT PIECE ────────────────────────────────────────────┐${T_RESET}"
+    echo -e "  ${T_PURPLE}│${T_RESET}   ${GLYPH_TOP}"
+    echo -e "  ${T_PURPLE}│${T_RESET}   ${GLYPH_BOTTOM}"
+    echo -e "  ${T_PURPLE}│${T_RESET}"
+    echo -e "  ${T_PURPLE}│${T_RESET}   ${T_BOLD}${label}${T_RESET}"
+    echo -e "  ${T_PURPLE}│${T_RESET}"
+    echo -e "  ${T_PURPLE}│${T_RESET}   ${T_GREEN}[H] Hard Drop${T_RESET} (yes)      ${T_GRAY}[h] Hold${T_RESET} (skip)"
+    echo -e "  ${T_PURPLE}└─────────────────────────────────────────────────────────┘${T_RESET}"
+  } >&2
+
+  if _tetris_noninteractive; then
+    if [ "$default_yes" = true ]; then
+      echo -e "  ${T_CYAN}[INFO]${T_RESET} Non-interactive: auto Hard Drop." >&2
+      echo "true"
+    else
+      echo -e "  ${T_GRAY}[INFO]${T_RESET} Non-interactive: auto Hold." >&2
+      echo "false"
+    fi
+    return
+  fi
+
+  local hint="[H/h, Enter=Hold]"
+  [ "$default_yes" = true ] && hint="[H/h, Enter=Hard Drop]"
+
+  local key=""
+  if [ -e /dev/tty ] && [ -r /dev/tty ]; then
+    read -r -n1 -p "  Press key ${hint} > " key < /dev/tty || key=""
+  else
+    read -r -n1 -p "  Press key ${hint} > " key || key=""
+  fi
+  echo "" >&2
+
+  case "$key" in
+    H|Y|y)
+      echo -e "  ${T_GREEN}>> Hard drop confirmed: installing.${T_RESET}" >&2
+      echo "true"
+      ;;
+    h|N|n)
+      echo -e "  ${T_GRAY}>> Piece held: skipping.${T_RESET}" >&2
+      echo "false"
+      ;;
+    "")
+      if [ "$default_yes" = true ]; then
+        echo -e "  ${T_GREEN}>> Hard drop confirmed: installing.${T_RESET}" >&2
+        echo "true"
+      else
+        echo -e "  ${T_GRAY}>> Piece held: skipping.${T_RESET}" >&2
+        echo "false"
+      fi
+      ;;
+    *)
+      if [ "$default_yes" = true ]; then
+        echo -e "  ${T_GREEN}>> Hard drop confirmed: installing.${T_RESET}" >&2
+        echo "true"
+      else
+        echo -e "  ${T_GRAY}>> Piece held: skipping.${T_RESET}" >&2
+        echo "false"
+      fi
+      ;;
+  esac
+}
+
+# prompt_tetromino_select <title> <"label|piece|color"> ...
+# Draws a multi-piece selection card and returns the 1-based index of the
+# chosen option on stdout. Falls back to option 1 when non-interactive or
+# on invalid input.
+prompt_tetromino_select() {
+  local title="$1"; shift
+  local -a labels=() pieces=() colors=()
+  local opt lbl pc col
+  for opt in "$@"; do
+    IFS='|' read -r lbl pc col <<< "$opt"
+    labels+=("$lbl"); pieces+=("$pc"); colors+=("$col")
+  done
+
+  {
+    echo -e "  ${T_PURPLE}┌─ ${title} ─────────────────────────────────────────┐${T_RESET}"
+    local idx
+    for idx in "${!labels[@]}"; do
+      _tetromino_glyph "${pieces[$idx]}" "${colors[$idx]}"
+      echo -e "  ${T_PURPLE}│${T_RESET}   ${T_BOLD}[$((idx + 1))]${T_RESET} ${GLYPH_TOP}  ${labels[$idx]}"
+      echo -e "  ${T_PURPLE}│${T_RESET}       ${GLYPH_BOTTOM}"
+    done
+    echo -e "  ${T_PURPLE}└────────────────────────────────────────────────────────┘${T_RESET}"
+  } >&2
+
+  if _tetris_noninteractive; then
+    echo -e "  ${T_CYAN}[INFO]${T_RESET} Non-interactive: defaulting to [1] ${labels[0]}." >&2
+    echo "1"
+    return
+  fi
+
+  local key=""
+  if [ -e /dev/tty ] && [ -r /dev/tty ]; then
+    read -r -n1 -p "  Rotate & drop [1-${#labels[@]}] > " key < /dev/tty || key=""
+  else
+    read -r -n1 -p "  Rotate & drop [1-${#labels[@]}] > " key || key=""
+  fi
+  echo "" >&2
+
+  if [[ "$key" =~ ^[0-9]$ ]] && [ "$key" -ge 1 ] && [ "$key" -le "${#labels[@]}" ]; then
+    echo -e "  ${T_GREEN}>> Line clear! Selected: ${labels[$((key - 1))]}${T_RESET}" >&2
+    echo "$key"
+  else
+    echo -e "  ${T_YELLOW}[WARN]${T_RESET} Invalid input, defaulting to [1] ${labels[0]}." >&2
+    echo "1"
+  fi
+}
+
 prompt_optional_dependencies() {
   if [ "$ENABLE_ALL" = true ]; then
     ENABLE_TETRAVIM=true
     ENABLE_BROWSER=true
+    BROWSER_MODE="${BROWSER_MODE:-both}"
     ENABLE_TUI_TOOLS=true
     ENABLE_DEVOPS=true
     ENABLE_DEV_RUNTIMES=true
@@ -109,6 +267,7 @@ prompt_optional_dependencies() {
   if [ "$ENABLE_MINIMAL" = true ]; then
     ENABLE_TETRAVIM="${ENABLE_TETRAVIM:-false}"
     ENABLE_BROWSER="${ENABLE_BROWSER:-false}"
+    BROWSER_MODE="${BROWSER_MODE:-none}"
     ENABLE_TUI_TOOLS="${ENABLE_TUI_TOOLS:-false}"
     ENABLE_DEVOPS="${ENABLE_DEVOPS:-false}"
     ENABLE_DEV_RUNTIMES="${ENABLE_DEV_RUNTIMES:-false}"
@@ -117,7 +276,8 @@ prompt_optional_dependencies() {
     return
   fi
 
-  echo -e "  \033[1;36m[polyomino]\033[0m Configuring non-obligatory dependency installations:"
+  echo -e "  ${T_PURPLE}[polyomino]${T_RESET} Configuring non-obligatory dependency installations:"
+  echo -e "  ${T_GRAY}A piece is falling for each optional dependency. Hard Drop to install, Hold to skip.${T_RESET}"
   echo ""
 
   # 1. Neovim & Tetravim
@@ -125,68 +285,92 @@ prompt_optional_dependencies() {
     if [ "$NON_INTERACTIVE" = true ]; then
       ENABLE_TETRAVIM=true
     else
-      choice="$(prompt_read "  Install Neovim & Tetravim distribution? [Y/n] ")"
-      if [[ -z "$choice" || "$choice" =~ ^[Yy]$ ]]; then ENABLE_TETRAVIM=true; else ENABLE_TETRAVIM=false; fi
+      choice="$(prompt_tetris_yn I "$T_CYAN" "Install Neovim & Tetravim distribution?" true)"
+      ENABLE_TETRAVIM="$choice"
     fi
   fi
+  echo ""
 
-  # 2. Web Browser
-  if [ -z "$ENABLE_BROWSER" ]; then
+  # 2. Web Browser (multi-select: which browser(s) to drop in)
+  if [ -z "$BROWSER_MODE" ] && [ -n "$ENABLE_BROWSER" ]; then
+    # Set explicitly via CLI flag (--browser / --no-browser); skip the picker.
+    if [ "$ENABLE_BROWSER" = true ]; then BROWSER_MODE="both"; else BROWSER_MODE="none"; fi
+  fi
+  if [ -z "$BROWSER_MODE" ]; then
     if [ "$NON_INTERACTIVE" = true ]; then
-      ENABLE_BROWSER=true
+      BROWSER_MODE="both"
     else
-      choice="$(prompt_read "  Install Web Browser (Chromium / Firefox)? [Y/n] ")"
-      if [[ -z "$choice" || "$choice" =~ ^[Yy]$ ]]; then ENABLE_BROWSER=true; else ENABLE_BROWSER=false; fi
+      sel="$(prompt_tetromino_select "HOLD: BROWSER" \
+        "Chromium|O|$T_YELLOW" \
+        "Firefox|O|$T_ORANGE" \
+        "Both|I|$T_CYAN" \
+        "Skip|Z|$T_GRAY")"
+      case "$sel" in
+        1) BROWSER_MODE="chromium" ;;
+        2) BROWSER_MODE="firefox" ;;
+        3) BROWSER_MODE="both" ;;
+        *) BROWSER_MODE="none" ;;
+      esac
     fi
   fi
+  if [ "$BROWSER_MODE" = "none" ]; then
+    ENABLE_BROWSER=false
+  else
+    ENABLE_BROWSER=true
+  fi
+  echo ""
 
   # 3. TUI Productivity Tools
   if [ -z "$ENABLE_TUI_TOOLS" ]; then
     if [ "$NON_INTERACTIVE" = true ]; then
       ENABLE_TUI_TOOLS=true
     else
-      choice="$(prompt_read "  Install TUI tools (spotify_player, bluetui, impala, aerc, zoxide, fastfetch)? [Y/n] ")"
-      if [[ -z "$choice" || "$choice" =~ ^[Yy]$ ]]; then ENABLE_TUI_TOOLS=true; else ENABLE_TUI_TOOLS=false; fi
+      choice="$(prompt_tetris_yn T "$T_GREEN" "Install TUI tools (spotify_player, bluetui, impala, aerc, zoxide, fastfetch)?" true)"
+      ENABLE_TUI_TOOLS="$choice"
     fi
   fi
+  echo ""
 
   # 4. DevOps & Cloud Tools
   if [ -z "$ENABLE_DEVOPS" ]; then
     if [ "$NON_INTERACTIVE" = true ]; then
       ENABLE_DEVOPS=false
     else
-      choice="$(prompt_read "  Install DevOps tools (Docker, Terraform, Ansible, kubectl, Helm, cloud CLIs)? [y/N] ")"
-      if [[ "$choice" =~ ^[Yy]$ ]]; then ENABLE_DEVOPS=true; else ENABLE_DEVOPS=false; fi
+      choice="$(prompt_tetris_yn S "$T_GREEN" "Install DevOps tools (Docker, Terraform, Ansible, kubectl, Helm, cloud CLIs)?" false)"
+      ENABLE_DEVOPS="$choice"
     fi
   fi
+  echo ""
 
   # 5. Developer Runtimes
   if [ -z "$ENABLE_DEV_RUNTIMES" ]; then
     if [ "$NON_INTERACTIVE" = true ]; then
       ENABLE_DEV_RUNTIMES=false
     else
-      choice="$(prompt_read "  Install Developer runtimes (Node.js/npm via NVM, SDKMAN! & Kotlin)? [y/N] ")"
-      if [[ "$choice" =~ ^[Yy]$ ]]; then ENABLE_DEV_RUNTIMES=true; else ENABLE_DEV_RUNTIMES=false; fi
+      choice="$(prompt_tetris_yn Z "$T_RED" "Install Developer runtimes (Node.js/npm via NVM, SDKMAN! & Kotlin)?" false)"
+      ENABLE_DEV_RUNTIMES="$choice"
     fi
   fi
+  echo ""
 
   # 6. Desktop Apps (Telegram)
   if [ -z "$ENABLE_DESKTOP_APPS" ]; then
     if [ "$NON_INTERACTIVE" = true ]; then
       ENABLE_DESKTOP_APPS=false
     else
-      choice="$(prompt_read "  Install Telegram Desktop? [y/N] ")"
-      if [[ "$choice" =~ ^[Yy]$ ]]; then ENABLE_DESKTOP_APPS=true; else ENABLE_DESKTOP_APPS=false; fi
+      choice="$(prompt_tetris_yn J "$T_BLUE" "Install Telegram Desktop?" false)"
+      ENABLE_DESKTOP_APPS="$choice"
     fi
   fi
+  echo ""
 
   # 7. Gaming Performance Stack
   if [ -z "$ENABLE_GAMING" ]; then
     if [ "$NON_INTERACTIVE" = true ]; then
       ENABLE_GAMING=false
     else
-      choice="$(prompt_read "  Install gaming optimizations & tools (gamemode, gamescope, mangohud, steam)? [y/N] ")"
-      if [[ "$choice" =~ ^[Yy]$ ]]; then ENABLE_GAMING=true; else ENABLE_GAMING=false; fi
+      choice="$(prompt_tetris_yn L "$T_ORANGE" "Install gaming optimizations & tools (gamemode, gamescope, mangohud, steam)?" false)"
+      ENABLE_GAMING="$choice"
     fi
   fi
 
@@ -219,6 +403,13 @@ install_system_deps() {
 
   # Optional packages to include
   local opt_pkgs=""
+  local browser_pkgs_pacman="" browser_pkgs_apt="" browser_pkgs_dnf=""
+  case "$BROWSER_MODE" in
+    chromium) browser_pkgs_pacman="chromium"; browser_pkgs_apt="chromium-browser"; browser_pkgs_dnf="" ;;
+    firefox)  browser_pkgs_pacman="firefox"; browser_pkgs_apt="firefox"; browser_pkgs_dnf="firefox" ;;
+    both)     browser_pkgs_pacman="chromium firefox"; browser_pkgs_apt="firefox chromium-browser"; browser_pkgs_dnf="firefox" ;;
+    *)        browser_pkgs_pacman=""; browser_pkgs_apt=""; browser_pkgs_dnf="" ;;
+  esac
 
   case "$pkg_mgr" in
     pacman)
@@ -231,7 +422,7 @@ install_system_deps() {
       fi
 
       [ "$ENABLE_TETRAVIM" = true ] && opt_pkgs="$opt_pkgs neovim"
-      [ "$ENABLE_BROWSER" = true ] && opt_pkgs="$opt_pkgs chromium firefox"
+      [ "$ENABLE_BROWSER" = true ] && opt_pkgs="$opt_pkgs $browser_pkgs_pacman"
       [ "$ENABLE_TUI_TOOLS" = true ] && opt_pkgs="$opt_pkgs fastfetch zoxide"
       [ "$ENABLE_DEVOPS" = true ] && opt_pkgs="$opt_pkgs docker"
       [ "$ENABLE_DESKTOP_APPS" = true ] && opt_pkgs="$opt_pkgs telegram-desktop"
@@ -254,7 +445,7 @@ install_system_deps() {
       fi
 
       [ "$ENABLE_TETRAVIM" = true ] && opt_pkgs="$opt_pkgs neovim"
-      [ "$ENABLE_BROWSER" = true ] && opt_pkgs="$opt_pkgs firefox chromium-browser"
+      [ "$ENABLE_BROWSER" = true ] && opt_pkgs="$opt_pkgs $browser_pkgs_apt"
       [ "$ENABLE_TUI_TOOLS" = true ] && opt_pkgs="$opt_pkgs fastfetch zoxide"
 
       sudo apt-get install -y \
@@ -270,7 +461,7 @@ install_system_deps() {
       ;;
     dnf)
       [ "$ENABLE_TETRAVIM" = true ] && opt_pkgs="$opt_pkgs neovim"
-      [ "$ENABLE_BROWSER" = true ] && opt_pkgs="$opt_pkgs firefox"
+      [ "$ENABLE_BROWSER" = true ] && opt_pkgs="$opt_pkgs $browser_pkgs_dnf"
       [ "$ENABLE_TUI_TOOLS" = true ] && opt_pkgs="$opt_pkgs fastfetch zoxide"
       [ "$ENABLE_DEVOPS" = true ] && opt_pkgs="$opt_pkgs docker"
       [ "$ENABLE_DESKTOP_APPS" = true ] && opt_pkgs="$opt_pkgs telegram-desktop"
