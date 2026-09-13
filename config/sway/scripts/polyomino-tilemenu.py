@@ -12,6 +12,8 @@ Modes:
 Includes:
   - 4-tier Welcome Center layout (Header banner, 0px search bar, Bento card grid, Vim footer).
   - Dynamic [ NORMAL ] / [ INSERT ] Vim navigation modes.
+  - Active selection state with glowing card animation updating on every iteration.
+  - Real-time search filtering with automatic top result selection.
   - Native GIcon / Papirus icon theme rendering.
   - SwayFX glass blur and depth shadow compatibility.
 """
@@ -70,13 +72,17 @@ def build_css(p):
         button.tile-{name} {{
             border: 1px solid alpha({hexval}, 0.35);
         }}
-        button.tile-{name}:hover, button.tile-{name}:focus {{
+        button.tile-{name}.tile-selected,
+        button.tile-{name}:hover,
+        button.tile-{name}:focus,
+        flowboxchild:selected button.tile-{name},
+        flowboxchild:focus button.tile-{name} {{
             border: 1px solid {hexval};
-            background-color: alpha(#FFFFFF, 0.05);
-            box-shadow: 0 0 12px alpha({hexval}, 0.25);
+            background-color: alpha({hexval}, 0.15);
+            box-shadow: 0 0 16px alpha({hexval}, 0.35);
         }}
         button.tile-{name}:active {{
-            background-color: alpha({hexval}, 0.15);
+            background-color: alpha({hexval}, 0.25);
         }}
         .tile-badge-{name} {{
             background-color: alpha({hexval}, 0.18);
@@ -104,10 +110,25 @@ def build_css(p):
         border: none;
         border-radius: 0px;
     }}
-    scrolledwindow, scrolledwindow viewport, viewport, flowboxchild {{
+    scrolledwindow, scrolledwindow viewport, viewport, flowbox {{
         background-color: transparent;
         color: {p['text']};
         border: none;
+    }}
+    flowboxchild {{
+        background-color: transparent;
+        padding: 0px;
+        margin: 0px;
+        border: none;
+        outline: none;
+        box-shadow: none;
+    }}
+    flowboxchild:focus,
+    flowboxchild:selected,
+    flowboxchild:focus-within {{
+        outline: none;
+        box-shadow: none;
+        background-color: transparent;
     }}
     .menu-window {{
         background-color: alpha({p['base']}, 0.88);
@@ -187,7 +208,7 @@ def build_css(p):
         padding: 10px 12px;
         box-shadow: none;
         text-shadow: none;
-        transition: all 120ms ease-in-out;
+        transition: background-color 100ms ease, border-color 100ms ease, box-shadow 100ms ease;
     }}
     button.polyomino-tile.tile-card {{
         min-height: 48px;
@@ -327,6 +348,15 @@ def get_installed_desktop_apps():
     return apps
 
 
+class TileItem:
+    def __init__(self, data, widget, child):
+        self.data = data
+        self.widget = widget
+        self.child = child
+        self.visible = True
+        self.accent = data.get("accent", "accent")
+
+
 class BentoTileMenu(Gtk.Window):
     def __init__(self, title_text, subtitle_text, badge_text, tiles, columns, width, height, info_only, is_drun):
         super().__init__(title=title_text)
@@ -339,6 +369,9 @@ class BentoTileMenu(Gtk.Window):
         self.is_drun = is_drun
         self.tiles_data = tiles
         self.columns = columns
+        self.items = []
+        self.selected_index = 0
+        self.in_insert_mode = False
 
         self.set_app_paintable(True)
         screen = Gdk.Screen.get_default()
@@ -399,15 +432,15 @@ class BentoTileMenu(Gtk.Window):
         self.search_entry.connect("changed", self.on_search_changed)
         self.search_entry.connect("focus-in-event", self.on_search_focus_in)
         self.search_entry.connect("focus-out-event", self.on_search_focus_out)
-        self.search_entry.connect("activate", self.on_search_activated)
+        self.search_entry.connect("activate", lambda e: self.activate_selected())
         search_box.pack_start(self.search_entry, True, True, 0)
 
         outer.pack_start(search_box, False, False, 0)
 
         # 3. Content Grid (Welcome Center Bento Card Style)
-        scrolled = Gtk.ScrolledWindow()
-        scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        scrolled.set_shadow_type(Gtk.ShadowType.NONE)
+        self.scrolled = Gtk.ScrolledWindow()
+        self.scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        self.scrolled.set_shadow_type(Gtk.ShadowType.NONE)
 
         self.flow = Gtk.FlowBox()
         self.flow.set_valign(Gtk.Align.START)
@@ -421,20 +454,13 @@ class BentoTileMenu(Gtk.Window):
         self.flow.set_margin_end(16)
         self.flow.set_margin_bottom(10)
         self.flow.set_margin_top(4)
-        self.flow.set_filter_func(self.filter_tile)
 
-        self.first_tile = None
-        self.tile_widgets = []
         for t in tiles:
-            tile = self.make_bento_tile(t)
-            tile._tile_data = t
-            self.tile_widgets.append(tile)
-            if self.first_tile is None:
-                self.first_tile = tile
-            self.flow.add(tile)
+            tile_btn = self.make_bento_tile(t)
+            self.flow.add(tile_btn)
 
-        scrolled.add(self.flow)
-        outer.pack_start(scrolled, True, True, 0)
+        self.scrolled.add(self.flow)
+        outer.pack_start(self.scrolled, True, True, 0)
 
         # 4. Bottom Status & Vim Mode Bar
         self.footer_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
@@ -458,55 +484,129 @@ class BentoTileMenu(Gtk.Window):
         self.connect("destroy", lambda w: Gtk.main_quit())
         self.connect("map-event", self.on_map)
 
+    def init_items_list(self):
+        self.items = []
+        for child in self.flow.get_children():
+            btn = child.get_child()
+            if btn:
+                data = getattr(btn, "_tile_data", {})
+                self.items.append(TileItem(data, btn, child))
+
+    def get_visible_items(self):
+        return [item for item in self.items if item.visible]
+
     def set_normal_mode(self):
+        self.in_insert_mode = False
         ctx = self.mode_badge.get_style_context()
         ctx.remove_class("mode-badge-insert")
         ctx.add_class("mode-badge-normal")
         self.mode_badge.set_text("[ NORMAL ]")
         self.mode_hints.set_text("h/j/k/l Navigate  •  / Search  •  Enter Launch")
+        visible = self.get_visible_items()
+        if 0 <= self.selected_index < len(visible):
+            visible[self.selected_index].widget.grab_focus()
 
     def set_insert_mode(self):
+        self.in_insert_mode = True
         ctx = self.mode_badge.get_style_context()
         ctx.remove_class("mode-badge-normal")
         ctx.add_class("mode-badge-insert")
         self.mode_badge.set_text("[ INSERT ]")
-        self.mode_hints.set_text("Type to filter  •  Enter Launch  •  Esc Normal Mode")
+        self.mode_hints.set_text("Type to filter  •  ↑/↓ Cycle  •  Enter Launch  •  Esc Normal Mode")
 
     def on_search_focus_in(self, widget, event):
         self.set_insert_mode()
         return False
 
     def on_search_focus_out(self, widget, event):
-        self.set_normal_mode()
         return False
 
     def on_search_changed(self, entry):
-        self.flow.invalidate_filter()
+        self.apply_filter()
 
-    def on_search_activated(self, entry):
-        # When pressing enter in search entry, activate first visible tile
-        for child in self.flow.get_children():
-            if child.get_child_visible():
-                btn = child.get_child()
-                if btn:
-                    btn.clicked()
-                    return
-
-    def filter_tile(self, child):
+    def apply_filter(self):
         query = self.search_entry.get_text().strip().lower()
-        if not query:
-            return True
-        btn = child.get_child()
-        data = getattr(btn, "_tile_data", {})
-        title = data.get("title", "").lower()
-        desc = data.get("desc", "").lower()
-        badge = data.get("badge", "").lower()
-        tid = data.get("id", "").lower()
-        return query in title or query in desc or query in badge or query in tid
+        for item in self.items:
+            data = item.data
+            title = data.get("title", "").lower()
+            desc = data.get("desc", "").lower()
+            badge = data.get("badge", "").lower()
+            tid = str(data.get("id", "")).lower()
+            matches = (not query) or (query in title or query in desc or query in badge or query in tid)
+            item.visible = matches
+            item.child.set_child_visible(matches)
+            item.child.set_no_show_all(not matches)
+            if matches:
+                item.child.show()
+            else:
+                item.child.hide()
+
+        visible = self.get_visible_items()
+        if visible:
+            self.update_selection(0, scroll=True)
+        else:
+            self.clear_all_selection_classes()
+
+    def clear_all_selection_classes(self):
+        for item in self.items:
+            ctx = item.widget.get_style_context()
+            ctx.remove_class("tile-selected")
+            for acc in ACCENT_NAMES:
+                ctx.remove_class(f"tile-selected-{acc}")
+
+    def update_selection(self, new_idx, scroll=True):
+        visible = self.get_visible_items()
+        if not visible:
+            self.selected_index = 0
+            self.clear_all_selection_classes()
+            return
+
+        new_idx = max(0, min(new_idx, len(visible) - 1))
+        self.selected_index = new_idx
+
+        for i, item in enumerate(visible):
+            ctx = item.widget.get_style_context()
+            if i == new_idx:
+                ctx.add_class("tile-selected")
+                ctx.add_class(f"tile-selected-{item.accent}")
+                if not self.in_insert_mode and self.get_focus() != self.search_entry:
+                    item.widget.grab_focus()
+                if scroll:
+                    self.scroll_to_item(item)
+            else:
+                ctx.remove_class("tile-selected")
+                for acc in ACCENT_NAMES:
+                    ctx.remove_class(f"tile-selected-{acc}")
+
+    def scroll_to_item(self, item):
+        def do_scroll():
+            adj = self.scrolled.get_vadjustment()
+            alloc = item.child.get_allocation()
+            if alloc.height > 0:
+                adj.clamp_page(alloc.y, alloc.y + alloc.height + 8)
+            return False
+        GLib.idle_add(do_scroll)
+
+    def on_tile_hover(self, widget):
+        visible = self.get_visible_items()
+        for i, item in enumerate(visible):
+            if item.widget == widget:
+                self.update_selection(i, scroll=False)
+                break
+
+    def activate_selected(self):
+        visible = self.get_visible_items()
+        if 0 <= self.selected_index < len(visible):
+            self.select_item(visible[self.selected_index].data)
 
     def on_map(self, widget, event):
-        if self.first_tile is not None:
-            self.first_tile.grab_focus()
+        self.init_items_list()
+        self.apply_filter()
+        if self.is_drun:
+            self.search_entry.grab_focus()
+            self.set_insert_mode()
+        else:
+            self.set_normal_mode()
 
     def apply_css(self):
         provider = Gtk.CssProvider()
@@ -524,6 +624,7 @@ class BentoTileMenu(Gtk.Window):
         btn = Gtk.Button()
         btn.set_relief(Gtk.ReliefStyle.NONE)
         btn.set_can_focus(True)
+        btn._tile_data = t
         btn.get_style_context().add_class("polyomino-tile")
         btn.get_style_context().add_class(f"tile-{accent}")
         if variant == "square":
@@ -592,6 +693,7 @@ class BentoTileMenu(Gtk.Window):
 
         btn.add(box)
         btn.connect("clicked", lambda b: self.select_item(t))
+        btn.connect("enter-notify-event", lambda w, e: self.on_tile_hover(w))
         return btn
 
     def select_item(self, tile_data):
@@ -614,13 +716,19 @@ class BentoTileMenu(Gtk.Window):
 
     def on_key(self, widget, event):
         focused = self.get_focus()
-        is_searching = focused == self.search_entry
+        is_searching = (focused == self.search_entry) or self.in_insert_mode
+        ctrl = bool(event.state & Gdk.ModifierType.CONTROL_MASK)
+        shift = bool(event.state & Gdk.ModifierType.SHIFT_MASK)
+        visible = self.get_visible_items()
+        num_visible = len(visible)
 
+        # 1. Escape key
         if event.keyval == Gdk.KEY_Escape:
             if is_searching and self.search_entry.get_text():
                 self.search_entry.set_text("")
-                if self.first_tile:
-                    self.first_tile.grab_focus()
+                self.set_normal_mode()
+                return True
+            elif is_searching:
                 self.set_normal_mode()
                 return True
             else:
@@ -628,9 +736,43 @@ class BentoTileMenu(Gtk.Window):
                 self.close()
                 return True
 
+        # 2. Enter / Return key
+        if event.keyval in (Gdk.KEY_Return, Gdk.KEY_KP_Enter):
+            self.activate_selected()
+            return True
+
+        # 3. Tab / Shift+Tab cycling (works in both insert and normal mode)
+        if event.keyval in (Gdk.KEY_Tab, Gdk.KEY_ISO_Left_Tab):
+            if shift or event.keyval == Gdk.KEY_ISO_Left_Tab:
+                self.update_selection((self.selected_index - 1) % max(1, num_visible))
+            else:
+                self.update_selection((self.selected_index + 1) % max(1, num_visible))
+            return True
+
+        # 4. Arrow navigation & Ctrl keys (works in both insert and normal mode)
+        if event.keyval == Gdk.KEY_Down or (ctrl and event.keyval in (Gdk.KEY_n, Gdk.KEY_j)):
+            step = self.columns if (self.selected_index + self.columns < num_visible) else 1
+            self.update_selection(min(num_visible - 1, self.selected_index + step))
+            return True
+
+        if event.keyval == Gdk.KEY_Up or (ctrl and event.keyval in (Gdk.KEY_p, Gdk.KEY_k)):
+            step = self.columns if (self.selected_index - self.columns >= 0) else 1
+            self.update_selection(max(0, self.selected_index - step))
+            return True
+
+        if event.keyval == Gdk.KEY_Right or (ctrl and event.keyval in (Gdk.KEY_f, Gdk.KEY_l)):
+            self.update_selection(min(num_visible - 1, self.selected_index + 1))
+            return True
+
+        if event.keyval == Gdk.KEY_Left or (ctrl and event.keyval in (Gdk.KEY_b, Gdk.KEY_h)):
+            self.update_selection(max(0, self.selected_index - 1))
+            return True
+
+        # 5. Normal Mode Keybindings
         if not is_searching:
             if event.keyval in (Gdk.KEY_slash, Gdk.KEY_i):
                 self.search_entry.grab_focus()
+                self.search_entry.set_position(-1)
                 self.set_insert_mode()
                 return True
             elif event.keyval == Gdk.KEY_q:
@@ -638,16 +780,18 @@ class BentoTileMenu(Gtk.Window):
                 self.close()
                 return True
             elif event.keyval == Gdk.KEY_j:
-                self.flow.child_focus(Gtk.DirectionType.DOWN)
+                step = self.columns if (self.selected_index + self.columns < num_visible) else 1
+                self.update_selection(min(num_visible - 1, self.selected_index + step))
                 return True
             elif event.keyval == Gdk.KEY_k:
-                self.flow.child_focus(Gtk.DirectionType.UP)
+                step = self.columns if (self.selected_index - self.columns >= 0) else 1
+                self.update_selection(max(0, self.selected_index - step))
                 return True
             elif event.keyval == Gdk.KEY_h:
-                self.flow.child_focus(Gtk.DirectionType.LEFT)
+                self.update_selection(max(0, self.selected_index - 1))
                 return True
             elif event.keyval == Gdk.KEY_l:
-                self.flow.child_focus(Gtk.DirectionType.RIGHT)
+                self.update_selection(min(num_visible - 1, self.selected_index + 1))
                 return True
 
         return False
