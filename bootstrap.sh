@@ -4,10 +4,7 @@
 # Full setup is handled by: polyomino install
 set -euo pipefail
 
-# If running via pipe (e.g. curl ... | bash), reconnect stdin to terminal for interactive prompts
-if [ ! -t 0 ] && [ -e /dev/tty ]; then
-  exec < /dev/tty
-fi
+
 
 echo -e "\033[1;36m[polyomino bootstrap]\033[0m Starting polyomino.dotfiles installer..."
 echo ""
@@ -86,6 +83,17 @@ for arg in "$@"; do
   esac
 done
 
+prompt_read() {
+  local prompt_text="$1"
+  local choice=""
+  if [ -e /dev/tty ] && [ -r /dev/tty ]; then
+    read -r -p "$prompt_text" choice < /dev/tty || choice=""
+  else
+    read -r -p "$prompt_text" choice || choice=""
+  fi
+  echo "$choice"
+}
+
 prompt_optional_dependencies() {
   if [ "$ENABLE_ALL" = true ]; then
     ENABLE_TETRAVIM=true
@@ -117,7 +125,7 @@ prompt_optional_dependencies() {
     if [ "$NON_INTERACTIVE" = true ]; then
       ENABLE_TETRAVIM=true
     else
-      read -r -p "  Install Neovim & Tetravim distribution? [Y/n] " choice || choice=""
+      choice="$(prompt_read "  Install Neovim & Tetravim distribution? [Y/n] ")"
       if [[ -z "$choice" || "$choice" =~ ^[Yy]$ ]]; then ENABLE_TETRAVIM=true; else ENABLE_TETRAVIM=false; fi
     fi
   fi
@@ -127,7 +135,7 @@ prompt_optional_dependencies() {
     if [ "$NON_INTERACTIVE" = true ]; then
       ENABLE_BROWSER=true
     else
-      read -r -p "  Install Web Browser (Chromium / Firefox)? [Y/n] " choice || choice=""
+      choice="$(prompt_read "  Install Web Browser (Chromium / Firefox)? [Y/n] ")"
       if [[ -z "$choice" || "$choice" =~ ^[Yy]$ ]]; then ENABLE_BROWSER=true; else ENABLE_BROWSER=false; fi
     fi
   fi
@@ -137,7 +145,7 @@ prompt_optional_dependencies() {
     if [ "$NON_INTERACTIVE" = true ]; then
       ENABLE_TUI_TOOLS=true
     else
-      read -r -p "  Install TUI tools (spotify_player, bluetui, impala, aerc, zoxide, fastfetch)? [Y/n] " choice || choice=""
+      choice="$(prompt_read "  Install TUI tools (spotify_player, bluetui, impala, aerc, zoxide, fastfetch)? [Y/n] ")"
       if [[ -z "$choice" || "$choice" =~ ^[Yy]$ ]]; then ENABLE_TUI_TOOLS=true; else ENABLE_TUI_TOOLS=false; fi
     fi
   fi
@@ -147,7 +155,7 @@ prompt_optional_dependencies() {
     if [ "$NON_INTERACTIVE" = true ]; then
       ENABLE_DEVOPS=false
     else
-      read -r -p "  Install DevOps tools (Docker, Terraform, Ansible, kubectl, Helm, cloud CLIs)? [y/N] " choice || choice=""
+      choice="$(prompt_read "  Install DevOps tools (Docker, Terraform, Ansible, kubectl, Helm, cloud CLIs)? [y/N] ")"
       if [[ "$choice" =~ ^[Yy]$ ]]; then ENABLE_DEVOPS=true; else ENABLE_DEVOPS=false; fi
     fi
   fi
@@ -157,7 +165,7 @@ prompt_optional_dependencies() {
     if [ "$NON_INTERACTIVE" = true ]; then
       ENABLE_DEV_RUNTIMES=false
     else
-      read -r -p "  Install Developer runtimes (Node.js/npm via NVM, SDKMAN! & Kotlin)? [y/N] " choice || choice=""
+      choice="$(prompt_read "  Install Developer runtimes (Node.js/npm via NVM, SDKMAN! & Kotlin)? [y/N] ")"
       if [[ "$choice" =~ ^[Yy]$ ]]; then ENABLE_DEV_RUNTIMES=true; else ENABLE_DEV_RUNTIMES=false; fi
     fi
   fi
@@ -167,7 +175,7 @@ prompt_optional_dependencies() {
     if [ "$NON_INTERACTIVE" = true ]; then
       ENABLE_DESKTOP_APPS=false
     else
-      read -r -p "  Install Telegram Desktop? [y/N] " choice || choice=""
+      choice="$(prompt_read "  Install Telegram Desktop? [y/N] ")"
       if [[ "$choice" =~ ^[Yy]$ ]]; then ENABLE_DESKTOP_APPS=true; else ENABLE_DESKTOP_APPS=false; fi
     fi
   fi
@@ -177,7 +185,7 @@ prompt_optional_dependencies() {
     if [ "$NON_INTERACTIVE" = true ]; then
       ENABLE_GAMING=false
     else
-      read -r -p "  Install gaming optimizations & tools (gamemode, gamescope, mangohud, steam)? [y/N] " choice || choice=""
+      choice="$(prompt_read "  Install gaming optimizations & tools (gamemode, gamescope, mangohud, steam)? [y/N] ")"
       if [[ "$choice" =~ ^[Yy]$ ]]; then ENABLE_GAMING=true; else ENABLE_GAMING=false; fi
     fi
   fi

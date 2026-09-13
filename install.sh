@@ -5,10 +5,7 @@
 #   curl -fsSL https://raw.githubusercontent.com/petrolal/polyomino.dotfiles/master/install.sh | bash -s -- --gaming
 set -euo pipefail
 
-# If running via pipe (e.g. curl ... | bash), reconnect stdin to terminal for interactive prompts
-if [ ! -t 0 ] && [ -e /dev/tty ]; then
-  exec < /dev/tty
-fi
+
 
 # Visual branding
 BOLD="\033[1m"
@@ -71,7 +68,7 @@ if [ ! -d "$DOTFILES_DIR/.git" ]; then
     mv "$DOTFILES_DIR" "${DOTFILES_DIR}.bak.$(date +%s)"
   fi
   # Try SSH clone first if keys are configured, fallback to HTTPS
-  if ! git clone --branch "$BRANCH" "$SSH_REPO_URL" "$DOTFILES_DIR" 2>/dev/null; then
+  if ! GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=5" git clone --branch "$BRANCH" "$SSH_REPO_URL" "$DOTFILES_DIR" 2>/dev/null; then
     echo -e "  ${YELLOW}[INFO]${RESET} SSH clone unavailable; cloning via HTTPS..."
     git clone --branch "$BRANCH" "$REPO_URL" "$DOTFILES_DIR"
   fi

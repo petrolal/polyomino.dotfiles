@@ -19,15 +19,15 @@ set $launcher fuzzel || wofi --show drun --allow-images --conf ~/.config/wofi/co
 set $lock ~/.config/sway/scripts/polyomino-rubik-lock
 set $send-notify exec notify-send -a polyomino
 
-set $ws1 "1:web"
-set $ws2 "2:code"
-set $ws3 "3:term"
-set $ws4 "4:containers"
-set $ws5 "5:comms"
-set $ws6 "6:notes"
-set $ws7 "7:infra"
-set $ws8 "8:misc"
-set $ws9 "9:scratch"
+set $ws1 "1"
+set $ws2 "2"
+set $ws3 "3"
+set $ws4 "4"
+set $ws5 "5"
+set $ws6 "6"
+set $ws7 "7"
+set $ws8 "8"
+set $ws9 "9"
 
 ### ────────────────────────────────────────────────────────────────
 ### Autostart (Wayland-first, corporate-compatible)
