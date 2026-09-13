@@ -78,18 +78,6 @@
     },
     "timeout": 30,
   },
-  // waybar-gamemode — apps/games indicator, only accents when a game session is running.
-  // Click toggles Game Mode; right-click jumps to the MEDIA (gaming) workspace.
-  "custom/gamemode": {
-    "exec": "~/.local/bin/polyomino gamemode --waybar",
-    "return-type": "json",
-    "interval": 5,
-    "signal": 8,
-    "format": "{}",
-    "tooltip": true,
-    "on-click": "~/.local/bin/polyomino gamemode toggle",
-    "on-click-right": "swaymsg workspace number 4",
-  },
   // waybar-media — any MPRIS player (Spotify, browser, mpv, ...)
   "custom/media": {
     "exec": "~/.local/bin/polyomino media-status",

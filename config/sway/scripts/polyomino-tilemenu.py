@@ -880,6 +880,12 @@ def main():
     win.show_all()
     Gtk.main()
 
+    # drun mode has no "result" to report back to a caller — the window closing
+    # normally (selection or cancel) is success either way, so it must not exit
+    # 1, or sway's `... || polyomino launcher` fallback binding reopens it.
+    if args.drun:
+        return 0
+
     if win.result:
         print(win.result)
         return 0
