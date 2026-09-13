@@ -189,6 +189,12 @@ input type:touchpad {
     dwt enabled
 }
 
+# Touchpad Gestures
+bindgesture swipe:3:right workspace prev
+bindgesture swipe:3:left workspace next
+bindgesture swipe:3:up fullscreen toggle
+bindgesture swipe:3:down floating toggle
+
 # Mouse Drag & Instantaneous Floating Detachment
 floating_modifier $mod normal
 bindsym --whole-window $mod+button2 floating toggle
@@ -214,17 +220,21 @@ workspace_auto_back_and_forth yes
 include fx.conf
 
 ### ────────────────────────────────────────────────────────────────
-### Workspace names
+### Workspace -> Output assignments (Dynamic 1 or 2 Monitor Setup)
 ### ────────────────────────────────────────────────────────────────
-workspace $ws1
-workspace $ws2
-workspace $ws3
-workspace $ws4
-workspace $ws5
-workspace $ws6
-workspace $ws7
-workspace $ws8
-workspace $ws9
+# Primary Focus Workspaces: Prefer external monitor, fallback to laptop display (eDP-1)
+workspace $ws2 output HDMI-A-1 DP-1 HDMI-1 HDMI-2 eDP-1
+workspace $ws3 output HDMI-A-1 DP-1 HDMI-1 HDMI-2 eDP-1
+workspace $ws7 output HDMI-A-1 DP-1 HDMI-1 HDMI-2 eDP-1
+workspace $ws8 output HDMI-A-1 DP-1 HDMI-1 HDMI-2 eDP-1
+
+# Secondary / Aux / Comms Workspaces: Prefer laptop display (eDP-1), fallback to external
+workspace $ws1 output eDP-1 HDMI-A-1 DP-1 HDMI-1 HDMI-2
+workspace $ws4 output eDP-1 HDMI-A-1 DP-1 HDMI-1 HDMI-2
+workspace $ws5 output eDP-1 HDMI-A-1 DP-1 HDMI-1 HDMI-2
+workspace $ws6 output eDP-1 HDMI-A-1 DP-1 HDMI-1 HDMI-2
+workspace $ws9 output eDP-1 HDMI-A-1 DP-1 HDMI-1 HDMI-2
+
 
 ### ────────────────────────────────────────────────────────────────
 ### Application -> workspace assignment
@@ -309,6 +319,10 @@ assign [class="Docker Desktop"] $ws7
 assign [app_id="lens"] $ws7
 assign [class="Lens"] $ws7
 
+# Auto-tabbed layouts for multi-window communication & web workspaces
+for_window [workspace="^5$"] layout tabbed
+for_window [workspace="^3$"] layout tabbed
+
 ### ────────────────────────────────────────────────────────────────
 ### Key bindings
 ### ────────────────────────────────────────────────────────────────
@@ -318,9 +332,10 @@ bindsym $mod+Return exec $term
 bindsym $mod+Shift+Return exec ~/.local/bin/polyomino draw-window --spawn
 bindsym $mod+Shift+q kill
 bindsym $mod+d exec $launcher
-bindsym $mod+Shift+b exec google-chrome-stable
+bindsym $mod+Shift+b exec google-chrome-stable, workspace $ws3
 bindsym $mod+Shift+f exec $term -e yazi
-bindsym $mod+Shift+m exec $term --app-id spotify_player --title spotify -e spotify_player
+bindsym $mod+Shift+m exec $term --app-id spotify_player --title spotify -e spotify_player, workspace $ws4
+bindsym $mod+Shift+o exec obsidian, workspace $ws6
 bindsym $mod+Shift+u exec $term --title bluetui -e bluetui
 bindsym $mod+Shift+v exec $term --title pulsemixer -e sh -c 'wiremix || pulsemixer || ncpamixer'
 bindsym $mod+Shift+i exec $term --title nmtui -e sh -c 'impala || wifui || nmtui'
@@ -352,7 +367,7 @@ bindsym $mod+Shift+Down move down
 bindsym $mod+Shift+Up move up
 bindsym $mod+Shift+Right move right
 
-# Workspaces
+# Workspaces — Switch
 bindsym $mod+1 workspace number 1
 bindsym $mod+2 workspace number 2
 bindsym $mod+3 workspace number 3
@@ -364,6 +379,7 @@ bindsym $mod+8 workspace number 8
 bindsym $mod+9 workspace number 9
 bindsym $mod+0 workspace number 10
 
+# Workspaces — Move Container (Stay on current workspace)
 bindsym $mod+Shift+1 move container to workspace number 1
 bindsym $mod+Shift+2 move container to workspace number 2
 bindsym $mod+Shift+3 move container to workspace number 3
@@ -374,6 +390,24 @@ bindsym $mod+Shift+7 move container to workspace number 7
 bindsym $mod+Shift+8 move container to workspace number 8
 bindsym $mod+Shift+9 move container to workspace number 9
 bindsym $mod+Shift+0 move container to workspace number 10
+
+# Workspaces — Move Container AND Follow
+bindsym $mod+Control+1 move container to workspace number 1; workspace number 1
+bindsym $mod+Control+2 move container to workspace number 2; workspace number 2
+bindsym $mod+Control+3 move container to workspace number 3; workspace number 3
+bindsym $mod+Control+4 move container to workspace number 4; workspace number 4
+bindsym $mod+Control+5 move container to workspace number 5; workspace number 5
+bindsym $mod+Control+6 move container to workspace number 6; workspace number 6
+bindsym $mod+Control+7 move container to workspace number 7; workspace number 7
+bindsym $mod+Control+8 move container to workspace number 8; workspace number 8
+bindsym $mod+Control+9 move container to workspace number 9; workspace number 9
+bindsym $mod+Control+0 move container to workspace number 10; workspace number 10
+
+# Workspaces — Fast Navigation & Urgent Jump
+bindsym $mod+Tab workspace back_and_forth
+bindsym $mod+bracketleft workspace prev
+bindsym $mod+bracketright workspace next
+bindsym $mod+u [urgent=latest] focus
 
 # Layout
 bindsym $mod+b splith
@@ -392,8 +426,8 @@ bindsym $mod+Shift+w exec ~/.local/bin/polyomino draw-window --spawn
 # Scratchpads (Generic & Dedicated Shortcuts)
 bindsym $mod+Shift+minus move scratchpad, $send-notify 'Scratchpad'
 bindsym $mod+minus scratchpad show
-bindsym $mod+grave exec $term --title "scratchpad-term" -e zsh
-bindsym $mod+apostrophe [app_id="kitty" title="aerc"] scratchpad show
+bindsym $mod+grave exec ~/.config/sway/scripts/polyomino-scratchpad term
+bindsym $mod+apostrophe exec ~/.config/sway/scripts/polyomino-scratchpad aerc
 
 # Resizing
 bindsym $mod+r mode "resize"

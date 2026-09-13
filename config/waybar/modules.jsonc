@@ -108,7 +108,7 @@
     "tooltip-format": "MPD (connected)",
     "tooltip-format-disconnected": "MPD (disconnected)",
     "on-click": "mpc toggle",
-    "on-click-middle": "alacritty --class 'alacritty-float,alacritty-float' --config-file ~/.config/sway/alacritty/alacritty.toml -e ncmpcpp",
+    "on-click-middle": "kitty --class=floating-term -T ncmpcpp -e ncmpcpp",
     "on-click-right": "mpc next",
     "on-update": "",
     "on-scroll-up": "mpc seek +5%",
@@ -126,7 +126,8 @@
     "tooltip-format-wifi": "{essid}  {ifname}: {ipaddr}/{cidr}",
     "tooltip-format-ethernet": "{ifname}: {ipaddr}/{cidr}",
     "tooltip-format-disconnected": "Disconnected",
-    "on-click-right": "~/.config/sway/scripts/rofi_network",
+    "on-click": "kitty --class=nmtui -T nmtui -e sh -c 'impala || wifui || nmtui'",
+    "on-click-right": "nm-connection-editor",
   },
   // waybar-pulseaudio
   "pulseaudio": {
@@ -166,13 +167,16 @@
   "sway/workspaces": {
     "disable-scroll": true,
     "disable-click": false,
-    "all-outputs": true,
+    "all-outputs": false,
     "format": "{name} <span size='small'>{icon}</span>",
     "persistent_workspaces": {
-      "1": [],
-      "2": [],
-      "3": [],
-      "4": []
+      "1": ["eDP-1"],
+      "2": ["HDMI-A-1"],
+      "3": ["HDMI-A-1"],
+      "4": ["eDP-1"],
+      "5": ["eDP-1"],
+      "6": ["eDP-1"],
+      "7": ["HDMI-A-1"]
     },
     "format-icons": {
       "1": "⠸ SYS",

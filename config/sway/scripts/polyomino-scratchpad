@@ -1,0 +1,67 @@
+#!/usr/bin/env python3
+"""
+polyomino-scratchpad — Intelligent Scratchpad Toggle & Spawner for Sway
+Toggles existing scratchpad window, or spawns it if not currently running.
+"""
+
+import json
+import os
+import subprocess
+import sys
+
+def get_sway_tree():
+    try:
+        out = subprocess.run(["swaymsg", "-t", "get_tree"], capture_output=True, text=True, timeout=2).stdout
+        return json.loads(out)
+    except Exception:
+        return None
+
+def find_window(node, app_id=None, title=None):
+    if not node:
+        return None
+    curr_app = node.get("app_id") or (node.get("window_properties") or {}).get("class") or ""
+    curr_title = node.get("name") or ""
+    
+    if app_id and app_id.lower() == curr_app.lower():
+        if not title or title.lower() in curr_title.lower():
+            return node.get("id")
+    elif title and title.lower() in curr_title.lower():
+        return node.get("id")
+        
+    for child in node.get("nodes", []) + node.get("floating_nodes", []):
+        found = find_window(child, app_id, title)
+        if found:
+            return found
+    return None
+
+def toggle_or_spawn(target):
+    tree = get_sway_tree()
+    
+    if target == "term":
+        app_id = "scratchpad-term"
+        title = "scratchpad-term"
+        cmd = ["kitty", "--app-id=scratchpad-term", "--title=scratchpad-term", "-e", "zsh"]
+    elif target == "aerc":
+        app_id = "scratchpad-comms"
+        title = "aerc"
+        cmd = ["kitty", "--app-id=scratchpad-comms", "--title=aerc", "-e", "aerc"]
+    elif target == "spotify":
+        app_id = "spotify_player"
+        title = "spotify"
+        cmd = ["kitty", "--app-id=spotify_player", "--title=spotify", "-e", "spotify_player"]
+    else:
+        app_id = target
+        title = target
+        cmd = [target]
+
+    con_id = find_window(tree, app_id=app_id, title=title) if tree else None
+    
+    if con_id:
+        subprocess.run(["swaymsg", f"[con_id={con_id}]", "scratchpad", "show"])
+    else:
+        # Spawn the application
+        subprocess.Popen(cmd, start_new_session=True)
+
+if __name__ == "__main__":
+    target = sys.argv[1] if len(sys.argv) > 1 else "term"
+    toggle_or_spawn(target)
