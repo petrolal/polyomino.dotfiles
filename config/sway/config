@@ -71,7 +71,7 @@ for_window [class="(?i).*pinentry.*"] floating enable, border pixel 2, move posi
 # (the calendar popup is a wlr-layer-shell surface, not an xdg toplevel — for_window
 # criteria never match it; its placement is set via GtkLayerShell anchors/margins in
 # CalendarPopup.scala's PythonRunnerScript)
-for_window [app_id="polyomino-welcome"] floating enable, border pixel 2, resize set 840 620, move position center
+for_window [app_id="polyomino-welcome"] floating enable, border pixel 2, resize set 840 620, move position center, blur enable
 for_window [app_id="polyomino-lock-preview"] floating enable, border pixel 2, resize set 1024 720, move position center
 
 # Polyomino tile menus (theme-picker, wallpaper-picker, menu, whichkey, projects)
@@ -128,7 +128,7 @@ exec swayidle -w \
 exec_always autotiling || sh -c 'pkill -f "^$HOME/.local/bin/polyomino-autotiling"; ~/.local/bin/polyomino-autotiling'
 
 # Set FastFetch logo 
-exec_always --no-startup-id ~/.config/fastfetch/set_logo.sh
+exec_always --no-startup-id ~/.local/bin/polyomino fastfetch-logo
 
 # Polkit authentication agent
 exec sh -c 'for p in /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1 /usr/libexec/polkit-gnome-authentication-agent-1 /usr/lib/policykit-1-gnome/polkit-gnome-authentication-agent-1 /usr/bin/lxpolkit; do if [ -x "$p" ]; then exec "$p"; fi; done'
@@ -299,7 +299,7 @@ assign [class="Lens"] $ws7
 
 # Basics, Terminal & Floating Terminal (Interactive Drag Window)
 bindsym $mod+Return exec $term
-bindsym $mod+Shift+Return exec ~/.local/bin/sway-draw-window --spawn
+bindsym $mod+Shift+Return exec ~/.local/bin/polyomino draw-window --spawn
 bindsym $mod+Shift+q kill
 bindsym $mod+d exec $launcher
 bindsym $mod+Shift+b exec google-chrome-stable
@@ -371,7 +371,7 @@ bindsym $mod+space focus mode_toggle
 bindsym $mod+a focus parent
 
 # Draw interactive floating window with slurp
-bindsym $mod+Shift+w exec ~/.local/bin/sway-draw-window --spawn
+bindsym $mod+Shift+w exec ~/.local/bin/polyomino draw-window --spawn
 
 # Scratchpads (Generic & Dedicated Shortcuts)
 bindsym $mod+Shift+minus move scratchpad, $send-notify 'Scratchpad'
@@ -383,13 +383,13 @@ bindsym $mod+apostrophe [app_id="kitty" title="aerc"] scratchpad show
 bindsym $mod+r mode "resize"
 
 # Cheatsheet & Pickers
-bindsym $mod+p exec ~/.local/bin/sway-project-launcher
+bindsym $mod+p exec ~/.local/bin/polyomino projects
 bindsym $mod+m exec ~/.local/bin/polyomino-menu
 bindsym $mod+slash exec ~/.local/bin/polyomino-whichkey
 bindsym $mod+question exec ~/.local/bin/polyomino-whichkey
 bindsym $mod+Shift+d exec wdisplays
 bindsym $mod+Shift+t exec ~/.local/bin/polyomino-theme-picker
-bindsym $mod+F5 exec ~/.local/bin/polyomino-theme-cycle
+bindsym $mod+F5 exec ~/.local/bin/polyomino theme next
 bindsym $mod+Shift+p exec ~/.local/bin/polyomino-wallpaper
 bindsym $mod+F6 exec ~/.local/bin/polyomino wallpaper next
 

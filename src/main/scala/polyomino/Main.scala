@@ -63,13 +63,18 @@ object Main:
       case "notify-config" => polyomino.dotfiles.refresh.NotificationIntegration.configureApps(ctx)
       case "autotiling" => polyomino.dotfiles.autotiling.AutotilingDaemon.run(ctx, args)
       case "theme-picker" => polyomino.dotfiles.pickers.WofiPickers.runThemePicker(ctx, args)
+      case "theme-cycle" | "cycle-theme" => polyomino.dotfiles.theme.ThemeEngine.runCycle(ctx)
       case "wallpaper-picker" => polyomino.dotfiles.pickers.WofiPickers.runWallpaperPicker(ctx, args)
       case "whichkey" | "wichkey" => polyomino.dotfiles.pickers.WofiPickers.runWhichkey(ctx, args)
       case "launcher" | "app-launcher" | "drun" => polyomino.dotfiles.pickers.WofiPickers.runLauncher(ctx, args)
       case "menu" => polyomino.dotfiles.pickers.WofiPickers.runMenu(ctx, args)
+      case "projects" | "project-launcher" | "sway-project-launcher" => polyomino.dotfiles.pickers.WofiPickers.runProjects(ctx, args)
+      case "media-status" | "waybar-media" | "media" => polyomino.dotfiles.sysutils.SysUtils.runMediaStatus(ctx)
+      case "fastfetch-logo" | "set-logo" => polyomino.dotfiles.sysutils.SysUtils.runFastfetchLogo(ctx)
       case "backup" => polyomino.dotfiles.maintenance.Maintenance.runBackup(ctx, args)
       case "restore" => polyomino.dotfiles.maintenance.Maintenance.runRestore(ctx, args)
       case "update" => polyomino.dotfiles.maintenance.Maintenance.runUpdate(ctx, args)
+      case "release" => polyomino.dotfiles.maintenance.Maintenance.runRelease(ctx, args)
       case "install" | "deploy" => polyomino.dotfiles.install.DeployInstaller.run(ctx, args)
       case "uninstall" => polyomino.dotfiles.install.DeployInstaller.uninstall(ctx, args)
       case "gamemode" => polyomino.dotfiles.gamemode.GameModeEngine.run(ctx, args)
@@ -98,16 +103,22 @@ object Main:
       |  preview-lock     preview and test lock screen safely without locking session
       |  idle             run the swayidle daemon (auto-lock, dpms, suspend)
       |  screenshot       capture a screenshot (full|region|window)
+      |  draw-window      interactively draw floating window geometry with slurp
       |  power-menu       workstation power & session modal (reboot | shutdown | lock+suspend)
       |  autotiling       Fibonacci spiral autotiling daemon for Sway
       |  healthcheck      read-only health check of the deployed setup
       |  backup           snapshot managed configs to a timestamped tarball
       |  restore          restore a snapshot created by backup
       |  update           git pull the dotfiles and re-run the installer
+      |  release          prepare semver release, bump PKGBUILD/.SRCINFO/build.sbt, git tag
       |  notify-config    configure installed apps to use system notifications
+      |  media-status     Waybar MPRIS player metadata monitor (JSON)
+      |  fastfetch-logo   set distro-specific Fastfetch ASCII logo
       |  sdd              token-efficient spec-driven development for AI workflows
       |  install-deps     install system & build dependencies (sbt, gcc, git, etc.)
       |  install-gaming   install gaming dependencies & tools (gamemode/gamescope/mangohud/etc.)
+      |  install-emulator <name>  install one emulator (mesen/bsnes/sameboy/mgba/mame/flycast/blastem/duckstation/simple64)
+      |  install-emulators install the full competitive emulator suite
       |  install-brew     install Homebrew package manager
       |  install-gh       install GitHub CLI (gh)
       |  install-fonts    install the JetBrainsMono Nerd Font
@@ -126,6 +137,7 @@ object Main:
       |  wallpaper-picker wofi GUI to pick a wallpaper for the active flavor
       |  whichkey         wofi cheatsheet of the live sway keybindings
       |  menu             wofi launcher for the waybar POLYOMINO pill (power / theme / config)
+      |  projects         project launcher for Sway + Kitty + Neovim
       |
       |Run `polyomino <command> --help` for command-specific usage.
       |""".stripMargin

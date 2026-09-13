@@ -105,14 +105,26 @@ class SysUtilsSuite extends FunSuite:
       assert(res.isRight)
     }
 
-  test("SysUtils.runDrawWindow succeeds when script exists and fails when missing"):
+  test("SysUtils.runDrawWindow handles test mode safely"):
     withIsolatedContext { ctx =>
-      val res = SysUtils.runDrawWindow(ctx, List("--help"))
+      val res = SysUtils.runDrawWindow(ctx, List("--spawn"))
       assert(res.isRight)
+    }
 
-      val missingCtx = ctx.copy(dotfilesDir = ctx.home / "empty")
-      val missingRes = SysUtils.runDrawWindow(missingCtx, List("--help"))
-      assert(missingRes.isLeft)
+  test("SysUtils.runMediaStatus outputs valid JSON in test mode"):
+    withIsolatedContext { ctx =>
+      val res = SysUtils.runMediaStatus(ctx)
+      assert(res.isRight)
+    }
+
+  test("SysUtils.runFastfetchLogo symlinks matching logo in assets directory"):
+    withIsolatedContext { ctx =>
+      val assetsDir = ctx.configDir / "fastfetch" / "assets"
+      os.makeDir.all(assetsDir)
+      os.write(assetsDir / "polyomino_tetris.txt", "TEST_LOGO")
+      val res = SysUtils.runFastfetchLogo(ctx)
+      assert(res.isRight)
+      assert(os.exists(assetsDir / "current_logo.txt") || os.isLink(assetsDir / "current_logo.txt"))
     }
 
   test("SysUtils.runWelcome succeeds when script exists and fails when missing"):

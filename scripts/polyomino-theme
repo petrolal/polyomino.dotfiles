@@ -1,61 +1,15 @@
 #!/usr/bin/env bash
+# polyomino theme wrapper - delegates to Scala native CLI
 set -euo pipefail
 
-# Polyomino theme switcher script
-# Usage: polyomino-theme <theme>
-# Valid themes: matriz, encruza, caravela, aruanda
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-CONFIG_DIR="${HOME}/.config/polyomino/theme"
-STATE_FILE="${CONFIG_DIR}/state"
-TOKENS_FILE="${CONFIG_DIR}/tokens.css"
-
-VALID_THEMES=("matriz" "encruza" "caravela" "aruanda")
-
-if [[ $# -lt 1 ]]; then
-  echo "Usage: polyomino-theme <theme>"
-  exit 1
+if command -v polyomino &>/dev/null; then
+  exec polyomino theme "$@"
+elif [ -x "$HOME/.local/bin/polyomino" ]; then
+  exec "$HOME/.local/bin/polyomino" theme "$@"
+elif [ -x "$SCRIPT_DIR/target/native-image/polyomino" ]; then
+  exec "$SCRIPT_DIR/target/native-image/polyomino" theme "$@"
+else
+  cd "$SCRIPT_DIR" && sbt "run theme $*"
 fi
-
-theme="$1"
-
-# Validate theme
-if [[ ! " ${VALID_THEMES[@]} " =~ " ${theme} " ]]; then
-  echo "Invalid theme: ${theme}"
-  echo "Valid themes: ${VALID_THEMES[*]}"
-  exit 1
-fi
-
-# Apply theme using existing polyomino CLI (delegates to ThemeEngine)
-polyomino theme "${theme}"
-
-# Reload Waybar (SIGUSR2 forces a reload)
-if command -v killall >/dev/null 2>&1; then
-  killall -SIGUSR2 waybar 2>/dev/null || true
-  killall -SIGUSR1 kitty 2>/dev/null || true
-fi
-
-# Reload SwayNC
-if command -v swaync-client >/dev/null 2>&1; then
-  swaync-client -rs >/dev/null 2>&1 || true
-  swaync-client -R >/dev/null 2>&1 || true
-fi
-
-# Reload Mako
-if command -v makoctl >/dev/null 2>&1; then
-  makoctl reload >/dev/null 2>&1 || true
-fi
-
-# Reload Sway configuration
-if command -v swaymsg >/dev/null 2>&1; then
-  swaymsg reload >/dev/null 2>&1 || true
-fi
-
-# Apply wallpaper if defined in state file
-if [[ -f "${STATE_FILE}" ]]; then
-  wallpaper=$(grep '^WALLPAPER=' "${STATE_FILE}" | cut -d= -f2-)
-  if [[ -n "$wallpaper" && -f "$wallpaper" ]]; then
-    swaymsg "output * bg \"$wallpaper\" fill" >/dev/null 2>&1 || true
-  fi
-fi
-
-echo "Theme switched to ${theme}"

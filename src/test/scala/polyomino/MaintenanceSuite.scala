@@ -102,3 +102,58 @@ class MaintenanceSuite extends FunSuite:
       val res = Maintenance.runUpdate(nonGitCtx, Nil)
       assert(res.isLeft)
     }
+
+  test("Maintenance.calculateNextVersion calculates semantic versions correctly"):
+    assertEquals(Maintenance.calculateNextVersion("1.2.3", "--patch"), Some("1.2.4"))
+    assertEquals(Maintenance.calculateNextVersion("1.2.3", "--minor"), Some("1.3.0"))
+    assertEquals(Maintenance.calculateNextVersion("1.2.3", "--major"), Some("2.0.0"))
+    assertEquals(Maintenance.calculateNextVersion("1.2.3", "4.0.0"), Some("4.0.0"))
+    assertEquals(Maintenance.calculateNextVersion("1.2.3-SNAPSHOT", "--patch"), Some("1.2.4"))
+    assertEquals(Maintenance.calculateNextVersion("invalid", "--patch"), None)
+    assertEquals(Maintenance.calculateNextVersion("1.2.3", "not-a-version"), None)
+
+  test("Maintenance.runRelease dry run updates nothing and succeeds"):
+    withIsolatedContext { ctx =>
+      val repoDir = ctx.home / "dotfiles-repo"
+      os.makeDir.all(repoDir / "config")
+      os.makeDir.all(repoDir / "zsh")
+      os.proc("git", "init").call(cwd = repoDir)
+      os.write(repoDir / "PKGBUILD", "pkgver=1.0.0\npkgrel=1\n")
+      os.write(repoDir / ".SRCINFO", "\tpkgver = 1.0.0\n\tpkgrel = 1\n")
+
+      val gitCtx = ctx.copy(dotfilesDir = repoDir)
+      val res = Maintenance.runRelease(gitCtx, List("--minor", "--dry-run"))
+      assert(res.isRight, s"Dry run release failed: $res")
+
+      // Verify files remained unchanged
+      assert(os.read(repoDir / "PKGBUILD").contains("pkgver=1.0.0"))
+    }
+
+  test("Maintenance.runRelease updates PKGBUILD, .SRCINFO and creates git tag"):
+    withIsolatedContext { ctx =>
+      val repoDir = ctx.home / "dotfiles-repo"
+      os.makeDir.all(repoDir / "config")
+      os.makeDir.all(repoDir / "zsh")
+      os.proc("git", "init").call(cwd = repoDir)
+      os.proc("git", "config", "user.name", "Test User").call(cwd = repoDir)
+      os.proc("git", "config", "user.email", "test@example.com").call(cwd = repoDir)
+      os.write(repoDir / "PKGBUILD", "pkgver=1.0.0\npkgrel=1\n")
+      os.write(repoDir / ".SRCINFO", "\tpkgver = 1.0.0\n\tpkgrel = 1\n")
+      os.write(repoDir / "build.sbt", "version := \"1.0.0\"\n")
+      os.proc("git", "add", ".").call(cwd = repoDir)
+      os.proc("git", "commit", "-m", "initial").call(cwd = repoDir)
+      os.proc("git", "tag", "v1.0.0").call(cwd = repoDir)
+
+      val gitCtx = ctx.copy(dotfilesDir = repoDir)
+      val res = Maintenance.runRelease(gitCtx, List("--patch"))
+      assert(res.isRight, s"Release failed: $res")
+
+      // Verify files updated
+      assert(os.read(repoDir / "PKGBUILD").contains("pkgver=1.0.1"))
+      assert(os.read(repoDir / ".SRCINFO").contains("pkgver = 1.0.1"))
+      assert(os.read(repoDir / "build.sbt").contains("version := \"1.0.1\""))
+
+      // Verify git tag created
+      val tagRes = os.proc("git", "tag", "-l", "v1.0.1").call(cwd = repoDir)
+      assertEquals(tagRes.out.text().trim, "v1.0.1")
+    }

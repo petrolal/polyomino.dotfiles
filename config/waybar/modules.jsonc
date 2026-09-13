@@ -80,7 +80,7 @@
   },
   // waybar-media — any MPRIS player (Spotify, browser, mpv, ...)
   "custom/media": {
-    "exec": "~/.config/waybar/media.sh",
+    "exec": "~/.local/bin/polyomino media-status",
     "return-type": "json",
     "interval": 2,
     "format": "{}",

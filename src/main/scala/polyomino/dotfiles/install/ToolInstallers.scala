@@ -35,6 +35,10 @@ object ToolInstallers:
       case "install-fastfetch" => installFastfetch(ctx)
       case "install-spotify" | "install-spotify-player" => installSpotifyPlayer(ctx)
       case "install-gaming" | "install-games" | "install-gamemode" => installGaming(ctx)
+      case "install-emulator" => args.headOption match
+        case Some(id) => installEmulator(id)
+        case None => Left(CommandError("Usage: polyomino install-emulator <name>", 1))
+      case "install-emulators" => installEmulators()
       case "install-zoxide" => installZoxide(ctx)
       case "full-install" => installAll(ctx, args)
       case _ => Left(CommandError(s"Unknown installer task '$name'", 1))
@@ -907,6 +911,61 @@ object ToolInstallers:
           os.proc("bash", "-c", "curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | sh").call(check = false)
         catch case _: Exception => ()
         Right(())
+
+  /** Competitive-Tetris emulator suite offered by the Gaming Center's
+   *  "Installation / Setup" section. `pacmanPkg` covers Arch's official
+   *  repos; `aurPkg` is tried via `yay` when the official package is absent
+   *  (or on a non-Arch box where neither applies, in which case we just
+   *  print manual-install guidance rather than fail). */
+  private case class EmulatorSpec(id: String, label: String, pacmanPkg: Option[String], aurPkg: Option[String])
+
+  private val emulatorSpecs: Seq[EmulatorSpec] = Seq(
+    EmulatorSpec("mesen", "Mesen", None, Some("mesen")),
+    EmulatorSpec("bsnes", "bsnes", Some("bsnes"), None),
+    EmulatorSpec("sameboy", "SameBoy", None, Some("sameboy")),
+    EmulatorSpec("mgba", "mGBA", Some("mgba-qt"), None),
+    EmulatorSpec("mame", "MAME", Some("mame"), None),
+    EmulatorSpec("flycast", "Flycast", Some("flycast"), None),
+    EmulatorSpec("blastem", "BlastEm", None, Some("blastem-git")),
+    EmulatorSpec("duckstation", "DuckStation", None, Some("duckstation")),
+    EmulatorSpec("simple64", "simple64", None, Some("simple64"))
+  )
+
+  private def installEmulator(id: String): Either[PolyominoError, Unit] =
+    emulatorSpecs.find(_.id.equalsIgnoreCase(id)) match
+      case None => Left(CommandError(s"Unknown emulator '$id'. Known: ${emulatorSpecs.map(_.id).mkString(", ")}", 1))
+      case Some(spec) =>
+        println(s"[1;36m[polyomino install-emulator][0m Installing ${spec.label}...")
+        installEmulatorSpec(spec)
+        Right(())
+
+  private def installEmulators(): Either[PolyominoError, Unit] =
+    println(s"[1;36m[polyomino install-emulators][0m Installing full emulator suite (${emulatorSpecs.size} emulators)...")
+    emulatorSpecs.foreach(installEmulatorSpec)
+    println("  [32m[OK][0m Emulator suite installation pass complete.")
+    Right(())
+
+  /** Best-effort install of a single emulator: never fails the overall run
+   *  (so "Install All" keeps going) — mirrors the degrade-gracefully
+   *  contract for optional external tools used elsewhere in this file. */
+  private def installEmulatorSpec(spec: EmulatorSpec): Unit =
+    val pm = detectPackageManager()
+    try
+      (pm, spec.pacmanPkg, spec.aurPkg) match
+        case (PackageManager.Pacman, Some(pkg), _) =>
+          runPkgInstall("sudo", Seq("pacman", "-S", "--needed", "--noconfirm", pkg))
+        case (PackageManager.Pacman, None, Some(aur)) if isAvailable("yay") =>
+          val res = os.proc("yay", "-S", "--needed", "--noconfirm", "--answerclean", "None", "--answerdiff", "None", aur)
+            .call(stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit, check = false)
+          if res.exitCode == 0 then println(s"  [32m[OK][0m Installed: ${spec.label}")
+          else println(s"  [31m[FAIL][0m Could not install ${spec.label} via yay (code ${res.exitCode})")
+        case (PackageManager.Pacman, None, Some(_)) =>
+          println(s"  [33m[NOTE][0m ${spec.label} requires an AUR helper (yay) which is not installed. Skipping.")
+        case _ =>
+          println(s"  [33m[NOTE][0m ${spec.label} has no known package for this OS/package manager; install manually.")
+    catch
+      case e: Exception =>
+        println(s"  [33m[NOTE][0m ${spec.label} installation skipped: ${e.getMessage}")
 
   private def shouldInstall(
     flagName: String,

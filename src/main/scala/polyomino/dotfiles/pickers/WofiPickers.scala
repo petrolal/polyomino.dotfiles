@@ -296,6 +296,101 @@ object WofiPickers:
     else
       Left(CommandError("polyomino-tilemenu.py script missing"))
 
+  def runProjects(ctx: Context, args: List[String] = Nil): Either[PolyominoError, Unit] =
+    // Toggle behavior: check if project picker is already open
+    try
+      val checkRes = os.proc("pgrep", "-f", "polyomino-tilemenu.*PROJECTS").call(check = false)
+      if checkRes.exitCode == 0 then
+        val pids = checkRes.out.text().trim.split("\\s+").filter(_.nonEmpty)
+        for pid <- pids do
+          try os.proc("kill", pid).call(check = false) catch case _: Exception => ()
+        return Right(())
+    catch
+      case _: Exception => ()
+
+    val projectDirs = collectProjectDirectories(ctx)
+    if projectDirs.isEmpty then return Right(())
+
+    val accents = Array("blue", "teal", "green", "peach", "mauve", "sapphire", "sky", "yellow")
+    val homeStr = ctx.home.toString
+
+    val tiles = projectDirs.zipWithIndex.map { case (path, idx) =>
+      val display = if path.startsWith(homeStr) then path.replace(homeStr, "~") else path
+      val title = os.Path(path).last
+      tile(path, "⊞", title, display, accents(idx % accents.length))
+    }
+
+    try
+      val selected = tilePick(ctx, "[ ⊞ ] PROJECTS", tiles, columns = 3, width = 760, height = 520, badge = "PROJECTS")
+      if selected.nonEmpty && os.exists(os.Path(selected)) then
+        val term = if isCommandAvailable("kitty") then "kitty" else sys.env.getOrElse("TERMINAL", "kitty")
+        val cmd: Seq[os.Shellable] = if term == "kitty" then
+          Seq("kitty", "--class", "nvim-project", "-d", selected, "nvim", ".")
+        else
+          Seq(term, "-e", "nvim", selected)
+        try os.proc(cmd*).spawn(stdout = os.Inherit, stderr = os.Inherit)
+        catch case _: Exception => ()
+      Right(())
+    catch
+      case e: Exception => Left(CommandError(s"Project picker failed: ${e.getMessage}"))
+
+  private def isCommandAvailable(cmd: String): Boolean =
+    try os.proc("which", cmd).call(check = false).exitCode == 0 catch case _: Exception => false
+
+  private def collectProjectDirectories(ctx: Context): Seq[String] =
+    val searchRoots = Seq(
+      ctx.home / "Projects",
+      ctx.dotfilesDir,
+      ctx.home / "tetravim.nvim",
+      ctx.configDir,
+      ctx.home / "dev",
+      ctx.home / "code",
+      ctx.home / "src",
+      ctx.home / "workspace",
+      ctx.home / "repos",
+      ctx.home / "Documents" / "Projects"
+    ).filter(os.exists)
+
+    val gitFound = scala.collection.mutable.Set[String]()
+
+    if isCommandAvailable("fd") then
+      try
+        val rootArgs = searchRoots.map(_.toString)
+        val fdCmd: Seq[os.Shellable] = (Seq("fd", "-H", "^\\.git$", "-t", "d", "-d", "5") ++ rootArgs).map(s => (s: os.Shellable))
+        val fdRes = os.proc(fdCmd*).call(check = false)
+        if fdRes.exitCode == 0 then
+          for line <- fdRes.out.lines() do
+            val trimmed = line.trim
+            if trimmed.nonEmpty then
+              val repoDir = os.Path(trimmed) / os.up
+              if os.exists(repoDir) then gitFound += repoDir.toString
+      catch
+        case _: Exception => ()
+
+    if gitFound.isEmpty then
+      for root <- searchRoots do
+        try
+          os.walk(root, maxDepth = 5, skip = (p: os.Path) => p.last == ".git" || p.last == "target" || p.last == "node_modules").foreach { p =>
+            if os.isDir(p) && os.exists(p / ".git") then
+              gitFound += p.toString
+          }
+        catch
+          case _: Exception => ()
+
+    val projectsDir = ctx.home / "Projects"
+    if os.exists(projectsDir) then
+      try
+        os.list(projectsDir).filter(os.isDir).foreach { p =>
+          gitFound += p.toString
+          try os.list(p).filter(os.isDir).foreach(sub => gitFound += sub.toString) catch case _: Exception => ()
+        }
+      catch
+        case _: Exception => ()
+
+    Seq(ctx.dotfilesDir, ctx.home / "tetravim.nvim", ctx.configDir).filter(os.exists).foreach(p => gitFound += p.toString)
+
+    gitFound.toSeq.sorted
+
   private def resolveSwayKeybindings(ctx: Context): Seq[String] =
     try
       val configContent = getSwayConfigContent(ctx)

@@ -32,11 +32,11 @@ object DeployInstaller:
 
   val Subcommands: Seq[String] = Seq(
     "theme", "runtime-refresh", "os-colorscheme", "lock", "preview-lock", "rubik-lock", "idle",
-    "screenshot", "draw-window", "sway-draw-window", "calendar", "autotiling", "healthcheck", "backup", "restore", "update", "notify-config",
+    "screenshot", "draw-window", "sway-draw-window", "calendar", "autotiling", "healthcheck", "backup", "restore", "update", "release", "notify-config",
     "sdd", "install", "deploy", "uninstall", "welcome", "gamemode", "install-deps", "install-gaming", "install-games", "install-gamemode", "install-brew", "install-homebrew",
     "install-gh", "install-github-cli",
     "install-fonts", "install-apps", "install-sway", "install-swayfx", "install-swaync", "install-notifications", "install-browser", "install-devops", "install-zsh", "install-sdkman",
-    "install-tools", "install-telegram", "install-node", "install-npm", "install-npx", "install-nvm", "install-yazi", "install-fastfetch", "install-spotify", "install-spotify-player", "full-install", "theme-picker", "theme-cycle", "wallpaper", "wallpaper-picker", "whichkey", "wichkey", "launcher", "app-launcher", "drun", "menu", "power-menu", "powermenu"
+    "install-tools", "install-telegram", "install-node", "install-npm", "install-npx", "install-nvm", "install-yazi", "install-fastfetch", "install-spotify", "install-spotify-player", "full-install", "theme-picker", "theme-cycle", "wallpaper", "wallpaper-picker", "whichkey", "wichkey", "launcher", "app-launcher", "drun", "menu", "projects", "project-launcher", "sway-project-launcher", "media-status", "fastfetch-logo", "power-menu", "powermenu"
   )
 
   def run(ctx: Context, args: List[String]): Either[PolyominoError, Unit] =

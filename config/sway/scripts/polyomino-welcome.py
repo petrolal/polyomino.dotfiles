@@ -5,8 +5,10 @@ Asymmetrical Polyomino Grid layout for quick start actions, gaming optimizations
 """
 
 import os
+import re
 import sys
 import json
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -75,6 +77,113 @@ def run_cmd(cmd_list, in_terminal=False):
         full_cmd = cmd_list
     subprocess.Popen(full_cmd, start_new_session=True)
 
+def load_controller_settings():
+    return load_settings().get("controller", {"steam_input_enabled": True})
+
+def save_controller_setting(key, value):
+    settings = load_settings()
+    controller = settings.get("controller", {})
+    controller[key] = value
+    settings["controller"] = controller
+    save_settings(settings)
+
+def resolve_editor():
+    editor = os.environ.get("EDITOR")
+    if editor:
+        return editor
+    if shutil.which("nvim"):
+        return "nvim"
+    return "vi"
+
+def _read_text(path):
+    try:
+        with open(path, "r", errors="ignore") as f:
+            return f.read()
+    except Exception:
+        return ""
+
+def _udev_bus_for_device(dev_path):
+    try:
+        out = subprocess.run(["udevadm", "info", "-q", "property", dev_path],
+                              capture_output=True, text=True, timeout=2).stdout
+        m = re.search(r"^ID_BUS=(\S+)$", out, re.MULTILINE)
+        if m:
+            bus = m.group(1).lower()
+            if bus == "usb":
+                return "USB"
+            if bus == "bluetooth":
+                return "Bluetooth"
+            return bus.upper()
+    except Exception:
+        pass
+    return "Unknown"
+
+def _battery_percent_for_name(device_name):
+    try:
+        out = subprocess.run(["upower", "-e"], capture_output=True, text=True, timeout=2).stdout
+        for line in out.splitlines():
+            line = line.strip()
+            low = line.lower()
+            if not line or ("input" not in low and "gaming" not in low and "joypad" not in low and "gamepad" not in low):
+                continue
+            info = subprocess.run(["upower", "-i", line], capture_output=True, text=True, timeout=2).stdout
+            m = re.search(r"percentage:\s+(\d+)%", info)
+            if m:
+                return int(m.group(1))
+    except Exception:
+        pass
+    return None
+
+def list_gamepads():
+    """Parse /proc/bus/input/devices for js* handlers, enrich with bus type + battery."""
+    devices = []
+    content = _read_text("/proc/bus/input/devices")
+    for block in content.split("\n\n"):
+        if not block.strip():
+            continue
+        handlers_line = next((l for l in block.splitlines() if l.startswith("H: Handlers=")), "")
+        m = re.search(r"\b(js\d+)\b", handlers_line)
+        if not m:
+            continue
+        js_name = m.group(1)
+        name_line = next((l for l in block.splitlines() if l.startswith("N: Name=")), "")
+        name = name_line.split("=", 1)[1].strip('"') if "=" in name_line else js_name
+        dev_path = f"/dev/input/{js_name}"
+        bus = _udev_bus_for_device(dev_path)
+        battery = _battery_percent_for_name(name)
+        devices.append({"js": js_name, "name": name or js_name, "bus": bus, "battery": battery, "path": dev_path})
+    return devices
+
+EMULATOR_LABELS = {
+    "mesen": "Mesen (NES)",
+    "bsnes": "bsnes (SNES)",
+    "sameboy": "SameBoy (GB/GBC)",
+    "mgba": "mGBA (GBA)",
+    "mame": "MAME (Arcade)",
+    "flycast": "Flycast (Dreamcast)",
+    "blastem": "BlastEm (Genesis)",
+    "duckstation": "DuckStation (PS1)",
+    "simple64": "simple64 (N64)",
+}
+
+EMULATOR_BINARIES = {
+    "mesen": ["mesen"],
+    "bsnes": ["bsnes"],
+    "sameboy": ["sameboy"],
+    "mgba": ["mgba-qt", "mgba"],
+    "mame": ["mame"],
+    "flycast": ["flycast"],
+    "blastem": ["blastem"],
+    "duckstation": ["duckstation-qt", "duckstation-nogui", "duckstation"],
+    "simple64": ["simple64-gui", "simple64"],
+}
+
+def find_emulator_binary(emu_id):
+    for candidate in EMULATOR_BINARIES.get(emu_id, []):
+        if shutil.which(candidate):
+            return candidate
+    return None
+
 class WelcomeWindow(Gtk.Window):
     def __init__(self):
         super().__init__(title="Polyomino Welcome Center")
@@ -101,14 +210,17 @@ class WelcomeWindow(Gtk.Window):
         notebook.set_tab_pos(Gtk.PositionType.TOP)
         notebook.get_style_context().add_class("content-notebook")
         main_box.pack_start(notebook, True, True, 0)
+        self.notebook = notebook
 
         # Tab 1: Quick Start (Polyomino Grid)
         tab1 = self.create_quick_start_tab()
         notebook.append_page(tab1, self.create_tab_label("🚀", "Quick Start"))
 
-        # Tab 2: Gaming & Performance (Polyomino Grid)
+        # Tab 2: Gaming Center (categorized bento layout)
+        self.gc_all_flowboxes = []
         tab2 = self.create_gaming_tab()
-        notebook.append_page(tab2, self.create_tab_label("🎮", "Gaming & Performance"))
+        notebook.append_page(tab2, self.create_tab_label("🎮", "Gaming Center"))
+        self.gaming_tab_index = 1
 
         # Tab 3: System & Tools (Polyomino Grid)
         tab3 = self.create_system_tab()
@@ -117,6 +229,8 @@ class WelcomeWindow(Gtk.Window):
         # Footer Section
         footer = self.create_footer()
         main_box.pack_start(footer, False, False, 0)
+
+        self.connect("key-press-event", self.on_window_keypress)
 
     def apply_css(self):
         css_provider = Gtk.CssProvider()
@@ -442,6 +556,117 @@ class WelcomeWindow(Gtk.Window):
         scrollbar slider:hover {{
             background-color: {p['accent_violet']};
         }}
+
+        /* Gaming Center — bento layout, sharp-cornered frosted glass */
+        .gc-nav {{
+            background-color: {p['bg_mantle']};
+            border-right: 1px solid {p['border_subtle']};
+            padding: 12px 6px;
+        }}
+        button.gc-nav-item {{
+            background-color: transparent;
+            background-image: none;
+            border: 1px solid transparent;
+            border-radius: 2px;
+            padding: 10px;
+            box-shadow: none;
+            transition: all 120ms ease-in-out;
+        }}
+        button.gc-nav-item:hover {{
+            background-color: {p['bg_surface_hover']};
+            border-color: {p['border_subtle']};
+        }}
+        .gc-nav-active {{
+            background-color: {p['bg_surface']};
+            border-color: {p['accent_violet']};
+        }}
+        .gc-nav-number {{
+            font-size: 10px;
+            font-weight: 700;
+            color: {p['text_secondary']};
+            background-color: {p['bg_surface']};
+            border-radius: 2px;
+            padding: 1px 5px;
+            min-width: 14px;
+        }}
+        .gc-nav-label {{
+            font-size: 12px;
+            font-weight: 600;
+            color: {p['text_primary']};
+        }}
+        .gc-stack, .gc-flow {{
+            background-color: {p['bg_base']};
+        }}
+        button.gc-card {{
+            background-color: rgba(15, 17, 26, 0.85);
+            background-image: none;
+            border: 1px solid {p['border_subtle']};
+            border-radius: 2px;
+            padding: 14px;
+            box-shadow: none;
+            transition: all 120ms ease-in-out;
+        }}
+        button.gc-card:hover {{
+            border-color: {p['accent_blue']};
+            background-color: rgba(21, 24, 36, 0.92);
+        }}
+        .gc-card-icon {{
+            font-size: 20px;
+        }}
+        .gc-card-title {{
+            font-size: 13px;
+            font-weight: 700;
+            color: {p['text_primary']};
+        }}
+        .gc-card-sub {{
+            font-size: 11px;
+            color: {p['text_secondary']};
+        }}
+        .gc-card-action {{
+            font-size: 11px;
+            font-weight: 600;
+            color: {p['accent_blue_glow']};
+        }}
+        .gc-pill {{
+            font-size: 9px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 2px;
+            background-color: rgba(59, 130, 246, 0.18);
+            color: {p['accent_blue_glow']};
+        }}
+        .gc-pill-connected {{
+            background-color: rgba(34, 197, 94, 0.18);
+            color: #4ade80;
+        }}
+        .gc-pill-tool {{
+            background-color: rgba(59, 130, 246, 0.18);
+            color: {p['accent_blue_glow']};
+        }}
+        .gc-section-title {{
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: {p['text_secondary']};
+            padding: 4px 4px 0 4px;
+        }}
+        entry.gc-search {{
+            background-color: {p['bg_surface']};
+            color: {p['text_primary']};
+            border: 1px solid {p['accent_blue']};
+            border-radius: 2px;
+            padding: 8px 12px;
+            margin: 0 16px;
+        }}
+        .gc-hint-box {{
+            background-color: {p['bg_mantle']};
+            border-top: 1px solid {p['border_subtle']};
+            padding: 6px 16px;
+        }}
+        .gc-hint {{
+            font-size: 10px;
+            color: {p['text_secondary']};
+        }}
         """
 
         try:
@@ -692,46 +917,483 @@ class WelcomeWindow(Gtk.Window):
 
         return self.build_grid_container(primary, horiz, sq1, sq2)
 
+    # ---------------------------------------------------------------
+    # Gaming Center: bento card primitive
+    # ---------------------------------------------------------------
+
+    def create_gc_card(self, icon, title, subtext, action_label, on_click_fn, badge_text=None, badge_style="tool"):
+        button = Gtk.Button()
+        button.set_relief(Gtk.ReliefStyle.NONE)
+        button.get_style_context().add_class("gc-card")
+        button.connect("clicked", lambda b: on_click_fn())
+        button.set_hexpand(True)
+        button.gc_title = f"{title} {subtext}".lower()
+
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+
+        top = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        icon_lbl = Gtk.Label(label=icon)
+        icon_lbl.get_style_context().add_class("gc-card-icon")
+        top.pack_start(icon_lbl, False, False, 0)
+
+        title_lbl = Gtk.Label(label=title, xalign=0)
+        title_lbl.get_style_context().add_class("gc-card-title")
+        top.pack_start(title_lbl, True, True, 0)
+
+        if badge_text:
+            pill = Gtk.Label(label=badge_text)
+            pill.get_style_context().add_class("gc-pill")
+            pill.get_style_context().add_class(f"gc-pill-{badge_style}")
+            top.pack_end(pill, False, False, 0)
+
+        box.pack_start(top, False, False, 0)
+
+        sub_lbl = Gtk.Label(label=subtext, xalign=0)
+        sub_lbl.set_line_wrap(True)
+        sub_lbl.get_style_context().add_class("gc-card-sub")
+        box.pack_start(sub_lbl, True, True, 0)
+
+        action_lbl = Gtk.Label(label=f"{action_label}", xalign=0)
+        action_lbl.get_style_context().add_class("gc-card-action")
+        box.pack_end(action_lbl, False, False, 0)
+
+        button.add(box)
+        return button
+
+    def create_gc_nav_item(self, number, icon, label, page_name):
+        btn = Gtk.Button()
+        btn.set_relief(Gtk.ReliefStyle.NONE)
+        btn.get_style_context().add_class("gc-nav-item")
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        num_lbl = Gtk.Label(label=str(number))
+        num_lbl.get_style_context().add_class("gc-nav-number")
+        box.pack_start(num_lbl, False, False, 0)
+        icon_lbl = Gtk.Label(label=icon)
+        box.pack_start(icon_lbl, False, False, 0)
+        text_lbl = Gtk.Label(label=label, xalign=0)
+        text_lbl.get_style_context().add_class("gc-nav-label")
+        box.pack_start(text_lbl, True, True, 0)
+        btn.add(box)
+        btn.connect("clicked", lambda b: self.gc_stack.set_visible_child_name(page_name))
+        return btn
+
+    def build_gc_flow_page(self, page_name, cards):
+        scrolled = Gtk.ScrolledWindow()
+        scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        flow = Gtk.FlowBox()
+        flow.set_valign(Gtk.Align.START)
+        flow.set_max_children_per_line(3)
+        flow.set_selection_mode(Gtk.SelectionMode.NONE)
+        flow.set_row_spacing(12)
+        flow.set_column_spacing(12)
+        flow.set_homogeneous(True)
+        flow.get_style_context().add_class("gc-flow")
+        flow.set_margin_top(16)
+        flow.set_margin_bottom(16)
+        flow.set_margin_start(16)
+        flow.set_margin_end(16)
+        for card in cards:
+            flow.add(card)
+        flow.set_filter_func(self.gc_filter_func)
+        self.gc_all_flowboxes.append(flow)
+        scrolled.add(flow)
+        return scrolled
+
+    def build_gc_empty_page(self, title, desc):
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        box.set_valign(Gtk.Align.CENTER)
+        box.set_halign(Gtk.Align.CENTER)
+        box.set_vexpand(True)
+        title_lbl = Gtk.Label(label=title)
+        title_lbl.get_style_context().add_class("tile-title")
+        desc_lbl = Gtk.Label(label=desc)
+        desc_lbl.get_style_context().add_class("tile-desc")
+        box.pack_start(title_lbl, False, False, 0)
+        box.pack_start(desc_lbl, False, False, 0)
+        return box
+
+    def gc_filter_func(self, child):
+        if not hasattr(self, "gc_search_entry"):
+            return True
+        query = self.gc_search_entry.get_text().strip().lower()
+        if not query:
+            return True
+        return query in getattr(child.get_child(), "gc_title", "")
+
+    def on_gc_search_changed(self, entry):
+        for fb in self.gc_all_flowboxes:
+            fb.invalidate_filter()
+
+    # ---------------------------------------------------------------
+    # Gaming Center: category pages
+    # ---------------------------------------------------------------
+
+    def build_gc_tools_page(self):
+        editor = resolve_editor()
+        cards = [
+            self.create_gc_card("🚀", "Game Mode Toggle",
+                "Boost CPU governor, engage VRR, disable compositor blur, inhibit sleep during play.",
+                "Toggle →", lambda: run_cmd(["polyomino", "gamemode", "toggle"]),
+                badge_text="TOOL", badge_style="tool"),
+            self.create_gc_card("📊", "MangoHud Overlay",
+                "FPS / frametime / GPU overlay. Edit the active profile config.",
+                "Configure →", lambda: run_cmd([editor, str(Path.home() / ".config" / "MangoHud" / "MangoHud.conf")], in_terminal=True),
+                badge_text="TOOL", badge_style="tool"),
+            self.create_gc_card("🍷", "Wine / Proton Manager",
+                "Manage prefixes and compatibility layers via protontricks/winetricks.",
+                "Manage →", lambda: run_cmd(["protontricks", "--gui"]) if shutil.which("protontricks")
+                    else (run_cmd(["winetricks"]) if shutil.which("winetricks")
+                    else run_cmd(["notify-send", "Wine/Proton", "Install protontricks or winetricks to manage prefixes."])),
+                badge_text="TOOL", badge_style="tool"),
+            self.create_gc_card("🩺", "GameMode Status",
+                "Inspect current performance-mode state and active optimizations.",
+                "View Status →", lambda: run_cmd(["polyomino", "gamemode", "status"], in_terminal=True),
+                badge_text="STATUS", badge_style="tool"),
+        ]
+        return self.build_gc_flow_page("gc-tools", cards)
+
+    def scan_installed_games(self):
+        games = []
+        seen = set()
+        steam_roots = [Path.home() / ".steam" / "steam", Path.home() / ".local" / "share" / "Steam"]
+        for root in steam_roots:
+            apps_dir = root / "steamapps"
+            if not apps_dir.exists():
+                continue
+            for acf in apps_dir.glob("appmanifest_*.acf"):
+                content = _read_text(acf)
+                m_name = re.search(r'"name"\s+"([^"]+)"', content)
+                m_id = re.search(r'"appid"\s+"([^"]+)"', content)
+                if m_name and m_id and m_id.group(1) not in seen:
+                    seen.add(m_id.group(1))
+                    games.append({"name": m_name.group(1), "kind": "Steam",
+                                  "launch": ["steam", f"steam://rungameid/{m_id.group(1)}"]})
+
+        games_file = CONFIG_DIR / "games.json"
+        if games_file.exists():
+            try:
+                data = json.loads(_read_text(games_file) or "{}")
+                for g in data.get("games", []):
+                    games.append({"name": g.get("name", "Unknown"), "kind": g.get("kind", "Native"),
+                                  "launch": g.get("launch", [])})
+            except Exception:
+                pass
+        return games
+
+    def build_gc_games_page(self):
+        games = self.scan_installed_games()
+        if not games:
+            return self.build_gc_empty_page(
+                "No games detected",
+                "Steam titles auto-populate here. Add native/local binaries via ~/.config/polyomino/games.json")
+        cards = []
+        for g in games:
+            launch = g["launch"]
+            cards.append(self.create_gc_card(
+                "🎮", g["name"], f"Source: {g['kind']}", "Launch →",
+                (lambda cmd=launch: run_cmd(cmd)) if launch else (lambda: None),
+                badge_text=g["kind"].upper(), badge_style="connected"))
+        return self.build_gc_flow_page("gc-games", cards)
+
+    def build_gc_emulators_page(self):
+        cards = []
+        for emu_id, label in EMULATOR_LABELS.items():
+            binary = find_emulator_binary(emu_id)
+            installed = binary is not None
+            cards.append(self.create_gc_card(
+                "🕹️", label,
+                f"Backend: {binary}" if installed else "Not installed — see Installation / Setup.",
+                "Launch →" if installed else "Install →",
+                (lambda b=binary: run_cmd([b])) if installed
+                    else (lambda eid=emu_id: run_cmd(["polyomino", "install-emulator", eid], in_terminal=True)),
+                badge_text="INSTALLED" if installed else "MISSING",
+                badge_style="connected" if installed else "tool"))
+        return self.build_gc_flow_page("gc-emulators", cards)
+
+    def build_gc_install_page(self):
+        cards = [self.create_gc_card(
+            "📦", "Install All",
+            f"Install the full competitive emulator suite ({len(EMULATOR_LABELS)} emulators) in one pass.",
+            "Install All →", lambda: run_cmd(["polyomino", "install-emulators"], in_terminal=True),
+            badge_text="BATCH", badge_style="tool")]
+        for emu_id, label in EMULATOR_LABELS.items():
+            installed = find_emulator_binary(emu_id) is not None
+            cards.append(self.create_gc_card(
+                "🧩", label, "Already installed." if installed else "Install via pacman/AUR (yay).",
+                "Reinstall →" if installed else "Install →",
+                lambda eid=emu_id: run_cmd(["polyomino", "install-emulator", eid], in_terminal=True),
+                badge_text="READY" if installed else "TOOL",
+                badge_style="connected" if installed else "tool"))
+        return self.build_gc_flow_page("gc-install", cards)
+
+    def launch_gamepad_tester(self, device_path=None):
+        if shutil.which("jstest-gtk"):
+            cmd = ["jstest-gtk"] + ([device_path] if device_path else [])
+            run_cmd(cmd)
+        elif shutil.which("evtest"):
+            run_cmd(["evtest"], in_terminal=True)
+        else:
+            run_cmd(["notify-send", "Gamepad Tester", "Install jstest-gtk or evtest to use this tool."])
+
+    def launch_latency_test(self):
+        if shutil.which("evhz"):
+            run_cmd(["evhz"], in_terminal=True)
+        else:
+            run_cmd(["kitty", "-e", "bash", "-c",
+                     "echo 'evhz not found (AUR: evhz) — falling back to evtest for a manual poll-rate check.'; "
+                     "command -v evtest >/dev/null && evtest || echo 'evtest also not found.'; "
+                     "read -n 1 -s -r -p 'Press any key to close...'"])
+
+    def launch_sdl_mapper(self):
+        if shutil.which("antimicrox"):
+            run_cmd(["antimicrox"])
+        elif shutil.which("sdl2-jstest"):
+            run_cmd(["sdl2-jstest", "--list"], in_terminal=True)
+        else:
+            run_cmd(["notify-send", "SDL Mapping",
+                      "Install antimicrox (or sdl2-jstest) to generate/edit gamecontrollerdb mappings."])
+
+    def on_toggle_steam_input(self):
+        c = load_controller_settings()
+        new_val = not c.get("steam_input_enabled", True)
+        save_controller_setting("steam_input_enabled", new_val)
+        run_cmd(["notify-send", "Steam Input",
+                  f"Global controller mapping {'enabled' if new_val else 'disabled'}. Restart Steam to apply."])
+        self.refresh_gc_controller_page()
+
+    def refresh_gc_controller_page(self):
+        old = self.gc_stack.get_child_by_name("gc-controller")
+        if old is not None:
+            self.gc_stack.remove(old)
+        new_page = self.build_gc_controller_page()
+        self.gc_stack.add_named(new_page, "gc-controller")
+        new_page.show_all()
+        self.gc_stack.set_visible_child_name("gc-controller")
+
+    def build_gc_controller_page(self):
+        outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
+        scrolled = Gtk.ScrolledWindow()
+        scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
+        content.set_margin_top(16)
+        content.set_margin_bottom(16)
+        content.set_margin_start(16)
+        content.set_margin_end(16)
+
+        section1 = Gtk.Label(label="QUICK HARDWARE ACTIONS", xalign=0)
+        section1.get_style_context().add_class("gc-section-title")
+        content.pack_start(section1, False, False, 0)
+
+        quick_flow = Gtk.FlowBox()
+        quick_flow.set_valign(Gtk.Align.START)
+        quick_flow.set_max_children_per_line(3)
+        quick_flow.set_selection_mode(Gtk.SelectionMode.NONE)
+        quick_flow.set_row_spacing(12)
+        quick_flow.set_column_spacing(12)
+        quick_flow.set_homogeneous(True)
+        quick_flow.get_style_context().add_class("gc-flow")
+        quick_flow.set_filter_func(self.gc_filter_func)
+
+        steam_input_enabled = load_controller_settings().get("steam_input_enabled", True)
+        quick_cards = [
+            self.create_gc_card("󰂯", "Bluetooth Pairing", "Pair a wireless gamepad via bluetui.", "Pair New →",
+                lambda: run_cmd(["kitty", "--title", "bluetui", "-e", "bluetui"]),
+                badge_text="TOOL", badge_style="tool"),
+            self.create_gc_card("󰊴", "Gamepad Tester & Calibrator", "Interactive axis/button test.", "Calibrate →",
+                self.launch_gamepad_tester, badge_text="TOOL", badge_style="tool"),
+            self.create_gc_card("󰍹", "Input Latency Diagnostic", "USB/Bluetooth polling-rate benchmark.", "Test Latency →",
+                self.launch_latency_test, badge_text="TOOL", badge_style="tool"),
+            self.create_gc_card("🎮", "Steam Input Toggle",
+                f"Global mapping is currently {'ENABLED' if steam_input_enabled else 'DISABLED'}.", "Toggle →",
+                self.on_toggle_steam_input,
+                badge_text="ACTIVE" if steam_input_enabled else "OFF",
+                badge_style="connected" if steam_input_enabled else "tool"),
+            self.create_gc_card("🗺️", "SDL Mapping Utility", "Generate / edit SDL2 gamecontrollerdb mappings.", "Open Mapper →",
+                self.launch_sdl_mapper, badge_text="TOOL", badge_style="tool"),
+        ]
+        for c in quick_cards:
+            quick_flow.add(c)
+        content.pack_start(quick_flow, False, False, 0)
+        self.gc_all_flowboxes.append(quick_flow)
+
+        section2 = Gtk.Label(label="CONNECTED DEVICES", xalign=0)
+        section2.get_style_context().add_class("gc-section-title")
+        content.pack_start(section2, False, False, 0)
+
+        device_flow = Gtk.FlowBox()
+        device_flow.set_valign(Gtk.Align.START)
+        device_flow.set_max_children_per_line(3)
+        device_flow.set_selection_mode(Gtk.SelectionMode.NONE)
+        device_flow.set_row_spacing(12)
+        device_flow.set_column_spacing(12)
+        device_flow.set_homogeneous(True)
+        device_flow.get_style_context().add_class("gc-flow")
+        device_flow.set_filter_func(self.gc_filter_func)
+
+        devices = list_gamepads()
+        if devices:
+            for dev in devices:
+                battery_txt = f"Battery: {dev['battery']}%" if dev["battery"] is not None else "Battery: n/a"
+                subtext = f"{battery_txt} · Backend: evdev · Connection: {dev['bus']}"
+                device_flow.add(self.create_gc_card(
+                    "󰊴", dev["name"], subtext, "Calibrate →",
+                    (lambda p=dev["path"]: self.launch_gamepad_tester(p)),
+                    badge_text="CONNECTED", badge_style="connected"))
+        else:
+            device_flow.add(self.create_gc_card(
+                "󰋼", "No gamepads detected",
+                "Connect a controller via USB or pair one via Bluetooth above.", "Rescan →",
+                self.refresh_gc_controller_page, badge_text="INFO", badge_style="tool"))
+
+        content.pack_start(device_flow, False, False, 0)
+        self.gc_all_flowboxes.append(device_flow)
+
+        scrolled.add(content)
+        outer.pack_start(scrolled, True, True, 0)
+        return outer
+
+    def build_gc_updates_page(self):
+        cards = [
+            self.create_gc_card("📱", "Update Flatpaks", "Update all installed Flatpak runtimes & apps.", "Update →",
+                lambda: run_cmd(["flatpak", "update", "-y"], in_terminal=True) if shutil.which("flatpak")
+                    else run_cmd(["notify-send", "Flatpak", "flatpak is not installed."]),
+                badge_text="RUNTIME", badge_style="tool"),
+            self.create_gc_card("🍷", "Update Proton-GE", "Fetch the latest Proton-GE compatibility build.", "Update →",
+                lambda: run_cmd(["protonup-qt"]) if shutil.which("protonup-qt")
+                    else run_cmd(["notify-send", "Proton-GE", "Install protonup-qt to manage Proton-GE builds."]),
+                badge_text="COMPAT", badge_style="tool"),
+            self.create_gc_card("🧪", "Update Wine Prefixes", "Run winetricks maintenance on the default prefix.", "Update →",
+                lambda: run_cmd(["winetricks"]) if shutil.which("winetricks")
+                    else run_cmd(["notify-send", "Wine", "Install winetricks to manage prefixes."]),
+                badge_text="COMPAT", badge_style="tool"),
+            self.create_gc_card("🖥️", "Update Vulkan Runtimes", "Refresh Vulkan drivers & ICD loaders via the gaming installer.", "Update →",
+                lambda: run_cmd(["polyomino", "install-gaming"], in_terminal=True),
+                badge_text="RUNTIME", badge_style="tool"),
+        ]
+        return self.build_gc_flow_page("gc-updates", cards)
+
+    # ---------------------------------------------------------------
+    # Gaming Center: vim-modal keyboard navigation
+    # ---------------------------------------------------------------
+
+    def set_gc_hint_normal(self):
+        self.gc_hint_label.set_markup(
+            "<b>[ NORMAL ]</b>  h/j/k/l Navigate  •  1-6 Categories  •  / Search  •  Enter Select  •  Esc Close")
+
+    def set_gc_hint_insert(self):
+        self.gc_hint_label.set_markup("<b>[ INSERT ]</b>  Type to filter  •  Esc back to Normal")
+
+    def gc_move_focus(self, direction):
+        focused = self.get_focus()
+        target = focused if focused is not None else self.gc_stack.get_visible_child()
+        if target is not None:
+            target.child_focus(direction)
+
+    def on_window_keypress(self, widget, event):
+        if not hasattr(self, "notebook") or self.notebook.get_current_page() != getattr(self, "gaming_tab_index", 1):
+            return False
+
+        keyname = Gdk.keyval_name(event.keyval) or ""
+
+        if self.gc_mode == "INSERT":
+            if keyname == "Escape":
+                self.gc_mode = "NORMAL"
+                self.gc_search_revealer.set_reveal_child(False)
+                self.gc_stack.grab_focus()
+                self.set_gc_hint_normal()
+                return True
+            return False
+
+        if keyname == "slash":
+            self.gc_mode = "INSERT"
+            self.gc_search_revealer.set_reveal_child(True)
+            self.gc_search_entry.grab_focus()
+            self.set_gc_hint_insert()
+            return True
+        elif keyname in ("h", "H"):
+            self.gc_move_focus(Gtk.DirectionType.LEFT)
+            return True
+        elif keyname in ("l", "L"):
+            self.gc_move_focus(Gtk.DirectionType.RIGHT)
+            return True
+        elif keyname in ("j", "J"):
+            self.gc_move_focus(Gtk.DirectionType.DOWN)
+            return True
+        elif keyname in ("k", "K"):
+            self.gc_move_focus(Gtk.DirectionType.UP)
+            return True
+        elif keyname in ("1", "2", "3", "4", "5", "6"):
+            pages = ["gc-tools", "gc-games", "gc-emulators", "gc-install", "gc-controller", "gc-updates"]
+            idx = int(keyname) - 1
+            self.gc_stack.set_visible_child_name(pages[idx])
+            return True
+        elif keyname == "Escape":
+            self.close()
+            return True
+        return False
+
     def create_gaming_tab(self):
-        primary = self.create_primary_tile(
-            icon="🚀",
-            title="Game Mode Toggle",
-            desc="Boost CPU governor to performance, engage VRR/FreeSync, disable compositor blur, and inhibit display sleep during active gaming sessions.",
-            tag="PERFORMANCE",
-            action_hint="Toggle Mode",
-            accent_color="violet",
-            on_click_fn=lambda: run_cmd(["polyomino", "gamemode", "toggle"])
-        )
+        outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        outer.get_style_context().add_class("gc-root")
 
-        horiz = self.create_horizontal_tile(
-            icon="🕹️",
-            title="Install Gaming Stack",
-            desc="Automate installation of Feral GameMode, Gamescope, MangoHud, Vulkan drivers, and Steam.",
-            tag="SETUP",
-            action_hint="Install Stack",
-            accent_color="amber",
-            on_click_fn=lambda: run_cmd(["polyomino", "install-gaming"], in_terminal=True)
-        )
+        body = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+        body.set_hexpand(True)
+        body.set_vexpand(True)
 
-        sq1 = self.create_square_tile(
-            icon="🎮",
-            title="Steam Client",
-            desc="Launch with GPU offload.",
-            action_hint="Launch",
-            accent_color="blue",
-            on_click_fn=lambda: run_cmd(["steam"])
-        )
+        nav_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        nav_box.get_style_context().add_class("gc-nav")
+        nav_box.set_size_request(210, -1)
 
-        sq2 = self.create_square_tile(
-            icon="📊",
-            title="MangoHud",
-            desc="FPS and GPU overlay docs.",
-            action_hint="Manual",
-            accent_color="teal",
-            on_click_fn=lambda: run_cmd(["kitty", "-e", "man", "mangohud"])
-        )
+        categories = [
+            (1, "🛠️", "Tools", "gc-tools"),
+            (2, "🕹️", "Installed Games", "gc-games"),
+            (3, "🎮", "Emulators (Launch)", "gc-emulators"),
+            (4, "📦", "Installation / Setup", "gc-install"),
+            (5, "🎛️", "Controller Configuration", "gc-controller"),
+            (6, "⬆️", "Updates", "gc-updates"),
+        ]
+        for number, icon, label, page in categories:
+            nav_box.pack_start(self.create_gc_nav_item(number, icon, label, page), False, False, 0)
+        body.pack_start(nav_box, False, False, 0)
 
-        return self.build_grid_container(primary, horiz, sq1, sq2)
+        self.gc_stack = Gtk.Stack()
+        self.gc_stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE)
+        self.gc_stack.set_transition_duration(120)
+        self.gc_stack.get_style_context().add_class("gc-stack")
+        self.gc_stack.set_hexpand(True)
+        self.gc_stack.set_vexpand(True)
+
+        self.gc_stack.add_named(self.build_gc_tools_page(), "gc-tools")
+        self.gc_stack.add_named(self.build_gc_games_page(), "gc-games")
+        self.gc_stack.add_named(self.build_gc_emulators_page(), "gc-emulators")
+        self.gc_stack.add_named(self.build_gc_install_page(), "gc-install")
+        self.gc_stack.add_named(self.build_gc_controller_page(), "gc-controller")
+        self.gc_stack.add_named(self.build_gc_updates_page(), "gc-updates")
+        self.gc_stack.set_visible_child_name("gc-tools")
+
+        body.pack_start(self.gc_stack, True, True, 0)
+        outer.pack_start(body, True, True, 0)
+
+        self.gc_search_entry = Gtk.SearchEntry()
+        self.gc_search_entry.set_placeholder_text("Search gamepads, tools, emulator configs…")
+        self.gc_search_entry.get_style_context().add_class("gc-search")
+        self.gc_search_entry.connect("search-changed", self.on_gc_search_changed)
+        self.gc_search_revealer = Gtk.Revealer()
+        self.gc_search_revealer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_DOWN)
+        self.gc_search_revealer.add(self.gc_search_entry)
+        self.gc_search_revealer.set_reveal_child(False)
+        outer.pack_start(self.gc_search_revealer, False, False, 0)
+
+        self.gc_hint_label = Gtk.Label(xalign=0)
+        self.gc_hint_label.get_style_context().add_class("gc-hint")
+        self.gc_mode = "NORMAL"
+        self.set_gc_hint_normal()
+        hint_box = Gtk.Box()
+        hint_box.get_style_context().add_class("gc-hint-box")
+        hint_box.pack_start(self.gc_hint_label, True, True, 0)
+        outer.pack_start(hint_box, False, False, 0)
+
+        return outer
 
     def create_system_tab(self):
         primary = self.create_primary_tile(

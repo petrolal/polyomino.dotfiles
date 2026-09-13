@@ -60,3 +60,23 @@ class MainSuite extends FunSuite:
   test("Main.dispatch handles argv[0] symlink routing"):
     val code = dispatch(Array("version"))
     assertEquals(code, 0)
+
+  test("Main.dispatch routes draw-window"):
+    val code = dispatch(Array("draw-window"))
+    assertEquals(code, 0)
+
+  test("Main.dispatch routes media-status"):
+    val code = dispatch(Array("media-status"))
+    assertEquals(code, 0)
+
+  test("Main.dispatch routes fastfetch-logo"):
+    val code = dispatch(Array("fastfetch-logo"))
+    assertEquals(code, 0)
+
+  test("Main.dispatch routes projects"):
+    val code = dispatch(Array("projects"))
+    assertEquals(code, 0)
+
+  test("Main.dispatch routes theme-cycle"):
+    val code = dispatch(Array("theme-cycle"))
+    assertEquals(code, 0)

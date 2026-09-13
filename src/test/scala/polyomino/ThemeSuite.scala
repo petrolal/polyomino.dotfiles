@@ -142,4 +142,14 @@ class ThemeSuite extends FunSuite {
       assert(content.contains("font"))
     }
   }
+
+  test("ThemeEngine.runCycle cycles through themes") {
+    withIsolatedContext { ctx =>
+      ThemeEngine.run(ctx, List("matriz", "--flat"))
+      assertEquals(ThemeEngine.getActivePalette(ctx).name, "matriz")
+      val res = ThemeEngine.runCycle(ctx)
+      assert(res.isRight)
+      assertEquals(ThemeEngine.getActivePalette(ctx).name, "encruza")
+    }
+  }
 }

@@ -7,6 +7,8 @@ object ThemeEngine:
   def run(ctx: Context, args: List[String]): Either[PolyominoError, Unit] =
     if args.isEmpty then
       polyomino.dotfiles.pickers.WofiPickers.runThemePicker(ctx, args)
+    else if args.head == "next" || args.head == "cycle" then
+      runCycle(ctx)
     else
       val flavor = args.head
       var mode = "wallpaper"
@@ -34,6 +36,13 @@ object ThemeEngine:
             i += 1
 
       applyTheme(ctx, flavor, mode, customWallpaper, interval)
+
+  def runCycle(ctx: Context): Either[PolyominoError, Unit] =
+    val approvedFlavors = Seq("matriz", "encruza", "caravela", "aruanda")
+    val currentFlavor = getActivePalette(ctx).name.toLowerCase
+    val currentIdx = approvedFlavors.indexOf(currentFlavor)
+    val nextFlavor = if currentIdx == -1 then approvedFlavors.head else approvedFlavors((currentIdx + 1) % approvedFlavors.length)
+    run(ctx, List(nextFlavor))
 
   def getActivePalette(ctx: Context): Palette =
     val stateFile = ctx.configDir / "polyomino" / "theme" / "state"
