@@ -120,6 +120,8 @@ object DeployInstaller:
       (ctx.configDir / "foot", ctx.dotfilesDir / "config" / "foot"),
       (ctx.configDir / "fastfetch", ctx.dotfilesDir / "config" / "fastfetch"),
       (ctx.configDir / "spotify-player", ctx.dotfilesDir / "config" / "spotify-player"),
+      (ctx.configDir / "gamemode", ctx.dotfilesDir / "config" / "gamemode"),
+      (ctx.configDir / "MangoHud", ctx.dotfilesDir / "config" / "MangoHud"),
       (ctx.configDir / "systemd" / "user" / "mako.service", ctx.dotfilesDir / "config" / "systemd" / "user" / "mako.service")
     )
 

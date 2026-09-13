@@ -5,7 +5,7 @@
   // opens on the monitor whose pill was clicked; this bare handler is the
   // fallback for any bar without an override (menu lands on the focused output).
   "custom/polyomino": {
-    "format": "⊞ POLYOMINO",
+    "format": "⊞",
     "tooltip": false,
     "on-click": "~/.local/bin/polyomino menu",
     "on-click-right": "kitty --class=polyomino-power-menu -o font_size=14 -e ~/.local/bin/polyomino power-menu",
@@ -54,13 +54,14 @@
     "tooltip-format-enumerate-connected": "{device_alias}\t{device_address}",
     "on-click": "kitty --class=bluetui -T bluetui -e bluetui",
   },
-  // waybar-clock — center navigation capsule, dot matrix delimiter between time and date
+  // waybar-clock — compact HH:MM, full date/time in tooltip
   "clock": {
     "interval": 1,
     "align": 0,
     "rotate": 0,
-    "tooltip": false,
-    "format": " {:%H:%M:%S  ·  %a %d %b}",
+    "tooltip": true,
+    "format": " {:%H:%M}",
+    "tooltip-format": "{:%H:%M:%S  ·  %A %d %B %Y}",
     "on-click": "~/.local/bin/polyomino calendar",
   },
   // CAD dot matrix separator
@@ -77,19 +78,19 @@
     },
     "timeout": 30,
   },
-  // waybar-spotify
-  "custom/spotify": {
-    "exec": "~/.config/waybar/spotify.sh",
+  // waybar-media — any MPRIS player (Spotify, browser, mpv, ...)
+  "custom/media": {
+    "exec": "~/.config/waybar/media.sh",
     "return-type": "json",
     "interval": 2,
     "format": "{}",
     "tooltip": true,
-    "max-length": 35,
-    "on-click": "playerctl -p spotify_player,spotify play-pause",
-    "on-click-middle": "playerctl -p spotify_player,spotify previous",
-    "on-click-right": "playerctl -p spotify_player,spotify next",
-    "on-scroll-up": "playerctl -p spotify_player,spotify volume 0.05+",
-    "on-scroll-down": "playerctl -p spotify_player,spotify volume 0.05-",
+    "max-length": 40,
+    "on-click": "playerctl -p spotify_player,spotify,%any play-pause",
+    "on-click-middle": "playerctl -p spotify_player,spotify,%any previous",
+    "on-click-right": "playerctl -p spotify_player,spotify,%any next",
+    "on-scroll-up": "playerctl -p spotify_player,spotify,%any volume 0.05+",
+    "on-scroll-down": "playerctl -p spotify_player,spotify,%any volume 0.05-",
     "smooth-scrolling-threshold": 1,
   },
   // waybar-mpd
@@ -114,16 +115,17 @@
     "on-scroll-down": "mpc seek -5%",
     "smooth-scrolling-threshold": 1,
   },
-  // waybar-network
+  // waybar-network — icon only, IP lives in the tooltip
   "network": {
     "interval": 5,
     "format-wifi": "󰩠",
     "format-ethernet": "󰩠",
-    "format-linked": "󰩠 {ifname} (No IP)",
-    "format-disconnected": " Disconnected",
-    "format-disabled": "󰈂 Disabled",
-    "format-alt": " {bandwidthUpBits} |  {bandwidthDownBits}",
-    "tooltip-format": "{ifname}: {ipaddr}/{cidr}",
+    "format-linked": "󰩠",
+    "format-disconnected": "",
+    "format-disabled": "󰈂",
+    "tooltip-format-wifi": "{essid}  {ifname}: {ipaddr}/{cidr}",
+    "tooltip-format-ethernet": "{ifname}: {ipaddr}/{cidr}",
+    "tooltip-format-disconnected": "Disconnected",
     "on-click-right": "~/.config/sway/scripts/rofi_network",
   },
   // waybar-pulseaudio

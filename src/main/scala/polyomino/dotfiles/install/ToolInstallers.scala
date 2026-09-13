@@ -771,8 +771,9 @@ object ToolInstallers:
   private def installGaming(ctx: Context): Either[PolyominoError, Unit] =
     val pm = detectPackageManager()
     println(s"\u001b[1;36m[polyomino install-gaming]\u001b[0m Installing gaming dependencies & tools (PM: $pm)...")
-    pm match
+    val installResult = pm match
       case PackageManager.Pacman =>
+        enableMultilib()
         val pkgs = Seq(
           "gamemode", "gamescope", "mangohud",
           "vulkan-icd-loader", "vulkan-tools",
@@ -781,7 +782,17 @@ object ToolInstallers:
         )
         val res = runPkgInstall("sudo", Seq("pacman", "-S", "--needed", "--noconfirm") ++ pkgs)
         if isAvailable("yay") then
-          runPkgInstall("yay", Seq("-S", "--needed", "--noconfirm", "--answerclean", "None", "--answerdiff", "None", "steam"))
+          // Use os.proc directly to avoid "None" flag-values being misidentified
+          // as package names by runPkgInstall's fallback parser.
+          try
+            val yayRes = os.proc("yay", "-S", "--needed", "--noconfirm", "--answerclean", "None", "--answerdiff", "None", "steam")
+              .call(stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit, check = false)
+            if yayRes.exitCode != 0 then
+              println(s"  \u001b[31m[FAIL]\u001b[0m Could not install steam via yay (code ${yayRes.exitCode})")
+            else
+              println(s"  \u001b[32m[OK]\u001b[0m Installed: steam")
+          catch case e: Exception =>
+            println(s"  \u001b[33m[NOTE]\u001b[0m Steam installation skipped: ${e.getMessage}")
         res
       case PackageManager.Dnf =>
         runPkgInstall("sudo", Seq("dnf", "install", "-y", "gamemode", "gamescope", "mangohud", "vulkan-tools", "steam"))
@@ -791,6 +802,82 @@ object ToolInstallers:
         runPkgInstall("brew", Seq("install", "gamemode", "vulkan-tools"))
       case _ =>
         Right(println("  \u001b[33m[NOTE]\u001b[0m Manual installation of gaming tools recommended for this OS."))
+    installResult.flatMap(_ => configureGaming(ctx))
+
+  /** Post-install configuration for gaming tools.
+   *
+   *  Steps performed:
+   *  1. Add the current user to the 'gamemode' group (required for daemon access without polkit).
+   *  2. Deploy gamemode.ini from the dotfiles config template.
+   *  3. Deploy MangoHud.conf from the dotfiles config template.
+   *  4. Enable the gamemode systemd user socket so games can activate it automatically.
+   */
+  private def configureGaming(ctx: Context): Either[PolyominoError, Unit] =
+    if ctx.isTest then
+      println("  \u001b[32m[OK]\u001b[0m Gaming configuration skipped (test mode).")
+      return Right(())
+
+    println("\u001b[1;36m[polyomino install-gaming]\u001b[0m Configuring gaming tools...")
+
+    // 1. Add user to 'gamemode' group
+    try
+      val currentUser = sys.env.getOrElse("USER", sys.env.getOrElse("LOGNAME", ""))
+      if currentUser.nonEmpty then
+        val groupCheck = os.proc("groups", currentUser).call(check = false)
+        if !groupCheck.out.text().contains("gamemode") then
+          val res = os.proc("sudo", "usermod", "-aG", "gamemode", currentUser)
+            .call(stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit, check = false)
+          if res.exitCode == 0 then
+            println(s"  \u001b[32m[OK]\u001b[0m Added '$currentUser' to the 'gamemode' group. Re-login to apply.")
+          else
+            println(s"  \u001b[33m[WARN]\u001b[0m Could not add to 'gamemode' group (code ${res.exitCode}). Run manually: sudo usermod -aG gamemode $currentUser")
+        else
+          println(s"  \u001b[32m[OK]\u001b[0m '$currentUser' is already in the 'gamemode' group.")
+    catch case e: Exception =>
+      println(s"  \u001b[33m[WARN]\u001b[0m Group membership check skipped: ${e.getMessage}")
+
+    // 2. Deploy gamemode.ini
+    val gamemodeConfigDir  = ctx.configDir / "gamemode"
+    val gamemodeConfigFile = gamemodeConfigDir / "gamemode.ini"
+    val gamemodeTemplate   = ctx.dotfilesDir / "config" / "gamemode" / "gamemode.ini"
+    if !os.exists(gamemodeConfigFile) && os.exists(gamemodeTemplate) then
+      try
+        os.makeDir.all(gamemodeConfigDir)
+        os.copy(gamemodeTemplate, gamemodeConfigFile)
+        println(s"  \u001b[32m[OK]\u001b[0m Deployed gamemode config -> $gamemodeConfigFile")
+      catch case e: Exception =>
+        println(s"  \u001b[33m[WARN]\u001b[0m Could not write gamemode.ini: ${e.getMessage}")
+    else if os.exists(gamemodeConfigFile) then
+      println(s"  \u001b[32m[OK]\u001b[0m gamemode.ini already present, skipping.")
+
+    // 3. Deploy MangoHud.conf
+    val mangoHudConfigDir  = ctx.configDir / "MangoHud"
+    val mangoHudConfigFile = mangoHudConfigDir / "MangoHud.conf"
+    val mangoHudTemplate   = ctx.dotfilesDir / "config" / "MangoHud" / "MangoHud.conf"
+    if !os.exists(mangoHudConfigFile) && os.exists(mangoHudTemplate) then
+      try
+        os.makeDir.all(mangoHudConfigDir)
+        os.copy(mangoHudTemplate, mangoHudConfigFile)
+        println(s"  \u001b[32m[OK]\u001b[0m Deployed MangoHud config -> $mangoHudConfigFile")
+      catch case e: Exception =>
+        println(s"  \u001b[33m[WARN]\u001b[0m Could not write MangoHud.conf: ${e.getMessage}")
+    else if os.exists(mangoHudConfigFile) then
+      println(s"  \u001b[32m[OK]\u001b[0m MangoHud.conf already present, skipping.")
+
+    // 4. Enable the gamemode systemd user socket (lets games request gamemode without sudo)
+    try
+      val enableRes = os.proc("systemctl", "--user", "enable", "--now", "gamemoded.service")
+        .call(stdin = os.Inherit, stdout = os.Pipe, stderr = os.Pipe, check = false)
+      if enableRes.exitCode == 0 then
+        println("  \u001b[32m[OK]\u001b[0m gamemoded.service enabled for current user session.")
+      else
+        // Not fatal — daemon will still be activated on demand via socket activation
+        println("  \u001b[33m[NOTE]\u001b[0m gamemoded.service enable skipped (may require re-login or systemd --user session).")
+    catch case e: Exception =>
+      println(s"  \u001b[33m[NOTE]\u001b[0m gamemoded.service activation skipped: ${e.getMessage}")
+
+    println("  \u001b[32m[OK]\u001b[0m Gaming tools configured.")
+    Right(())
 
   private def installZoxide(ctx: Context): Either[PolyominoError, Unit] =
     val pm = detectPackageManager()
@@ -921,6 +1008,35 @@ object ToolInstallers:
         os.proc("pacman", "-T", pkg).call(check = false).exitCode == 0
       else false
     catch case _: Exception => false
+
+  /** Ensures the [multilib] repository is enabled in /etc/pacman.conf.
+   *  lib32-* packages (e.g. lib32-gamemode, lib32-mangohud) require multilib.
+   *  If the section is commented out, this uncomments it and refreshes the db.
+   */
+  private def enableMultilib(): Unit =
+    try
+      val confPath = "/etc/pacman.conf"
+      val content  = os.read(os.Path(confPath))
+      val isEnabled = content.linesIterator.exists(l => l.trim == "[multilib]")
+      if isEnabled then
+        println("  \u001b[32m[OK]\u001b[0m multilib repository is already enabled.")
+      else
+        println("  \u001b[36m[INFO]\u001b[0m Enabling multilib repository for lib32 packages...")
+        // Uncomment both the [multilib] header and its Include line
+        val updated = content
+          .replaceAll("(?m)^#\\s*\\[multilib\\]", "[multilib]")
+          .replaceAll("(?m)^#\\s*(Include\\s*=\\s*/etc/pacman\\.d/mirrorlist)", "$1")
+        os.proc("sudo", "tee", confPath)
+          .call(stdin = updated, stdout = os.Pipe, check = false)
+        val syncRes = os.proc("sudo", "pacman", "-Sy").call(
+          stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit, check = false
+        )
+        if syncRes.exitCode == 0 then
+          println("  \u001b[32m[OK]\u001b[0m multilib enabled and database refreshed.")
+        else
+          println("  \u001b[33m[WARN]\u001b[0m multilib enabled but pacman -Sy returned code " + syncRes.exitCode)
+    catch case e: Exception =>
+      println(s"  \u001b[33m[WARN]\u001b[0m Could not enable multilib: ${e.getMessage}")
 
   private def isAvailable(cmd: String): Boolean =
     try os.proc("which", cmd).call(check = false).exitCode == 0 catch case _: Exception => false

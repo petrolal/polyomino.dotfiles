@@ -433,16 +433,17 @@ object CalendarPopup:
       |    dlog(f"final gdk_monitor = {gdk_monitor}")
       |    if gdk_monitor is not None:
       |        GtkLayerShell.set_monitor(win, gdk_monitor)
-      |    # Anchor to the top edge only; leaving LEFT and RIGHT unanchored makes
-      |    # gtk-layer-shell centre the surface horizontally, so the popup drops
-      |    # straight down from the centred Waybar clock. The TOP margin is measured
-      |    # from the bottom of Waybar's exclusive zone (its 8px margin + 32px height),
-      |    # so a small value here is the actual gap below the bar.
+      |    # Anchor to the top-right corner, under the clock/notification cluster at
+      |    # the right end of Waybar's modules-right. The TOP margin is measured from
+      |    # the bottom of Waybar's exclusive zone (its 8px margin + 32px height), so a
+      |    # small value here is the actual gap below the bar; the RIGHT margin lines
+      |    # the popup's right edge up with the instrument strip's own right margin.
       |    GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.TOP, True)
+      |    GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.RIGHT, True)
       |    GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.LEFT, False)
-      |    GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.RIGHT, False)
       |    GtkLayerShell.set_anchor(win, GtkLayerShell.Edge.BOTTOM, False)
       |    GtkLayerShell.set_margin(win, GtkLayerShell.Edge.TOP, 6)
+      |    GtkLayerShell.set_margin(win, GtkLayerShell.Edge.RIGHT, 8)
       |    GtkLayerShell.set_keyboard_mode(win, GtkLayerShell.KeyboardMode.ON_DEMAND)
       |
       |    popup_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)

@@ -97,13 +97,14 @@ fi
 # Determine action
 if [[ "$MODE" == "current" ]] || ([[ "$MODE" == "auto" ]] && [[ "$FOCUSED_TYPE" =~ ^(con|floating_con)$ ]]); then
     # Move and resize the current focused window
-    swaymsg "floating enable; resize set ${W}px ${H}px; move absolute position ${X}px ${Y}px" >/dev/null 2>&1
+    swaymsg "floating enable; border pixel 3; resize set ${W}px ${H}px; move absolute position ${X}px ${Y}px" >/dev/null 2>&1
 else
     # Generate unique ID for this drawn window instance
     UNIQUE_ID="sway_drawn_${RANDOM}_$(( $(date +%s%N 2>/dev/null || date +%s) ))"
 
     # Pre-register the for_window rule in Sway so the window maps immediately as floating
-    swaymsg "for_window [app_id=\"^${UNIQUE_ID}$\"] floating enable, border pixel 2; for_window [class=\"^${UNIQUE_ID}$\"] floating enable, border pixel 2; for_window [title=\"^${UNIQUE_ID}$\"] floating enable, border pixel 2" >/dev/null 2>&1
+    # A thicker border than the default 2px gives drawn windows visual contrast against the wallpaper
+    swaymsg "for_window [app_id=\"^${UNIQUE_ID}$\"] floating enable, border pixel 3; for_window [class=\"^${UNIQUE_ID}$\"] floating enable, border pixel 3; for_window [title=\"^${UNIQUE_ID}$\"] floating enable, border pixel 3" >/dev/null 2>&1
 
     # Detect preferred terminal
     TERM_BIN="kitty"
@@ -142,7 +143,10 @@ else
     (
         for _ in {1..40}; do
             if swaymsg -t get_tree 2>/dev/null | grep -q "\"$UNIQUE_ID\""; then
-                swaymsg "[app_id=\"^${UNIQUE_ID}$\"] floating enable; [app_id=\"^${UNIQUE_ID}$\"] resize set ${W}px ${H}px; [app_id=\"^${UNIQUE_ID}$\"] move absolute position ${X}px ${Y}px; [app_id=\"^${UNIQUE_ID}$\"] focus; [class=\"^${UNIQUE_ID}$\"] floating enable; [class=\"^${UNIQUE_ID}$\"] resize set ${W}px ${H}px; [class=\"^${UNIQUE_ID}$\"] move absolute position ${X}px ${Y}px; [class=\"^${UNIQUE_ID}$\"] focus" >/dev/null 2>&1
+                # Re-assert the border after mapping: the pre-registered for_window border
+                # can lose a race with the client's own xdg-decoration negotiation and get
+                # stuck on "csd" (no visible border) otherwise.
+                swaymsg "[app_id=\"^${UNIQUE_ID}$\"] floating enable; [app_id=\"^${UNIQUE_ID}$\"] border pixel 3; [app_id=\"^${UNIQUE_ID}$\"] resize set ${W}px ${H}px; [app_id=\"^${UNIQUE_ID}$\"] move absolute position ${X}px ${Y}px; [app_id=\"^${UNIQUE_ID}$\"] focus; [class=\"^${UNIQUE_ID}$\"] floating enable; [class=\"^${UNIQUE_ID}$\"] border pixel 3; [class=\"^${UNIQUE_ID}$\"] resize set ${W}px ${H}px; [class=\"^${UNIQUE_ID}$\"] move absolute position ${X}px ${Y}px; [class=\"^${UNIQUE_ID}$\"] focus" >/dev/null 2>&1
                 break
             fi
             sleep 0.025

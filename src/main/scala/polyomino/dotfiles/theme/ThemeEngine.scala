@@ -278,34 +278,31 @@ object ThemeEngine:
     val waybarStyleContent =
       s"""@import "${ctx.configDir / "polyomino" / "theme" / "tokens.css"}";
         |
+        |/* Archcraft-inspired clean vector layout, polyomino palette */
         |* {
         |    font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
         |    font-size: 13px;
         |    min-height: 0;
         |    border: none;
-        |    border-radius: 2px;
-        |    transition: all 120ms ease-in-out;
+        |    border-radius: 0px;
+        |    transition: none;
         |}
         |
-        |/* Waybar Polyomino Header Bar */
         |window#waybar {
-        |    background-color: #0d1117;
-        |    color: @text;
+        |    background-color: alpha(@base, 0.92);
+        |    color: @subtext1;
         |    border-bottom: 1px solid @overlay0;
-        |    border-radius: 0px;
         |    margin: 0;
         |}
         |
         |window#waybar.hidden {
-        |   opacity: 0.5;
+        |    opacity: 0.5;
         |}
         |
         |.modules-left,
         |.modules-center,
         |.modules-right {
         |    background: transparent;
-        |    border: none;
-        |    border-radius: 0px;
         |    padding: 0;
         |}
         |
@@ -313,24 +310,14 @@ object ThemeEngine:
         |#center,
         |#right {
         |    background-color: transparent;
-        |    border: none;
-        |    border-radius: 0px;
         |    padding: 0;
         |    margin: 0;
         |}
         |
-        |/* CAD Separators */
-        |#custom-matriz {
-        |    color: @overlay0;
-        |    font-size: 13px;
-        |    padding: 0 4px;
-        |}
-        |
         |tooltip {
-        |    background-color: @surface0;
+        |    background-color: @base;
         |    color: @text;
-        |    border: 1px solid @blue;
-        |    border-radius: 2px;
+        |    border: 1px solid @overlay0;
         |    padding: 8px 12px;
         |}
         |
@@ -340,33 +327,29 @@ object ThemeEngine:
         |    font-size: 13px;
         |}
         |
-        |/* Crisp segmented workspace indicators */
-        |#workspaces {
-        |    background-color: #0d1117;
-        |    border: 1px solid #30363d;
+        |/* ── left anchor: polyomino launcher pill ──────────────────────────── */
+        |#custom-polyomino {
+        |    background: @accent;
+        |    color: @base;
+        |    font-weight: bold;
+        |    padding: 2px 10px;
+        |    margin: 3px 6px 3px 4px;
         |    border-radius: 2px;
-        |    padding: 0;
-        |    margin: 3px 4px;
+        |}
+        |
+        |/* ── workspaces: minimal underline vector ──────────────────────────── */
+        |#workspaces {
+        |    background: transparent;
+        |    margin: 0 4px;
         |}
         |
         |#workspaces button {
-        |    min-width: 24px;
         |    padding: 2px 8px;
-        |    margin: 0;
-        |    background-color: transparent;
+        |    margin: 0 2px;
+        |    background: transparent;
         |    color: @subtext0;
-        |    border: none;
-        |    border-right: 1px solid #30363d;
         |    border-bottom: 2px solid transparent;
-        |    border-radius: 0px;
-        |    font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
-        |    font-size: 13px;
         |    font-weight: bold;
-        |    transition: all 120ms ease-in-out;
-        |}
-        |
-        |#workspaces button:last-child {
-        |    border-right: none;
         |}
         |
         |#workspaces button label {
@@ -374,172 +357,127 @@ object ThemeEngine:
         |}
         |
         |#workspaces button:hover {
-        |    background-color: @surface1;
         |    color: @text;
-        |    border-bottom: 2px solid @accent;
+        |    border-bottom: 2px solid @overlay0;
         |}
         |
         |#workspaces button.focused,
         |#workspaces button.active {
-        |    background-color: @surface0;
-        |    border-bottom: 2px solid #8b5cf6;
-        |    color: #f59e0b;
-        |    font-weight: bold;
+        |    color: @yellow;
+        |    border-bottom: 2px solid @accent;
         |}
         |
         |#workspaces button.urgent {
-        |    background-color: @red;
-        |    color: @base;
-        |    border-bottom: 2px solid #f59e0b;
-        |    font-weight: bold;
+        |    color: @red;
+        |    border-bottom: 2px solid @red;
         |}
         |
-        |/* Polyomino Segmented Module Cards */
-        |#clock,
-        |#tray,
-        |#window,
-        |#network,
-        |#bluetooth,
-        |#pulseaudio,
-        |#backlight,
-        |#battery,
-        |#cpu,
-        |#memory,
-        |#custom-gamemode,
-        |#custom-notification,
-        |#custom-spotify,
-        |#mode {
-        |    background-color: @surface0;
-        |    padding: 2px 8px;
-        |    margin: 3px 2px;
-        |    color: @text;
-        |    border: 1px solid @overlay0;
-        |    border-radius: 2px;
-        |    font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
+        |/* ── media, sits plain on the left cluster ─────────────────────────── */
+        |#custom-media {
+        |    color: @subtext0;
+        |    padding: 0 6px;
         |}
         |
-        |#tray {
-        |    padding: 2px 8px;
+        |#custom-media.playing {
+        |    color: @green;
         |}
         |
-        |#window.empty,
-        |#mode.empty {
+        |#custom-media.paused {
+        |    color: @yellow;
+        |}
+        |
+        |/* ── center: dim, ellipsized focused-window title ──────────────────── */
+        |#window {
+        |    color: @subtext0;
+        |    padding: 0 8px;
+        |}
+        |
+        |#window.empty {
         |    padding: 0;
         |    margin: 0;
-        |    border: none;
-        |    background-color: transparent;
         |}
         |
-        |#clock {
-        |    color: @text;
-        |    font-weight: bold;
+        |/* ── right cluster: one connected flat instrument strip ────────────── */
+        |.modules-right {
+        |    margin: 0;
+        |    padding: 0;
+        |}
+        |
+        |.modules-right > widget {
+        |    margin: 0;
+        |}
+        |
+        |.modules-right > widget > * {
         |    padding: 2px 8px;
-        |    border: 1px solid @overlay0;
+        |    margin: 3px 0;
+        |    background: @mantle;
+        |    color: @subtext0;
+        |    border-top: 1px solid @surface1;
+        |    border-bottom: 1px solid @surface1;
+        |    border-right: 1px solid @surface1;
+        |}
+        |
+        |.modules-right > widget:first-child > * {
+        |    border-left: 1px solid @surface1;
+        |    border-top-left-radius: 4px;
+        |    border-bottom-left-radius: 4px;
+        |}
+        |
+        |.modules-right > widget:last-child > * {
+        |    border-top-right-radius: 4px;
+        |    border-bottom-right-radius: 4px;
         |}
         |
         |#pulseaudio {
         |    color: @green;
         |}
         |
-        |#network,
-        |#network.wifi {
-        |    color: @sapphire;
-        |}
-        |
         |#bluetooth {
         |    color: @sapphire;
         |}
         |
-        |#battery {
-        |    color: @yellow;
+        |#network {
+        |    color: @subtext0;
+        |}
+        |
+        |#network.disconnected {
+        |    color: @red;
         |}
         |
         |#cpu {
-        |    color: @peach;
+        |    color: @yellow;
         |}
         |
         |#memory {
         |    color: @mauve;
         |}
         |
-        |#custom-spotify {
-        |    color: @green;
-        |}
-        |
-        |#custom-gamemode {
-        |    color: @subtext0;
-        |}
-        |
-        |#custom-gamemode.active {
-        |    color: @yellow;
-        |    font-weight: bold;
-        |    border: 1px solid @yellow;
-        |    background-color: @surface1;
-        |}
-        |
-        |#custom-polyomino {
-        |    background-color: @blue;
-        |    color: @base;
-        |    font-weight: bold;
-        |    padding: 2px 8px;
-        |    margin: 3px 4px;
-        |    border-radius: 2px;
-        |    border: 1px solid @blue;
-        |}
-        |
-        |#clock:hover,
-        |#clock.active,
-        |#tray:hover,
-        |#network:hover,
-        |#network.active,
-        |#bluetooth:hover,
-        |#bluetooth.active,
-        |#pulseaudio:hover,
-        |#pulseaudio.active,
-        |#backlight:hover,
-        |#backlight.active,
-        |#battery:hover,
-        |#battery.active,
-        |#cpu:hover,
-        |#cpu.active,
-        |#memory:hover,
-        |#memory.active,
-        |#custom-gamemode:hover,
-        |#custom-notification:hover,
-        |#custom-notification.active,
-        |#custom-notification.open,
-        |#custom-notification.open-window,
-        |#custom-spotify:hover,
-        |#mode:hover,
-        |#mode.active {
-        |    background-color: @surface1;
-        |    border: 1px solid @blue;
+        |#battery {
+        |    color: @sapphire;
         |}
         |
         |#battery.warning {
         |    color: @yellow;
-        |    border-color: @yellow;
         |}
         |
         |#battery.critical {
         |    color: @red;
-        |    border-color: @red;
         |}
         |
-        |#network.disconnected {
-        |    color: @red;
-        |    border-color: @red;
+        |#custom-notification {
+        |    color: @subtext0;
         |}
         |
-        |#custom-notification.notification {
-        |    color: @blue;
-        |}
-        |
+        |#custom-notification.notification,
         |#custom-notification.dnd-notification,
-        |#custom-notification.dnd-none,
-        |#custom-notification.dnd-inhibited-notification,
-        |#custom-notification.dnd-inhibited-none {
-        |    opacity: 0.6;
+        |#custom-notification.inhibited-notification,
+        |#custom-notification.dnd-inhibited-notification {
+        |    color: @red;
+        |}
+        |
+        |#clock {
+        |    color: @text;
+        |    font-weight: bold;
         |}
         |""".stripMargin
     os.write.over(waybarStyleFile, waybarStyleContent)
