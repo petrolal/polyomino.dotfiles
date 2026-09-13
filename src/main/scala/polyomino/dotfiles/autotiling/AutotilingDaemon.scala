@@ -74,11 +74,9 @@ object AutotilingDaemon:
       if node.obj.get("focused").exists(_.bool) then
         Some((node, parent))
       else
-        val tiledNodes = node.obj.get("nodes").map(_.arr).getOrElse(Vector.empty)
-        val floatingNodes = node.obj.get("floating_nodes").map(_.arr).getOrElse(Vector.empty)
-        val allChildren = tiledNodes ++ floatingNodes
-
-        allChildren.flatMap(child => findFocusedWindow(child, Some(node))).headOption
+        val tiled = node.obj.get("nodes").map(_.arr.iterator).getOrElse(Iterator.empty)
+        val floating = node.obj.get("floating_nodes").map(_.arr.iterator).getOrElse(Iterator.empty)
+        (tiled ++ floating).flatMap(child => findFocusedWindow(child, Some(node))).nextOption()
     catch
       case _: Exception => None
 

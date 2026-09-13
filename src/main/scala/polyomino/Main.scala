@@ -48,7 +48,6 @@ object Main:
     name match
       case "version" | "-v" | "--version" => Right(println("polyomino 0.1.0 (Scala 3.5.2 Native Image)"))
       case "healthcheck" | "validate" => polyomino.dotfiles.validate.Validator.run(ctx, args)
-      case "sdd" => polyomino.dotfiles.sdd.SpecDrivenDev.run(ctx, args)
       case "lock" => polyomino.dotfiles.sysutils.SysUtils.runLock(ctx, args)
       case "preview-lock" | "lock-preview" => polyomino.dotfiles.sysutils.SysUtils.runLockPreview(ctx, args)
       case "idle" => polyomino.dotfiles.sysutils.SysUtils.runIdle(ctx)
@@ -116,7 +115,6 @@ object Main:
       |  notify-config    configure installed apps to use system notifications
       |  media-status     Waybar MPRIS player metadata monitor (JSON)
       |  fastfetch-logo   set distro-specific Fastfetch ASCII logo
-      |  sdd              token-efficient spec-driven development for AI workflows
       |  install-deps     install system & build dependencies (sbt, gcc, git, etc.)
       |  install-gaming   install gaming dependencies & tools (gamemode/gamescope/mangohud/etc.)
       |  install-emulator <name>  install one emulator (mesen/bsnes/sameboy/mgba/mame/flycast/blastem/duckstation/simple64)

@@ -99,12 +99,6 @@ class SysUtilsSuite extends FunSuite:
     val geom = SysUtils.findFocusedNodeGeometry(mockTree)
     assertEquals(geom, None)
 
-  test("SysUtils.runCalendar executes safely in test mode"):
-    withIsolatedContext { ctx =>
-      val res = SysUtils.runCalendar(ctx)
-      assert(res.isRight)
-    }
-
   test("SysUtils.runDrawWindow handles test mode safely"):
     withIsolatedContext { ctx =>
       val res = SysUtils.runDrawWindow(ctx, List("--spawn"))

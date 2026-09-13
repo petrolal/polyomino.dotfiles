@@ -33,10 +33,6 @@ class MainSuite extends FunSuite:
     val code = dispatch(Array("non-existent-command-12345"))
     assert(code != 0)
 
-  test("Main.dispatch routes sdd command"):
-    val code = dispatch(Array("sdd", "--tokens"))
-    assertEquals(code, 0)
-
   test("Main.dispatch routes theme command"):
     val code = dispatch(Array("theme", "list"))
     assertEquals(code, 0)

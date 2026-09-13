@@ -68,7 +68,7 @@ packageBin / packageOptions += Package.ManifestAttributes(...)
 ## Architectural Invariants & Patterns
 
 ### 1. Single Multi-Call Native Executable
-- All modules (`autotiling`, `theme`, `refresh`, `sysutils`, `maintenance`, `install`, `pickers`, `sdd`, `validate`) compile into a single native binary (`polyomino`)
+- All modules (`autotiling`, `theme`, `refresh`, `sysutils`, `maintenance`, `install`, `pickers`, `validate`) compile into a single native binary (`polyomino`)
 - Binary size optimized via GraalVM native-image compilation (~40-60 MB)
 - Startup latency: 15-50 ms
 - Memory RSS: Under 60 MB peak RAM
@@ -127,17 +127,11 @@ polyomino.dotfiles/
 │       ├── sysutils/
 │       │   └── SysUtils.scala              # Lock screen, idle daemon, screenshot helpers
 │       │
-│       ├── wallpaper/
-│       │   └── WallpaperEngine.scala        # Swap wallpaper within the active flavor (next/prev/random)
-│       │
 │       ├── pickers/
 │       │   └── WofiPickers.scala           # Wofi GUI launchers (theme-picker, wallpaper-picker, whichkey)
 │       │
 │       ├── maintenance/
 │       │   └── Maintenance.scala           # Backup/restore snapshots, git pull & re-install
-│       │
-│       ├── sdd/
-│       │   └── SpecDrivenDev.scala         # AI context generator for development workflows
 │       │
 │       └── validate/
 │           └── Validator.scala             # Read-only health check of system setup
@@ -217,7 +211,6 @@ polyomino.dotfiles/
 | `polyomino backup` | Create timestamped `.tar.gz` archive of dotfiles |
 | `polyomino restore` | Restore snapshot created by `polyomino backup` |
 | `polyomino update` | Git pull dotfiles repository and re-run installer |
-| `polyomino sdd` | Generate token-efficient AI context and specs |
 
 ---
 

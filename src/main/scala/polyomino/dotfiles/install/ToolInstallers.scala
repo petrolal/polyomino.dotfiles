@@ -1234,12 +1234,14 @@ object ToolInstallers:
    */
   private def enableMultilib(): Unit =
     try
-      val confPath = "/etc/pacman.conf"
-      val content  = os.read(os.Path(confPath))
-      val isEnabled = content.linesIterator.exists(l => l.trim == "[multilib]")
-      if isEnabled then
-        println("  \u001b[32m[OK]\u001b[0m multilib repository is already enabled.")
+      val confPath = os.Path("/etc/pacman.conf")
+      if !os.exists(confPath) then ()
       else
+        val content = os.read(confPath)
+        val isEnabled = content.linesIterator.exists(l => l.trim == "[multilib]")
+        if isEnabled then
+          println("  \u001b[32m[OK]\u001b[0m multilib repository is already enabled.")
+        else
         println("  \u001b[36m[INFO]\u001b[0m Enabling multilib repository for lib32 packages...")
         // Uncomment only the [multilib] header and the Include line directly beneath it.
         // A blanket regex over every commented "Include = .../mirrorlist" line would also

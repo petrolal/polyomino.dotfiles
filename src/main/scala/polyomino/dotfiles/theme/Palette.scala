@@ -102,16 +102,18 @@ object Palette:
         if !trimmed.startsWith("#") && trimmed.contains("=") then
           val parts = trimmed.split("=", 2)
           val k = parts(0).trim.toUpperCase
-          // Extract value between the first and last double quotes, ignore comments and stray characters
           val raw = parts(1).trim
-          val firstQuote = raw.indexOf("\"")
-          val lastQuote = raw.lastIndexOf("\"")
-          val extracted = if (firstQuote >= 0 && lastQuote > firstQuote) {
-            raw.substring(firstQuote + 1, lastQuote)
-          } else {
-            raw.split("#", 2)(0).trim // fallback to raw before comment
-          }
-          val v = extracted.stripSuffix("\\") // remove trailing backslash if present
+          val firstDouble = raw.indexOf('"')
+          val lastDouble = raw.lastIndexOf('"')
+          val firstSingle = raw.indexOf('\'')
+          val lastSingle = raw.lastIndexOf('\'')
+          val extracted = if firstDouble >= 0 && lastDouble > firstDouble then
+            raw.substring(firstDouble + 1, lastDouble)
+          else if firstSingle >= 0 && lastSingle > firstSingle then
+            raw.substring(firstSingle + 1, lastSingle)
+          else
+            raw.split("#", 2)(0).trim
+          val v = extracted.stripSuffix("\\")
           kvMap += (k -> v)
 
       val name = kvMap.getOrElse("THEME_NAME", file.baseName)

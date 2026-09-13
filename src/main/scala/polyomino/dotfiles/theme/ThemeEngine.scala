@@ -1527,12 +1527,3 @@ object ThemeEngine:
       os.makeDir.all(targetPath / os.up)
       os.write.over(targetPath, content)
     catch case _: Exception => ()
-
-  def listWallpapers(ctx: Context): Seq[String] =
-    val wallpapersDir = ctx.dotfilesDir / "themes" / "wallpapers"
-    if os.exists(wallpapersDir) then
-      os.list(wallpapersDir)
-        .filter(f => f.ext == "svg" || f.ext == "png" || f.ext == "jpg")
-        .map(_.toString)
-        .sorted
-    else Nil

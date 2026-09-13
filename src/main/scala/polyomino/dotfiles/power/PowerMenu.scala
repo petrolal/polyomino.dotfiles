@@ -268,9 +268,9 @@ object PowerMenu:
       pieceIdx: Int,
       stack: Vector[Debris],
       stackMaxRows: Int,
-      phase: Phase = Phase.Playing
+      phase: Phase = Phase.Playing,
+      stackCoords: Set[(Int, Int)] = Set.empty
   ):
-    val stackCoords: Set[(Int, Int)] = stack.map(d => (d.cellX, d.cellY)).toSet
     def laneIdx(g: Geom): Int = g.laneForCol(cellX, shape.head.length)
 
     def fits(sh: Vector[String], px: Int, py: Int, g: Geom): Boolean =
@@ -362,7 +362,8 @@ object PowerMenu:
         shape = initialShape,
         pieceIdx = idx,
         stack = stack,
-        stackMaxRows = maxRows
+        stackMaxRows = maxRows,
+        stackCoords = stack.map(d => (d.cellX, d.cellY)).toSet
       )
 
   private final case class Geom(cols: Int, rows: Int):

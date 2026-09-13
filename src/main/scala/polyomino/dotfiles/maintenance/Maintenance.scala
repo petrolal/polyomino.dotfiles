@@ -45,6 +45,7 @@ object Maintenance:
         println(s"\u001b[1;36m[polyomino restore]\u001b[0m Restoring configuration snapshot from $archivePath...")
         if os.exists(archivePath) then
           try
+            os.makeDir.all(ctx.configDir)
             val res = os.proc("tar", "-xzf", archivePath.toString, "-C", ctx.configDir.toString).call(check = false)
             if res.exitCode == 0 then
               println(s"  \u001b[32m[OK]\u001b[0m Configuration restored to ${ctx.configDir}")
@@ -175,7 +176,7 @@ object Maintenance:
       case _: Exception => "0.1.0"
 
   def calculateNextVersion(current: String, bumpType: String): Option[String] =
-    val cleanCurrent = current.split('-').head
+    val cleanCurrent = current.trim.stripPrefix("v").split('-').head
     val parts = cleanCurrent.split('.').flatMap(_.toIntOption)
     if parts.length == 3 then
       val major = parts(0)

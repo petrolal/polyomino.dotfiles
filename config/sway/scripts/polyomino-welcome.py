@@ -184,6 +184,164 @@ def find_emulator_binary(emu_id):
             return candidate
     return None
 
+# (icon, title, description, install subcommand, badge)
+INSTALL_SECTIONS = [
+    ("📀", "System Dependencies", "Base build tooling: sbt, gcc, git, and friends.", "install-deps", "SYSTEM"),
+    ("🖥️", "Desktop Apps", "Core desktop apps: sway, waybar, kitty, etc.", "install-apps", "DESKTOP"),
+    ("🪟", "SwayFX Compositor", "Install/upgrade the SwayFX Wayland compositor.", "install-sway", "DESKTOP"),
+    ("🔤", "Fonts", "JetBrainsMono Nerd Font.", "install-fonts", "DESKTOP"),
+    ("🌐", "Web Browser", "Chromium or Firefox.", "install-browser", "DESKTOP"),
+    ("🔔", "Notifications (SwayNC)", "SwayNC notification daemon & control center.", "install-swaync", "DESKTOP"),
+    ("🕹️", "Gaming Stack", "Feral GameMode, Gamescope, MangoHud, Vulkan drivers, Steam.", "install-gaming", "GAMING"),
+    ("☁️", "DevOps Tooling", "docker, terraform, ansible, aws/gcp/oci, kubectl, etc.", "install-devops", "DEVOPS"),
+    ("🐚", "Zsh + Plugins", "zsh, oh-my-zsh, plugins, and set as default shell.", "install-zsh", "SHELL"),
+    ("🟩", "Node.js (NVM)", "Node.js & npm via NVM.", "install-node", "LANG"),
+    ("☕", "SDKMAN! (JVM)", "SDKMAN! and JVM tooling.", "install-sdkman", "LANG"),
+    ("🍺", "Homebrew", "Homebrew package manager.", "install-brew", "SYSTEM"),
+    ("🐙", "GitHub CLI", "gh command-line tool.", "install-gh", "SYSTEM"),
+    ("⚙️", "Coursier", "Scala artifact/launcher manager.", "install-coursier", "LANG"),
+    ("🧰", "TUI Tools", "spotify_player, bluetui, aerc.", "install-tools", "SYSTEM"),
+    ("✈️", "Telegram", "Telegram desktop client.", "install-telegram", "DESKTOP"),
+    ("📁", "Yazi", "Terminal file manager.", "install-yazi", "SYSTEM"),
+    ("📊", "Fastfetch", "System information tool.", "install-fastfetch", "SYSTEM"),
+    ("🎵", "Spotify Player", "TUI Spotify client.", "install-spotify", "DESKTOP"),
+    ("⚡", "Zoxide", "Smarter `cd` command.", "install-zoxide", "SYSTEM"),
+]
+
+def _wpctl_status():
+    try:
+        return subprocess.run(["wpctl", "status"], capture_output=True, text=True, timeout=2).stdout
+    except Exception:
+        return ""
+
+def list_audio_sinks():
+    """Parse `wpctl status` Sinks section: [(id, name, is_default)]."""
+    sinks = []
+    out = _wpctl_status()
+    in_sinks = False
+    for line in out.splitlines():
+        if re.search(r"^\s*Sinks:", line):
+            in_sinks = True
+            continue
+        if in_sinks and re.search(r"^\s*(Sources|Filters|Streams):", line):
+            break
+        if not in_sinks:
+            continue
+        m = re.search(r"(\*)?\s*(\d+)\.\s+(.+?)\s+\[vol:", line)
+        if m:
+            sinks.append({"id": m.group(2), "name": m.group(3).strip(), "default": m.group(1) == "*"})
+    return sinks
+
+def get_default_sink():
+    for sink in list_audio_sinks():
+        if sink["default"]:
+            return sink
+    return None
+
+def get_default_source_muted():
+    out = _wpctl_status()
+    in_sources = False
+    for line in out.splitlines():
+        if re.search(r"^\s*Sources:", line):
+            in_sources = True
+            continue
+        if in_sources and re.search(r"^\s*(Sinks|Filters|Streams):", line):
+            break
+        if in_sources and "*" in line:
+            return "[MUTED]" in line
+    return None
+
+def toggle_default_sink():
+    sinks = list_audio_sinks()
+    if len(sinks) < 2:
+        return None
+    current_idx = next((i for i, s in enumerate(sinks) if s["default"]), 0)
+    next_sink = sinks[(current_idx + 1) % len(sinks)]
+    try:
+        subprocess.run(["wpctl", "set-default", next_sink["id"]], timeout=2)
+    except Exception:
+        pass
+    return next_sink
+
+def open_audio_mixer():
+    if shutil.which("wiremix"):
+        run_cmd(["kitty", "--title", "wiremix", "-e", "wiremix"])
+    elif shutil.which("pulsemixer"):
+        run_cmd(["kitty", "--title", "pulsemixer", "-e", "pulsemixer"])
+    else:
+        run_cmd(["notify-send", "Audio Mixer", "Install wiremix or pulsemixer to manage audio devices."])
+
+def is_recording():
+    try:
+        return subprocess.run(["pgrep", "-x", "wf-recorder"], capture_output=True, timeout=2).returncode == 0
+    except Exception:
+        return False
+
+def toggle_recording():
+    if is_recording():
+        try:
+            subprocess.run(["pkill", "-INT", "-x", "wf-recorder"], timeout=2)
+        except Exception:
+            pass
+        return False
+    if not shutil.which("wf-recorder"):
+        run_cmd(["notify-send", "Screen Recording", "Install wf-recorder to record the screen."])
+        return False
+    out_dir = Path.home() / "Videos"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    ts = subprocess.run(["date", "+%Y%m%d-%H%M%S"], capture_output=True, text=True, timeout=2).stdout.strip()
+    out_file = out_dir / f"polyomino-recording-{ts}.mp4"
+    run_cmd(["wf-recorder", "-f", str(out_file)])
+    return True
+
+def take_area_screenshot():
+    if shutil.which("grim") and shutil.which("slurp"):
+        run_cmd(["sh", "-c", 'grim -g "$(slurp)" "$HOME/Pictures/polyomino-$(date +%Y%m%d-%H%M%S).png"'])
+    else:
+        run_cmd(["notify-send", "Screenshot", "Install grim and slurp to capture the screen."])
+
+def take_fullscreen_screenshot():
+    if shutil.which("grim"):
+        run_cmd(["sh", "-c", 'grim "$HOME/Pictures/polyomino-$(date +%Y%m%d-%H%M%S).png"'])
+    else:
+        run_cmd(["notify-send", "Screenshot", "Install grim to capture the screen."])
+
+def list_scratchpad_windows():
+    """Walk `swaymsg -t get_tree` for nodes under the __i3_scratch workspace."""
+    windows = []
+    try:
+        out = subprocess.run(["swaymsg", "-t", "get_tree"], capture_output=True, text=True, timeout=2).stdout
+        tree = json.loads(out)
+    except Exception:
+        return windows
+
+    def find_scratch(node):
+        if node.get("name") == "__i3_scratch":
+            return node
+        for child in node.get("nodes", []) + node.get("floating_nodes", []):
+            found = find_scratch(child)
+            if found:
+                return found
+        return None
+
+    def collect_windows(node, acc):
+        if node.get("app_id") or (node.get("window_properties") or {}).get("class"):
+            name = node.get("name") or node.get("app_id") or "Unknown"
+            acc.append({"con_id": node.get("id"), "name": name})
+        for child in node.get("nodes", []) + node.get("floating_nodes", []):
+            collect_windows(child, acc)
+
+    scratch = find_scratch(tree)
+    if scratch:
+        collect_windows(scratch, windows)
+    return windows
+
+def toggle_scratchpad_window(con_id):
+    try:
+        subprocess.run(["swaymsg", f"[con_id={con_id}]", "scratchpad", "show"], timeout=2)
+    except Exception:
+        pass
+
 class WelcomeWindow(Gtk.Window):
     def __init__(self):
         super().__init__(title="Polyomino Welcome Center")
@@ -192,6 +350,15 @@ class WelcomeWindow(Gtk.Window):
         self.set_position(Gtk.WindowPosition.CENTER)
 
         self.settings = load_settings()
+
+        # Enable an RGBA visual so the compositor's per-window blur
+        # (see `blur enable` on app_id="polyomino-welcome" in sway config)
+        # has real alpha to blur through, not an opaque surface.
+        self.set_app_paintable(True)
+        screen = Gdk.Screen.get_default()
+        visual = screen.get_rgba_visual() if screen else None
+        if visual is not None:
+            self.set_visual(visual)
 
         # Load CSS Theme
         self.apply_css()
@@ -212,19 +379,44 @@ class WelcomeWindow(Gtk.Window):
         main_box.pack_start(notebook, True, True, 0)
         self.notebook = notebook
 
+        self.gc_all_flowboxes = []
+
         # Tab 1: Quick Start (Polyomino Grid)
         tab1 = self.create_quick_start_tab()
         notebook.append_page(tab1, self.create_tab_label("🚀", "Quick Start"))
 
         # Tab 2: Gaming Center (categorized bento layout)
-        self.gc_all_flowboxes = []
         tab2 = self.create_gaming_tab()
         notebook.append_page(tab2, self.create_tab_label("🎮", "Gaming Center"))
-        self.gaming_tab_index = 1
 
-        # Tab 3: System & Tools (Polyomino Grid)
-        tab3 = self.create_system_tab()
-        notebook.append_page(tab3, self.create_tab_label("🛠️", "System & Tools"))
+        # Tab 3: Media & Quick System Utilities
+        tab3 = self.create_media_tab()
+        notebook.append_page(tab3, self.create_tab_label("🎧", "Media & Utilities"))
+
+        # Tab 4: System & Tools (Polyomino Grid)
+        tab4 = self.create_system_tab()
+        notebook.append_page(tab4, self.create_tab_label("🛠️", "System & Tools"))
+
+        # Global vim-modal search bar (filters bento cards on the active tab)
+        self.vim_search_entry = Gtk.SearchEntry()
+        self.vim_search_entry.set_placeholder_text("Search gamepads, tools, emulator configs, utilities…")
+        self.vim_search_entry.get_style_context().add_class("gc-search")
+        self.vim_search_entry.connect("search-changed", self.on_gc_search_changed)
+        self.vim_search_revealer = Gtk.Revealer()
+        self.vim_search_revealer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_DOWN)
+        self.vim_search_revealer.add(self.vim_search_entry)
+        self.vim_search_revealer.set_reveal_child(False)
+        main_box.pack_start(self.vim_search_revealer, False, False, 0)
+
+        # Global vim-modal hint statusline
+        self.vim_hint_label = Gtk.Label(xalign=0)
+        self.vim_hint_label.get_style_context().add_class("gc-hint")
+        self.vim_mode = "NORMAL"
+        self.set_vim_hint_normal()
+        hint_box = Gtk.Box()
+        hint_box.get_style_context().add_class("gc-hint-box")
+        hint_box.pack_start(self.vim_hint_label, True, True, 0)
+        main_box.pack_start(hint_box, False, False, 0)
 
         # Footer Section
         footer = self.create_footer()
@@ -249,15 +441,30 @@ class WelcomeWindow(Gtk.Window):
         }}
         window,
         window.background,
-        .background,
-        .main-window-box,
+        .background {{
+            background-color: transparent;
+            color: {p['text_primary']};
+            border: none;
+            box-shadow: none;
+        }}
+
+        /* Single frosted-glass tint layer — the compositor blurs the
+           desktop behind it through this alpha; everything nested inside
+           stays transparent so the tint isn't doubled up. */
+        .main-window-box {{
+            background-color: alpha({p['bg_base']}, 0.85);
+            color: {p['text_primary']};
+            border: none;
+            box-shadow: none;
+        }}
+
         notebook,
         notebook > stack,
         notebook > stack > *,
         scrolledwindow,
         scrolledwindow viewport,
         viewport {{
-            background-color: {p['bg_base']};
+            background-color: transparent;
             color: {p['text_primary']};
             border: none;
             box-shadow: none;
@@ -296,7 +503,7 @@ class WelcomeWindow(Gtk.Window):
 
         /* Notebook & Tabs — clean underline style, no boxed borders */
         notebook, .content-notebook {{
-            background-color: {p['bg_base']};
+            background-color: transparent;
             border: none;
             box-shadow: none;
         }}
@@ -352,7 +559,7 @@ class WelcomeWindow(Gtk.Window):
 
         /* Polyomino Grid & Interactive Tiles */
         .polyomino-grid {{
-            background-color: {p['bg_base']};
+            background-color: transparent;
             padding: 8px;
         }}
 
@@ -595,7 +802,7 @@ class WelcomeWindow(Gtk.Window):
             color: {p['text_primary']};
         }}
         .gc-stack, .gc-flow {{
-            background-color: {p['bg_base']};
+            background-color: transparent;
         }}
         button.gc-card {{
             background-color: rgba(15, 17, 26, 0.85);
@@ -1013,9 +1220,9 @@ class WelcomeWindow(Gtk.Window):
         return box
 
     def gc_filter_func(self, child):
-        if not hasattr(self, "gc_search_entry"):
+        if not hasattr(self, "vim_search_entry"):
             return True
-        query = self.gc_search_entry.get_text().strip().lower()
+        query = self.vim_search_entry.get_text().strip().lower()
         if not query:
             return True
         return query in getattr(child.get_child(), "gc_title", "")
@@ -1273,42 +1480,39 @@ class WelcomeWindow(Gtk.Window):
         return self.build_gc_flow_page("gc-updates", cards)
 
     # ---------------------------------------------------------------
-    # Gaming Center: vim-modal keyboard navigation
+    # Global vim-modal keyboard navigation (all tabs)
     # ---------------------------------------------------------------
 
-    def set_gc_hint_normal(self):
-        self.gc_hint_label.set_markup(
-            "<b>[ NORMAL ]</b>  h/j/k/l Navigate  •  1-6 Categories  •  / Search  •  Enter Select  •  Esc Close")
+    def set_vim_hint_normal(self):
+        self.vim_hint_label.set_markup(
+            "<b>[ NORMAL ]</b>  h/j/k/l Navigate  •  / Search  •  Enter Execute  •  Esc Close")
 
-    def set_gc_hint_insert(self):
-        self.gc_hint_label.set_markup("<b>[ INSERT ]</b>  Type to filter  •  Esc back to Normal")
+    def set_vim_hint_insert(self):
+        self.vim_hint_label.set_markup("<b>[ INSERT ]</b>  Type to filter  •  Esc back to Normal")
 
     def gc_move_focus(self, direction):
         focused = self.get_focus()
-        target = focused if focused is not None else self.gc_stack.get_visible_child()
+        target = focused if focused is not None else self.notebook.get_nth_page(self.notebook.get_current_page())
         if target is not None:
             target.child_focus(direction)
 
     def on_window_keypress(self, widget, event):
-        if not hasattr(self, "notebook") or self.notebook.get_current_page() != getattr(self, "gaming_tab_index", 1):
-            return False
-
         keyname = Gdk.keyval_name(event.keyval) or ""
 
-        if self.gc_mode == "INSERT":
+        if self.vim_mode == "INSERT":
             if keyname == "Escape":
-                self.gc_mode = "NORMAL"
-                self.gc_search_revealer.set_reveal_child(False)
-                self.gc_stack.grab_focus()
-                self.set_gc_hint_normal()
+                self.vim_mode = "NORMAL"
+                self.vim_search_revealer.set_reveal_child(False)
+                self.notebook.grab_focus()
+                self.set_vim_hint_normal()
                 return True
             return False
 
         if keyname == "slash":
-            self.gc_mode = "INSERT"
-            self.gc_search_revealer.set_reveal_child(True)
-            self.gc_search_entry.grab_focus()
-            self.set_gc_hint_insert()
+            self.vim_mode = "INSERT"
+            self.vim_search_revealer.set_reveal_child(True)
+            self.vim_search_entry.grab_focus()
+            self.set_vim_hint_insert()
             return True
         elif keyname in ("h", "H"):
             self.gc_move_focus(Gtk.DirectionType.LEFT)
@@ -1322,10 +1526,10 @@ class WelcomeWindow(Gtk.Window):
         elif keyname in ("k", "K"):
             self.gc_move_focus(Gtk.DirectionType.UP)
             return True
-        elif keyname in ("1", "2", "3", "4", "5", "6"):
-            pages = ["gc-tools", "gc-games", "gc-emulators", "gc-install", "gc-controller", "gc-updates"]
+        elif keyname in ("1", "2", "3", "4"):
             idx = int(keyname) - 1
-            self.gc_stack.set_visible_child_name(pages[idx])
+            if idx < self.notebook.get_n_pages():
+                self.notebook.set_current_page(idx)
             return True
         elif keyname == "Escape":
             self.close()
@@ -1374,25 +1578,145 @@ class WelcomeWindow(Gtk.Window):
         body.pack_start(self.gc_stack, True, True, 0)
         outer.pack_start(body, True, True, 0)
 
-        self.gc_search_entry = Gtk.SearchEntry()
-        self.gc_search_entry.set_placeholder_text("Search gamepads, tools, emulator configs…")
-        self.gc_search_entry.get_style_context().add_class("gc-search")
-        self.gc_search_entry.connect("search-changed", self.on_gc_search_changed)
-        self.gc_search_revealer = Gtk.Revealer()
-        self.gc_search_revealer.set_transition_type(Gtk.RevealerTransitionType.SLIDE_DOWN)
-        self.gc_search_revealer.add(self.gc_search_entry)
-        self.gc_search_revealer.set_reveal_child(False)
-        outer.pack_start(self.gc_search_revealer, False, False, 0)
+        return outer
 
-        self.gc_hint_label = Gtk.Label(xalign=0)
-        self.gc_hint_label.get_style_context().add_class("gc-hint")
-        self.gc_mode = "NORMAL"
-        self.set_gc_hint_normal()
-        hint_box = Gtk.Box()
-        hint_box.get_style_context().add_class("gc-hint-box")
-        hint_box.pack_start(self.gc_hint_label, True, True, 0)
-        outer.pack_start(hint_box, False, False, 0)
+    # ---------------------------------------------------------------
+    # Media & Quick System Utilities
+    # ---------------------------------------------------------------
 
+    def build_media_audio_flow(self):
+        flow = Gtk.FlowBox()
+        flow.set_valign(Gtk.Align.START)
+        flow.set_max_children_per_line(3)
+        flow.set_selection_mode(Gtk.SelectionMode.NONE)
+        flow.set_row_spacing(12)
+        flow.set_column_spacing(12)
+        flow.set_homogeneous(True)
+        flow.get_style_context().add_class("gc-flow")
+        flow.set_filter_func(self.gc_filter_func)
+
+        sink = get_default_sink()
+        sink_name = sink["name"] if sink else "No sink detected"
+        mic_muted = get_default_source_muted()
+        mic_status = "Muted" if mic_muted else ("Live" if mic_muted is not None else "Unknown")
+        flow.add(self.create_gc_card(
+            "🔊", "Audio Output & Sink", f"Active: {sink_name} · Mic: {mic_status}", "Switch Sink →",
+            self.on_toggle_sink, badge_text="ACTIVE", badge_style="connected"))
+        flow.add(self.create_gc_card(
+            "🎚️", "Audio Mixer (TUI)", "Open the full PipeWire mixer for per-app volume control.", "Open Mixer →",
+            open_audio_mixer, badge_text="TOOL", badge_style="tool"))
+        self.gc_all_flowboxes.append(flow)
+        return flow
+
+    def on_toggle_sink(self):
+        toggle_default_sink()
+        self.refresh_media_section("audio")
+
+    def build_media_capture_flow(self):
+        flow = Gtk.FlowBox()
+        flow.set_valign(Gtk.Align.START)
+        flow.set_max_children_per_line(3)
+        flow.set_selection_mode(Gtk.SelectionMode.NONE)
+        flow.set_row_spacing(12)
+        flow.set_column_spacing(12)
+        flow.set_homogeneous(True)
+        flow.get_style_context().add_class("gc-flow")
+        flow.set_filter_func(self.gc_filter_func)
+
+        recording = is_recording()
+        flow.add(self.create_gc_card(
+            "📐", "Area Screenshot", "Select a region with slurp and save to ~/Pictures.", "Capture →",
+            take_area_screenshot, badge_text="TOOL", badge_style="tool"))
+        flow.add(self.create_gc_card(
+            "🖥️", "Fullscreen Grab", "Capture the entire active output to ~/Pictures.", "Capture →",
+            take_fullscreen_screenshot, badge_text="TOOL", badge_style="tool"))
+        flow.add(self.create_gc_card(
+            "🎥", "Screen Recording", "Toggle wf-recorder capture to ~/Videos.",
+            "Stop Recording →" if recording else "Start Recording →",
+            self.on_toggle_recording,
+            badge_text="REC" if recording else "IDLE",
+            badge_style="connected" if recording else "tool"))
+        self.gc_all_flowboxes.append(flow)
+        return flow
+
+    def on_toggle_recording(self):
+        toggle_recording()
+        self.refresh_media_section("capture")
+
+    def build_media_scratchpad_flow(self):
+        flow = Gtk.FlowBox()
+        flow.set_valign(Gtk.Align.START)
+        flow.set_max_children_per_line(3)
+        flow.set_selection_mode(Gtk.SelectionMode.NONE)
+        flow.set_row_spacing(12)
+        flow.set_column_spacing(12)
+        flow.set_homogeneous(True)
+        flow.get_style_context().add_class("gc-flow")
+        flow.set_filter_func(self.gc_filter_func)
+
+        windows = list_scratchpad_windows()
+        if windows:
+            for win in windows:
+                flow.add(self.create_gc_card(
+                    "🗂️", win["name"], "Sway scratchpad window.", "Focus / Toggle →",
+                    (lambda cid=win["con_id"]: (toggle_scratchpad_window(cid), self.refresh_media_section("scratchpad"))),
+                    badge_text="HIDDEN", badge_style="tool"))
+        else:
+            flow.add(self.create_gc_card(
+                "🗂️", "No scratchpad windows", "Move a window to the scratchpad to see it here.", "Rescan →",
+                lambda: self.refresh_media_section("scratchpad"), badge_text="INFO", badge_style="tool"))
+        self.gc_all_flowboxes.append(flow)
+        return flow
+
+    def refresh_media_section(self, which):
+        box_attr, builder = {
+            "audio": ("media_audio_box", self.build_media_audio_flow),
+            "capture": ("media_capture_box", self.build_media_capture_flow),
+            "scratchpad": ("media_scratch_box", self.build_media_scratchpad_flow),
+        }[which]
+        container = getattr(self, box_attr)
+        for child in container.get_children():
+            if child in self.gc_all_flowboxes:
+                self.gc_all_flowboxes.remove(child)
+            container.remove(child)
+        new_flow = builder()
+        container.pack_start(new_flow, True, True, 0)
+        new_flow.show_all()
+
+    def create_media_tab(self):
+        outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+
+        scrolled = Gtk.ScrolledWindow()
+        scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
+        content.set_margin_top(16)
+        content.set_margin_bottom(16)
+        content.set_margin_start(16)
+        content.set_margin_end(16)
+
+        s1 = Gtk.Label(label="AUDIO OUTPUT & SINK SWITCHER", xalign=0)
+        s1.get_style_context().add_class("gc-section-title")
+        content.pack_start(s1, False, False, 0)
+        self.media_audio_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.media_audio_box.pack_start(self.build_media_audio_flow(), True, True, 0)
+        content.pack_start(self.media_audio_box, False, False, 0)
+
+        s2 = Gtk.Label(label="SCREEN CAPTURE & RECORD", xalign=0)
+        s2.get_style_context().add_class("gc-section-title")
+        content.pack_start(s2, False, False, 0)
+        self.media_capture_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.media_capture_box.pack_start(self.build_media_capture_flow(), True, True, 0)
+        content.pack_start(self.media_capture_box, False, False, 0)
+
+        s3 = Gtk.Label(label="WORKSPACE & SCRATCHPAD INSPECTOR", xalign=0)
+        s3.get_style_context().add_class("gc-section-title")
+        content.pack_start(s3, False, False, 0)
+        self.media_scratch_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.media_scratch_box.pack_start(self.build_media_scratchpad_flow(), True, True, 0)
+        content.pack_start(self.media_scratch_box, False, False, 0)
+
+        scrolled.add(content)
+        outer.pack_start(scrolled, True, True, 0)
         return outer
 
     def create_system_tab(self):
@@ -1434,7 +1758,73 @@ class WelcomeWindow(Gtk.Window):
             on_click_fn=lambda: run_cmd(["polyomino", "menu"])
         )
 
-        return self.build_grid_container(primary, horiz, sq1, sq2)
+        outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
+
+        scrolled = Gtk.ScrolledWindow()
+        scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scrolled.set_shadow_type(Gtk.ShadowType.NONE)
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
+
+        grid = Gtk.Grid()
+        grid.get_style_context().add_class("polyomino-grid")
+        grid.set_column_spacing(12)
+        grid.set_row_spacing(12)
+        grid.set_column_homogeneous(True)
+        grid.set_row_homogeneous(True)
+        grid.set_margin_top(16)
+        grid.set_margin_bottom(0)
+        grid.set_margin_start(20)
+        grid.set_margin_end(20)
+        grid.attach(primary, 0, 0, 2, 2)
+        grid.attach(horiz, 2, 0, 2, 1)
+        grid.attach(sq1, 2, 1, 1, 1)
+        grid.attach(sq2, 3, 1, 1, 1)
+        content.pack_start(grid, False, False, 0)
+
+        content.pack_start(self.build_install_dependencies_section(), False, False, 0)
+
+        scrolled.add(content)
+        outer.pack_start(scrolled, True, True, 0)
+        return outer
+
+    def install_section(self, subcommand):
+        run_cmd(["polyomino", subcommand], in_terminal=True)
+
+    def build_install_dependencies_section(self):
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        box.set_margin_start(20)
+        box.set_margin_end(20)
+        box.set_margin_bottom(16)
+
+        title = Gtk.Label(label="INSTALL DEPENDENCIES", xalign=0)
+        title.get_style_context().add_class("gc-section-title")
+        box.pack_start(title, False, False, 0)
+
+        flow = Gtk.FlowBox()
+        flow.set_valign(Gtk.Align.START)
+        flow.set_max_children_per_line(3)
+        flow.set_selection_mode(Gtk.SelectionMode.NONE)
+        flow.set_row_spacing(12)
+        flow.set_column_spacing(12)
+        flow.set_homogeneous(True)
+        flow.get_style_context().add_class("gc-flow")
+        flow.set_filter_func(self.gc_filter_func)
+
+        flow.add(self.create_gc_card(
+            "📦", "Install All Dependencies",
+            f"Install every section below ({len(INSTALL_SECTIONS)} tools) plus the emulator suite in one pass.",
+            "Install All →", lambda: run_cmd(["polyomino", "full-install"], in_terminal=True),
+            badge_text="BATCH", badge_style="connected"))
+
+        for icon, title_text, desc, subcommand, badge in INSTALL_SECTIONS:
+            flow.add(self.create_gc_card(
+                icon, title_text, desc, "Install →",
+                (lambda cmd=subcommand: self.install_section(cmd)),
+                badge_text=badge, badge_style="tool"))
+
+        self.gc_all_flowboxes.append(flow)
+        box.pack_start(flow, False, False, 0)
+        return box
 
     def create_footer(self):
         box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)

@@ -37,8 +37,9 @@ object CalendarPopup:
     // Ensure helper script is deployed in ~/.local/share/polyomino/
     val runnerScript = ctx.shareDir / "polyomino-calendar-runner.py"
     os.makeDir.all(ctx.shareDir)
-    os.write.over(runnerScript, PythonRunnerScript)
-    try os.proc("chmod", "+x", runnerScript.toString).call(check = false) catch case _: Exception => ()
+    if !os.exists(runnerScript) || os.read(runnerScript) != PythonRunnerScript then
+      os.write.over(runnerScript, PythonRunnerScript)
+      try os.proc("chmod", "+x", runnerScript.toString).call(check = false) catch case _: Exception => ()
 
     val palette = ThemeEngine.getActivePalette(ctx)
     val waybarTheme = ctx.configDir / "waybar" / "theme.css"
@@ -492,7 +493,11 @@ object CalendarPopup:
       |    def on_focus_out(widget, event):
       |        toplevel = win.get_toplevel()
       |        if not toplevel.has_toplevel_focus():
-      |            GLib.timeout_add(150, lambda: Gtk.main_quit() if not win.has_toplevel_focus() else None)
+      |            def _check_quit():
+      |                if not win.has_toplevel_focus() and Gtk.main_level() > 0:
+      |                    Gtk.main_quit()
+      |                return False
+      |            GLib.timeout_add(150, _check_quit)
       |        return False
       |    win.connect("focus-out-event", on_focus_out)
       |

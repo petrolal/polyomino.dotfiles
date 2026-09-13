@@ -43,19 +43,22 @@ object NotificationIntegration:
   private def configureChromium(ctx: Context): Either[PolyominoError, Unit] =
     try
       val binDir = ctx.home / ".local" / "bin"
-      os.makeDir.all(binDir)
+      var configured = false
 
-      val chromiumWrapper = binDir / "chromium"
-      val wrapperScript = """#!/bin/bash
+      if isCommandAvailable("chromium") then
+        os.makeDir.all(binDir)
+        val chromiumWrapper = binDir / "chromium"
+        val wrapperScript = """#!/bin/bash
 # Chromium launcher with native notification support for Wayland
 exec /usr/bin/chromium --enable-features=UseOsNotificationCenter "$@"
 """
-
-      os.write.over(chromiumWrapper, wrapperScript)
-      os.perms.set(chromiumWrapper, "rwxr-xr-x")
+        os.write.over(chromiumWrapper, wrapperScript)
+        os.perms.set(chromiumWrapper, "rwxr-xr-x")
+        configured = true
 
       // Also create google-chrome wrapper if it exists
       if isCommandAvailable("google-chrome") || isCommandAvailable("google-chrome-stable") then
+        os.makeDir.all(binDir)
         val chromeWrapper = binDir / "google-chrome"
         val chromeScript = """#!/bin/bash
 # Google Chrome launcher with native notification support for Wayland
@@ -63,8 +66,9 @@ exec /usr/bin/google-chrome --enable-features=UseOsNotificationCenter "$@"
 """
         os.write.over(chromeWrapper, chromeScript)
         os.perms.set(chromeWrapper, "rwxr-xr-x")
+        configured = true
 
-      Right(())
+      if configured then Right(()) else Left(CommandError("No Chromium/Chrome found", 1))
     catch
       case _: Exception => Left(CommandError("Chromium wrapper creation failed", 1))
 

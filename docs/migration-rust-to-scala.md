@@ -54,7 +54,6 @@ The table below maps every legacy Rust module in `src/` to its corresponding tar
 | `src/main.rs` & `src/lib.rs` | `polyomino.Main` | Umbrella `argv(0)` CLI dispatcher & subcommand routing | **COMPLETE** | **Epic 1**: Story 1.1, 1.2 |
 | `src/context.rs` | `polyomino.dotfiles.context.Context` | XDG paths (`~/.config`), active theme state & Sway socket discovery | **COMPLETE** | **Epic 2**: Story 2.1 |
 | `src/sysutils.rs` | `polyomino.dotfiles.sysutils.SysUtils` | Styled screen lock (`lock`), auto-idle daemon (`idle`), screen capture (`screenshot`) | **COMPLETE** | **Epic 2**: Story 2.4 |
-| `src/sdd.rs` & `src/collate.rs` | `polyomino.dotfiles.sdd.SpecDrivenDev` | Token-efficient AI development context generator (`sdd`) | **COMPLETE** | **Epic 2**: Story 2.3 |
 | `src/refresh.rs` | `polyomino.dotfiles.refresh.RefreshEngine` | Live app reloads (`runtime-refresh`), GTK color sync (`os-colorscheme`), RGB sync (`rgb-theme`) | **COMPLETE** | **Epic 3**: Story 3.2 |
 | `src/pickers.rs` | `polyomino.dotfiles.pickers.WofiPickers` | Interactive Wofi GUI theme launcher (`theme-picker`) & keybindings cheatsheet (`whichkey`) | **COMPLETE** | **Epic 3**: Story 3.3 |
 | `src/maintenance.rs` | `polyomino.dotfiles.maintenance.Maintenance` | Tarball backup (`backup`), snapshot restore (`restore`), and git pull update (`update`) | **COMPLETE** | **Epic 5**: Story 5.1, 5.2 |
