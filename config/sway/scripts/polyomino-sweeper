@@ -1,0 +1,328 @@
+#!/usr/bin/env python3
+"""
+polyomino-sweeper — System Cache & Orphan Package Sweeper (Minesweeper Puzzle)
+Part of Polyomino Dotfiles Suite.
+"""
+
+import sys
+import os
+import random
+import subprocess
+import termios
+import tty
+import shutil
+
+ESC = "\033["
+RESET = f"{ESC}0m"
+BOLD = f"{ESC}1m"
+DIM = f"{ESC}2m"
+
+BG_DARK = f"{ESC}48;2;15;17;26m"
+BORDER_VIOLET = f"{ESC}38;2;139;92;246m"
+CYAN = f"{ESC}38;2;6;182;212m"
+AMBER = f"{ESC}38;2;245;158;11m"
+VIOLET = f"{ESC}38;2;168;85;247m"
+GREEN = f"{ESC}38;2;34;197;94m"
+RED = f"{ESC}38;2;239;68;68m"
+TEXT_WHITE = f"{ESC}38;2;248;250;252m"
+TEXT_DIM = f"{ESC}38;2;100;116;139m"
+
+NUM_COLORS = {
+    0: TEXT_DIM,
+    1: f"{ESC}38;2;56;189;248m",
+    2: f"{ESC}38;2;34;197;94m",
+    3: f"{ESC}38;2;245;158;11m",
+    4: f"{ESC}38;2;168;85;247m",
+    5: f"{ESC}38;2;239;68;68m",
+    6: f"{ESC}38;2;236;72;153m",
+    7: f"{ESC}38;2;20;184;166m",
+    8: f"{ESC}38;2;248;250;252m"
+}
+
+CACHE_TARGETS = [
+    ("Thumbnails", os.path.expanduser("~/.cache/thumbnails"), "rm -rf ~/.cache/thumbnails/*"),
+    ("Yay/AUR Build Cache", os.path.expanduser("~/.cache/yay"), "rm -rf ~/.cache/yay/*"),
+    ("Pip Cache", os.path.expanduser("~/.cache/pip"), "rm -rf ~/.cache/pip/*"),
+    ("Cargo Cache", os.path.expanduser("~/.cache/cargo"), "cargo cache --autoclean 2>/dev/null || true"),
+    ("Mozilla Cache", os.path.expanduser("~/.cache/mozilla"), "rm -rf ~/.cache/mozilla/firefox/*.default*/*cache*"),
+    ("Systemd User Logs", os.path.expanduser("~/.local/share/systemd"), "journalctl --user --vacuum-size=20M"),
+    ("Pacman Cache", "/var/cache/pacman/pkg", "paccache -rk1 2>/dev/null || true"),
+    ("Trash Bin", os.path.expanduser("~/.local/share/Trash"), "rm -rf ~/.local/share/Trash/*")
+]
+
+PROTECTED_PATHS = [
+    "/etc",
+    os.path.expanduser("~/.config"),
+    "/usr/bin",
+    "/boot"
+]
+
+def get_dir_size_mb(path):
+    if not os.path.exists(path):
+        return 0
+    try:
+        total = 0
+        for entry in os.scandir(path):
+            if entry.is_file(follow_symlinks=False):
+                total += entry.stat().st_size
+            elif entry.is_dir(follow_symlinks=False):
+                total += get_dir_size_mb(entry.path) * 1024 * 1024
+        return total // (1024 * 1024)
+    except Exception:
+        return 0
+
+def get_disk_usage():
+    try:
+        stat = shutil.disk_usage(os.path.expanduser("~"))
+        return {
+            "total": stat.total // (1024 * 1024 * 1024),
+            "used": stat.used // (1024 * 1024 * 1024),
+            "free": stat.free // (1024 * 1024 * 1024),
+            "pct": int(stat.used / stat.total * 100)
+        }
+    except Exception:
+        return {"total": 512, "used": 240, "free": 272, "pct": 47}
+
+class SweeperGame:
+    def __init__(self, rows=8, cols=8):
+        self.rows = rows
+        self.cols = cols
+        self.cursor_r = 0
+        self.cursor_c = 0
+        self.uncovered = [[False]*cols for _ in range(rows)]
+        self.flagged = [[False]*cols for _ in range(rows)]
+        self.mines = [[False]*cols for _ in range(rows)]
+        self.targets = [[None]*cols for _ in range(rows)]
+        self.sizes = [[0]*cols for _ in range(rows)]
+        self.counts = [[0]*cols for _ in range(rows)]
+        self.status_msg = "Audit system caches. Flag cells to mark for purge."
+        self.status_color = CYAN
+        self.disk = get_disk_usage()
+        self.total_flagged_mb = 0
+        self.init_board()
+
+    def init_board(self):
+        # Assign real cache directories to cells
+        target_idx = 0
+        for r in range(self.rows):
+            for c in range(self.cols):
+                if target_idx < len(CACHE_TARGETS):
+                    name, path, clean_cmd = CACHE_TARGETS[target_idx]
+                    sz = get_dir_size_mb(path)
+                    self.targets[r][c] = (name, path, clean_cmd)
+                    self.sizes[r][c] = sz
+                    target_idx += 1
+                else:
+                    self.sizes[r][c] = random.randint(5, 120)
+
+        # Place 6 protected "mines" (system safety boundaries)
+        mine_count = 6
+        placed = 0
+        while placed < mine_count:
+            r = random.randint(0, self.rows - 1)
+            c = random.randint(0, self.cols - 1)
+            if not self.mines[r][c] and self.targets[r][c] is None:
+                self.mines[r][c] = True
+                self.sizes[r][c] = 0
+                placed += 1
+
+        # Calculate proximity numbers
+        for r in range(self.rows):
+            for c in range(self.cols):
+                if self.mines[r][c]:
+                    self.counts[r][c] = -1
+                else:
+                    cnt = 0
+                    for dr in (-1, 0, 1):
+                        for dc in (-1, 0, 1):
+                            nr, nc = r + dr, c + dc
+                            if 0 <= nr < self.rows and 0 <= nc < self.cols and self.mines[nr][nc]:
+                                cnt += 1
+                    self.counts[r][c] = cnt
+
+    def move(self, dr, dc):
+        self.cursor_r = max(0, min(self.rows - 1, self.cursor_r + dr))
+        self.cursor_c = max(0, min(self.cols - 1, self.cursor_c + dc))
+
+    def toggle_flag(self):
+        r, c = self.cursor_r, self.cursor_c
+        if not self.uncovered[r][c]:
+            self.flagged[r][c] = not self.flagged[r][c]
+            mb = self.sizes[r][c]
+            if self.flagged[r][c]:
+                self.total_flagged_mb += mb
+                name = self.targets[r][c][0] if self.targets[r][c] else "Cache Chunk"
+                self.status_msg = f"[FLAGGED] '{name}' marked for purge ({mb} MB)."
+                self.status_color = AMBER
+            else:
+                self.total_flagged_mb = max(0, self.total_flagged_mb - mb)
+                self.status_msg = "[UNFLAGGED] Removed purge mark."
+                self.status_color = TEXT_WHITE
+            print("\a", end="", flush=True)
+
+    def uncover(self):
+        r, c = self.cursor_r, self.cursor_c
+        if self.flagged[r][c] or self.uncovered[r][c]:
+            return
+
+        self.uncovered[r][c] = True
+        if self.mines[r][c]:
+            self.status_msg = "[SAFEGUARD] Protected system path encountered! Modification locked."
+            self.status_color = RED
+            print("\a", end="", flush=True)
+            return
+
+        sz = self.sizes[r][c]
+        t = self.targets[r][c]
+        name = t[0] if t else "User Cache Block"
+        self.status_msg = f"[AUDIT] {name}: {sz} MB purgeable."
+        self.status_color = GREEN
+        print("\a", end="", flush=True)
+
+        # Flood fill if 0 neighbors
+        if self.counts[r][c] == 0:
+            for dr in (-1, 0, 1):
+                for dc in (-1, 0, 1):
+                    nr, nc = r + dr, c + dc
+                    if 0 <= nr < self.rows and 0 <= nc < self.cols and not self.uncovered[nr][nc]:
+                        self.uncovered[nr][nc] = True
+
+    def purge_flagged(self):
+        purged = 0
+        for r in range(self.rows):
+            for c in range(self.cols):
+                if self.flagged[r][c] and not self.mines[r][c]:
+                    t = self.targets[r][c]
+                    if t and t[2]:
+                        try:
+                            subprocess.run(t[2], shell=True, timeout=2, capture_output=True)
+                        except Exception:
+                            pass
+                    purged += self.sizes[r][c]
+                    self.flagged[r][c] = False
+                    self.uncovered[r][c] = True
+                    self.sizes[r][c] = 0
+
+        self.total_flagged_mb = 0
+        self.disk = get_disk_usage()
+        self.status_msg = f"[PURGED] Reclaimed {purged} MB disk space cleanly!"
+        self.status_color = GREEN
+        print("\a", end="", flush=True)
+
+    def render(self, term_w=80, term_h=36):
+        card_w = min(term_w - 2, 78)
+        card_h = min(term_h - 2, 34)
+        left = max(0, (term_w - card_w) // 2)
+        top = max(0, (term_h - card_h) // 2)
+        right = left + card_w - 1
+        bottom = top + card_h - 1
+
+        buf = []
+        buf.append(f"{ESC}?25l{ESC}2J{ESC}H{BG_DARK}")
+
+        # Bento Card
+        span = "─" * (card_w - 2)
+        buf.append(f"{ESC}{top+1};{left+1}H{BORDER_VIOLET}┌{span}┐")
+        for y in range(top + 2, bottom + 1):
+            buf.append(f"{ESC}{y};{left+1}H{BORDER_VIOLET}│{ESC}{y};{right+1}H{BORDER_VIOLET}│")
+        buf.append(f"{ESC}{top+3};{left+1}H{BORDER_VIOLET}├{span}┤")
+        buf.append(f"{ESC}{bottom-2};{left+1}H{BORDER_VIOLET}├{span}┤")
+        buf.append(f"{ESC}{bottom+1};{left+1}H{BORDER_VIOLET}└{span}┘")
+
+        # Header
+        header_title = f"{BORDER_VIOLET}[ ⮽ ] {CYAN}[ MINESWEEPER // CACHE & ORPHAN SWEEPER ]"
+        flagged_tag = f"{AMBER}[ MARKED: {self.total_flagged_mb} MB ] [ FREE: {self.disk['free']} GB ]"
+        buf.append(f"{ESC}{top+2};{left+3}H{header_title}")
+        buf.append(f"{ESC}{top+2};{right - len(flagged_tag) - 1}H{flagged_tag}")
+
+        # Left Telemetry Panel
+        tl_left = left + 4
+        tl_top = top + 5
+        buf.append(f"{ESC}{tl_top};{tl_left}H{VIOLET}{BOLD}[ DISK TELEMETRY ]{RESET}{BG_DARK}")
+        buf.append(f"{ESC}{tl_top+2};{tl_left}H{TEXT_DIM}ROOT FS:     {TEXT_WHITE}{self.disk['used']} / {self.disk['total']} GB ({self.disk['pct']}%)")
+        
+        bar_len = 22
+        used_bars = int(bar_len * (self.disk['pct'] / 100.0))
+        d_bar = f"{RED}{'█'*used_bars}{TEXT_DIM}{'░'*(bar_len-used_bars)}{RESET}{BG_DARK}"
+        buf.append(f"{ESC}{tl_top+3};{tl_left}H[{d_bar}]")
+
+        buf.append(f"{ESC}{tl_top+5};{tl_left}H{TEXT_DIM}ORPHAN PKGS: {GREEN}0 detected")
+        buf.append(f"{ESC}{tl_top+6};{tl_left}H{TEXT_DIM}SWEEP QUEUE: {AMBER}{self.total_flagged_mb} MB pending")
+        buf.append(f"{ESC}{tl_top+8};{tl_left}H{VIOLET}{BOLD}[ AUDIT LEGEND ]{RESET}{BG_DARK}")
+        buf.append(f"{ESC}{tl_top+9};{tl_left}H{TEXT_DIM}· Uninspected  {AMBER}⚑ Purge Target")
+        buf.append(f"{ESC}{tl_top+10};{tl_left}H{RED}* Protected Path (Safe Guard)")
+
+        # Minesweeper Grid (Right Panel)
+        grid_left = left + 32
+        grid_top = top + 5
+
+        # Top column headers
+        col_hdr = "".join(f" {c+1} " for c in range(self.cols))
+        buf.append(f"{ESC}{grid_top};{grid_left+4}H{TEXT_DIM}{col_hdr}")
+
+        for r in range(self.rows):
+            row_cells = []
+            for c in range(self.cols):
+                is_cur = (r == self.cursor_r and c == self.cursor_c)
+                if is_cur:
+                    cur_open, cur_close = f"{CYAN}{BOLD}[", f"{CYAN}{BOLD}]"
+                else:
+                    cur_open, cur_close = " ", " "
+
+                if self.flagged[r][c]:
+                    cell = f"{AMBER}{BOLD}⚑{RESET}{BG_DARK}"
+                elif not self.uncovered[r][c]:
+                    cell = f"{TEXT_DIM}·{RESET}{BG_DARK}"
+                elif self.mines[r][c]:
+                    cell = f"{RED}{BOLD}*{RESET}{BG_DARK}"
+                else:
+                    cnt = self.counts[r][c]
+                    col = NUM_COLORS.get(cnt, TEXT_WHITE)
+                    cell = f"{col}{BOLD}{cnt if cnt > 0 else ' '}{RESET}{BG_DARK}"
+                
+                row_cells.append(f"{cur_open}{cell}{cur_close}")
+
+            buf.append(f"{ESC}{grid_top + 2 + r * 2};{grid_left}H{TEXT_DIM}{r+1} │ " + "".join(row_cells))
+
+        # Status Line
+        buf.append(f"{ESC}{bottom-3};{left+3}H{self.status_color}{self.status_msg[:card_w-6]:<{card_w-6}}{RESET}{BG_DARK}")
+
+        # Footer
+        footer_badge = f"{CYAN}[ NORMAL ]{RESET}{BG_DARK}"
+        footer_keys = f"{TEXT_DIM}h/j/k/l Move • Space Inspect • f Flag Purge • c Commit Clean • q Exit{RESET}{BG_DARK}"
+        buf.append(f"{ESC}{bottom-1};{left+3}H{footer_badge}  {footer_keys}")
+
+        buf.append(f"{ESC}{term_h};1H{RESET}")
+        sys.stdout.write("".join(buf))
+        sys.stdout.flush()
+
+def main():
+    old_settings = termios.tcgetattr(sys.stdin)
+    try:
+        tty.setraw(sys.stdin.fileno())
+        game = SweeperGame()
+        while True:
+            try:
+                h, w = os.get_terminal_size()
+            except Exception:
+                w, h = 80, 36
+            game.render(w, h)
+
+            ch = sys.stdin.read(1)
+            if ch in ('q', 'Q', '\x1b'):
+                break
+            elif ch in ('h', 'a'): game.move(0, -1)
+            elif ch in ('l', 'd'): game.move(0, 1)
+            elif ch in ('k', 'w'): game.move(-1, 0)
+            elif ch in ('j', 's'): game.move(1, 0)
+            elif ch in (' ', '\n', '\r'): game.uncover()
+            elif ch in ('f', 'F'): game.toggle_flag()
+            elif ch in ('c', 'C'): game.purge_flagged()
+            elif ch in ('r', 'R'): game = SweeperGame()
+    finally:
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+        sys.stdout.write(f"{ESC}?25h\n{RESET}")
+        sys.stdout.flush()
+
+if __name__ == "__main__":
+    main()

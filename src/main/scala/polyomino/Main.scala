@@ -2,6 +2,7 @@ package polyomino
 
 import polyomino.dotfiles.context.Context
 import polyomino.dotfiles.error.{PolyominoError, UnknownCommandError}
+import scala.util.control.NonFatal
 
 object Main:
   def main(args: Array[String]): Unit =
@@ -53,6 +54,16 @@ object Main:
       case "idle" => polyomino.dotfiles.sysutils.SysUtils.runIdle(ctx)
       case "screenshot" => polyomino.dotfiles.sysutils.SysUtils.runScreenshot(ctx, args)
       case "power-menu" | "powermenu" => polyomino.dotfiles.power.PowerMenu.run(ctx, args)
+      case "sokoban" =>
+        runPythonScript(ctx.dotfilesDir / "config" / "sway" / "scripts" / "polyomino-sokoban", "sokoban")
+      case "2048" =>
+        runPythonScript(ctx.dotfilesDir / "config" / "sway" / "scripts" / "polyomino-2048", "2048")
+      case "sweeper" | "minesweeper" =>
+        runPythonScript(ctx.dotfilesDir / "config" / "sway" / "scripts" / "polyomino-sweeper", "sweeper")
+      case "lightsout" | "lights-out" =>
+        runPythonScript(ctx.dotfilesDir / "config" / "sway" / "scripts" / "polyomino-lightsout", "lightsout")
+      case "nonogram" | "picross" =>
+        runPythonScript(ctx.dotfilesDir / "config" / "sway" / "scripts" / "polyomino-nonogram", "nonogram")
       case "draw-window" | "sway-draw-window" => polyomino.dotfiles.sysutils.SysUtils.runDrawWindow(ctx, args)
       case "calendar" => polyomino.dotfiles.calendar.CalendarPopup.run(ctx, args)
       case "theme" => polyomino.dotfiles.theme.ThemeEngine.run(ctx, args)
@@ -105,6 +116,11 @@ object Main:
       |  screenshot       capture a screenshot (full|region|window)
       |  draw-window      interactively draw floating window geometry with slurp
       |  power-menu       workstation power & session modal (reboot | shutdown | suspend | lock)
+      |  sokoban          Sokoban scratchpad & workspace arranger puzzle
+      |  2048             2048 memory & core cache compaction utility
+      |  sweeper          Minesweeper disk cache & orphan package cleaner
+      |  lightsout        Lights Out hardware & quick settings profile matrix
+      |  nonogram         Nonogram/Picross theme & palette synthesizer
       |  autotiling       Fibonacci spiral autotiling daemon for Sway
       |  healthcheck      read-only health check of the deployed setup
       |  backup           snapshot managed configs to a timestamped tarball
@@ -146,3 +162,10 @@ object Main:
 
   private def printUmbrellaHelp(): Unit =
     print(UmbrellaHelp)
+
+  private def runPythonScript(script: os.Path, name: String): Either[PolyominoError, Unit] =
+    try
+      os.proc("python3", script.toString).call(stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit)
+      Right(())
+    catch
+      case NonFatal(e) => Left(polyomino.dotfiles.error.CommandError(s"$name failed: ${e.getMessage}"))

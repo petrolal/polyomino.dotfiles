@@ -204,6 +204,13 @@ polyomino.dotfiles/
 | `polyomino screenshot` | Capture screen (full/region/window) to file and clipboard |
 | `polyomino whichkey` | Wofi GUI cheatsheet of live Sway keybindings |
 
+### Games & Utilities
+| Command | Purpose |
+|---------|---------|
+| `polyomino-rom-launcher` | Scan `~/Games/ROMs/<platform>/` and direct-boot a ROM (`--list`/`--rofi`/`<rom_path>`) |
+| `polyomino-patch-rom` | Apply an IPS/BPS patch to a ROM via `flips` (`<base> <patch>` \| `--auto <base> [dir]`) |
+| `polyomino-sokoban` | Scratchpad & workspace arranger puzzle — push window "crates" onto Sway action pads (move to workspace, float, split, etc.) |
+
 ### Maintenance & Validation
 | Command | Purpose |
 |---------|---------|

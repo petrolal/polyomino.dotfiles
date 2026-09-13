@@ -112,6 +112,10 @@ for_window [app_id="polyomino-power-menu"] floating enable, border pixel 1, resi
 for_window [class="polyomino-power-menu"] floating enable, border pixel 1, resize set 800 900, move position center, blur enable, shadow enable
 for_window [app_id="kitty" title="(?i).*polyomino.*power-menu.*"] floating enable, border pixel 1, resize set 800 900, move position center, blur enable, shadow enable
 
+# Puzzle Micro-Utilities (Bento Floating Modals)
+for_window [app_id="polyomino-puzzle-*"] floating enable, border pixel 1, resize set 820 780, move position center, blur enable, shadow enable
+for_window [class="polyomino-puzzle-*"] floating enable, border pixel 1, resize set 820 780, move position center, blur enable, shadow enable
+
 # System tray helper for network/VPN status
 exec nm-applet --indicator
 
@@ -397,6 +401,13 @@ bindsym $mod+F6 exec ~/.local/bin/polyomino wallpaper next
 # Lock screen & Power menu
 bindsym $mod+Escape exec ~/.local/bin/polyomino-rubik-lock
 bindsym $mod+Control+Escape exec $term --class=polyomino-power --app-id=polyomino-power -o initial_window_width=80c -o initial_window_height=36c -o font_size=12 -e ~/.local/bin/polyomino power-menu
+
+# Puzzle Micro-Utilities (Sokoban, 2048, Sweeper, LightsOut, Nonogram)
+bindsym $mod+Shift+s exec $term --class=polyomino-puzzle-sokoban --app-id=polyomino-puzzle-sokoban -o initial_window_width=80c -o initial_window_height=36c -o font_size=12 -e ~/.local/bin/polyomino-sokoban
+bindsym $mod+Shift+m exec $term --class=polyomino-puzzle-2048 --app-id=polyomino-puzzle-2048 -o initial_window_width=80c -o initial_window_height=36c -o font_size=12 -e ~/.local/bin/polyomino-2048
+bindsym $mod+Shift+c exec $term --class=polyomino-puzzle-sweeper --app-id=polyomino-puzzle-sweeper -o initial_window_width=80c -o initial_window_height=36c -o font_size=12 -e ~/.local/bin/polyomino-sweeper
+bindsym $mod+Shift+l exec $term --class=polyomino-puzzle-lightsout --app-id=polyomino-puzzle-lightsout -o initial_window_width=80c -o initial_window_height=36c -o font_size=12 -e ~/.local/bin/polyomino-lightsout
+bindsym $mod+Shift+n exec $term --class=polyomino-puzzle-nonogram --app-id=polyomino-puzzle-nonogram -o initial_window_width=80c -o initial_window_height=36c -o font_size=12 -e ~/.local/bin/polyomino-nonogram
 
 # Screenshots
 bindsym Print exec ~/.local/bin/polyomino screenshot full

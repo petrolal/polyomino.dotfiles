@@ -37,7 +37,7 @@ object DeployInstaller:
     "install-gh", "install-github-cli",
     "install-fonts", "install-apps", "install-sway", "install-swayfx", "install-swaync", "install-notifications", "install-browser", "install-devops", "install-zsh", "install-sdkman",
     "install-tools", "install-telegram", "install-node", "install-npm", "install-npx", "install-nvm", "install-yazi", "install-fastfetch", "install-spotify", "install-spotify-player", "full-install", "theme-picker", "theme-cycle", "wallpaper", "wallpaper-picker", "whichkey", "wichkey", "launcher", "app-launcher", "drun", "menu", "projects", "project-launcher", "sway-project-launcher", "media-status", "fastfetch-logo", "power-menu", "powermenu",
-    "rom-launcher", "patch-rom"
+    "rom-launcher", "patch-rom", "sokoban", "2048", "sweeper", "lightsout", "nonogram"
   )
 
   def run(ctx: Context, args: List[String]): Either[PolyominoError, Unit] =
@@ -196,6 +196,16 @@ object DeployInstaller:
         ctx.dotfilesDir / "config" / "sway" / "scripts" / "polyomino-rom-launcher.sh"
       else if cmd == "patch-rom" then
         ctx.dotfilesDir / "config" / "sway" / "scripts" / "polyomino-patch-rom.sh"
+      else if cmd == "sokoban" then
+        ctx.dotfilesDir / "config" / "sway" / "scripts" / "polyomino-sokoban"
+      else if cmd == "2048" then
+        ctx.dotfilesDir / "config" / "sway" / "scripts" / "polyomino-2048"
+      else if cmd == "sweeper" then
+        ctx.dotfilesDir / "config" / "sway" / "scripts" / "polyomino-sweeper"
+      else if cmd == "lightsout" then
+        ctx.dotfilesDir / "config" / "sway" / "scripts" / "polyomino-lightsout"
+      else if cmd == "nonogram" then
+        ctx.dotfilesDir / "config" / "sway" / "scripts" / "polyomino-nonogram"
       else mainBinary
       try
         if os.exists(symlinkPath) || os.isLink(symlinkPath) then os.remove(symlinkPath)

@@ -1,0 +1,310 @@
+#!/usr/bin/env python3
+"""
+polyomino-nonogram — Theme & Palette Switcher (Nonogram/Picross Puzzle)
+Part of Polyomino Dotfiles Suite.
+"""
+
+import sys
+import os
+import subprocess
+import termios
+import tty
+
+ESC = "\033["
+RESET = f"{ESC}0m"
+BOLD = f"{ESC}1m"
+DIM = f"{ESC}2m"
+
+BG_DARK = f"{ESC}48;2;15;17;26m"
+BORDER_VIOLET = f"{ESC}38;2;139;92;246m"
+CYAN = f"{ESC}38;2;6;182;212m"
+AMBER = f"{ESC}38;2;245;158;11m"
+VIOLET = f"{ESC}38;2;168;85;247m"
+GREEN = f"{ESC}38;2;34;197;94m"
+RED = f"{ESC}38;2;239;68;68m"
+TEXT_WHITE = f"{ESC}38;2;248;250;252m"
+TEXT_DIM = f"{ESC}38;2;100;116;139m"
+
+FLAVORS = [
+    {
+        "id": "matriz",
+        "name": "MATRIZ",
+        "accent": "#22c55e",
+        "accent_code": f"{ESC}38;2;34;197;94m",
+        "tagline": "Cybernetic Emerald Matrix",
+        "pattern": [
+            [1, 1, 1, 1, 1, 1],
+            [1, 0, 0, 0, 0, 1],
+            [1, 0, 1, 1, 0, 1],
+            [1, 0, 1, 1, 0, 1],
+            [1, 0, 0, 0, 0, 1],
+            [1, 1, 1, 1, 1, 1]
+        ]
+    },
+    {
+        "id": "encruza",
+        "name": "ENCRUZA",
+        "accent": "#a855f7",
+        "accent_code": f"{ESC}38;2;168;85;247m",
+        "tagline": "Neo-Tokyo Crossroads & Night Glow",
+        "pattern": [
+            [0, 0, 1, 1, 0, 0],
+            [0, 0, 1, 1, 0, 0],
+            [1, 1, 1, 1, 1, 1],
+            [1, 1, 1, 1, 1, 1],
+            [0, 0, 1, 1, 0, 0],
+            [0, 0, 1, 1, 0, 0]
+        ]
+    },
+    {
+        "id": "caravela",
+        "name": "CARAVELA",
+        "accent": "#f59e0b",
+        "accent_code": f"{ESC}38;2;245;158;11m",
+        "tagline": "Maritime Bronze & Solar Sail",
+        "pattern": [
+            [0, 1, 0, 0, 0, 0],
+            [0, 1, 1, 0, 0, 0],
+            [0, 1, 1, 1, 0, 0],
+            [1, 1, 1, 1, 1, 1],
+            [0, 1, 1, 1, 1, 0],
+            [0, 0, 1, 1, 0, 0]
+        ]
+    },
+    {
+        "id": "aruanda",
+        "name": "ARUANDA",
+        "accent": "#38bdf8",
+        "accent_code": f"{ESC}38;2;56;189;248m",
+        "tagline": "Celestial Sky & Deep Cyan Polyomino",
+        "pattern": [
+            [0, 1, 1, 1, 1, 0],
+            [1, 1, 0, 0, 1, 1],
+            [1, 0, 1, 1, 0, 1],
+            [1, 0, 1, 1, 0, 1],
+            [1, 1, 0, 0, 1, 1],
+            [0, 1, 1, 1, 1, 0]
+        ]
+    }
+]
+
+def calculate_clues(pattern):
+    rows = len(pattern)
+    cols = len(pattern[0])
+    row_clues = []
+    for r in range(rows):
+        runs = []
+        cur = 0
+        for c in range(cols):
+            if pattern[r][c] == 1:
+                cur += 1
+            elif cur > 0:
+                runs.append(cur)
+                cur = 0
+        if cur > 0: runs.append(cur)
+        row_clues.append(runs if runs else [0])
+
+    col_clues = []
+    for c in range(cols):
+        runs = []
+        cur = 0
+        for r in range(rows):
+            if pattern[r][c] == 1:
+                cur += 1
+            elif cur > 0:
+                runs.append(cur)
+                cur = 0
+        if cur > 0: runs.append(cur)
+        col_clues.append(runs if runs else [0])
+
+    return row_clues, col_clues
+
+def apply_theme_flavor(flavor_id):
+    try:
+        subprocess.run(["polyomino", "theme", flavor_id], timeout=3, capture_output=True)
+    except Exception:
+        pass
+
+class NonogramGame:
+    def __init__(self, flavor_idx=0):
+        self.flavor_idx = flavor_idx
+        self.load_flavor(flavor_idx)
+
+    def load_flavor(self, idx):
+        self.flavor = FLAVORS[idx % len(FLAVORS)]
+        self.pattern = self.flavor["pattern"]
+        self.rows = len(self.pattern)
+        self.cols = len(self.pattern[0])
+        self.row_clues, self.col_clues = calculate_clues(self.pattern)
+        self.grid = [[0]*self.cols for _ in range(self.rows)] # 0: empty, 1: filled, 2: cross
+        self.cursor_r = 0
+        self.cursor_c = 0
+        self.solved = False
+        self.status_msg = f"Nonogram {self.flavor['name']} loaded. Fill cells with Space or press Enter to apply."
+        self.status_color = CYAN
+
+    def move(self, dr, dc):
+        self.cursor_r = max(0, min(self.rows - 1, self.cursor_r + dr))
+        self.cursor_c = max(0, min(self.cols - 1, self.cursor_c + dc))
+
+    def toggle_fill(self):
+        r, c = self.cursor_r, self.cursor_c
+        self.grid[r][c] = 1 if self.grid[r][c] != 1 else 0
+        print("\a", end="", flush=True)
+        self.check_solution()
+
+    def toggle_cross(self):
+        r, c = self.cursor_r, self.cursor_c
+        self.grid[r][c] = 2 if self.grid[r][c] != 2 else 0
+        print("\a", end="", flush=True)
+
+    def check_solution(self):
+        for r in range(self.rows):
+            for c in range(self.cols):
+                is_filled = (self.grid[r][c] == 1)
+                should_fill = (self.pattern[r][c] == 1)
+                if is_filled != should_fill:
+                    return
+        self.solved = True
+        apply_theme_flavor(self.flavor["id"])
+        self.status_msg = f"[SOLVED!] Emblem complete • Applied theme '{self.flavor['name']}' live!"
+        self.status_color = GREEN
+        print("\a", end="", flush=True)
+
+    def quick_apply(self):
+        apply_theme_flavor(self.flavor["id"])
+        self.status_msg = f"[QUICK APPLY] Theme '{self.flavor['name']}' applied live across desktop!"
+        self.status_color = GREEN
+        print("\a", end="", flush=True)
+
+    def render(self, term_w=80, term_h=36):
+        card_w = min(term_w - 2, 78)
+        card_h = min(term_h - 2, 34)
+        left = max(0, (term_w - card_w) // 2)
+        top = max(0, (term_h - card_h) // 2)
+        right = left + card_w - 1
+        bottom = top + card_h - 1
+
+        buf = []
+        buf.append(f"{ESC}?25l{ESC}2J{ESC}H{BG_DARK}")
+
+        # Bento Card
+        span = "─" * (card_w - 2)
+        buf.append(f"{ESC}{top+1};{left+1}H{BORDER_VIOLET}┌{span}┐")
+        for y in range(top + 2, bottom + 1):
+            buf.append(f"{ESC}{y};{left+1}H{BORDER_VIOLET}│{ESC}{y};{right+1}H{BORDER_VIOLET}│")
+        buf.append(f"{ESC}{top+3};{left+1}H{BORDER_VIOLET}├{span}┤")
+        buf.append(f"{ESC}{bottom-2};{left+1}H{BORDER_VIOLET}├{span}┤")
+        buf.append(f"{ESC}{bottom+1};{left+1}H{BORDER_VIOLET}└{span}┘")
+
+        # Header
+        header_title = f"{BORDER_VIOLET}[ ⮽ ] {CYAN}[ NONOGRAM // THEME & PALETTE SYNTHESIZER ]"
+        flavor_tag = f"{self.flavor['accent_code']}[ FLAVOR: {self.flavor['name']} ]"
+        buf.append(f"{ESC}{top+2};{left+3}H{header_title}")
+        buf.append(f"{ESC}{top+2};{right - len(flavor_tag) - 1}H{flavor_tag}")
+
+        # Left Info Panel: Theme Swatches & Tagline
+        il_left = left + 4
+        il_top = top + 5
+        buf.append(f"{ESC}{il_top};{il_left}H{VIOLET}{BOLD}[ THEME SPECIFICATION ]{RESET}{BG_DARK}")
+        buf.append(f"{ESC}{il_top+2};{il_left}H{TEXT_WHITE}{BOLD}{self.flavor['name']}{RESET}{BG_DARK}")
+        buf.append(f"{ESC}{il_top+3};{il_left}H{TEXT_DIM}{self.flavor['tagline']}")
+
+        buf.append(f"{ESC}{il_top+5};{il_left}H{TEXT_DIM}ACCENT HEX:  {self.flavor['accent_code']}{self.flavor['accent']}{RESET}{BG_DARK}")
+        buf.append(f"{ESC}{il_top+6};{il_left}H{TEXT_DIM}COLOR SWATCH:[ {self.flavor['accent_code']}████████{RESET}{BG_DARK} ]")
+        buf.append(f"{ESC}{il_top+8};{il_left}H{TEXT_DIM}EMBLEM:      {GREEN}{'SOLVED ✓' if self.solved else 'IN PROGRESS…'}{RESET}{BG_DARK}")
+        buf.append(f"{ESC}{il_top+10};{il_left}H{VIOLET}{BOLD}[ CONTROLS ]{RESET}{BG_DARK}")
+        buf.append(f"{ESC}{il_top+11};{il_left}H{TEXT_DIM}Space Fill Cell █")
+        buf.append(f"{ESC}{il_top+12};{il_left}H{TEXT_DIM}x     Mark Empty ×")
+        buf.append(f"{ESC}{il_top+13};{il_left}H{TEXT_DIM}Enter Instant Apply")
+        buf.append(f"{ESC}{il_top+14};{il_left}H{TEXT_DIM}Tab   Cycle Theme")
+
+        # Right Panel: Nonogram Grid with Clues
+        grid_left = left + 36
+        grid_top = top + 5
+
+        # Render Top Column Clues
+        max_col_clues = max(len(c) for c in self.col_clues)
+        for r_clue in range(max_col_clues):
+            line_parts = [" " * 12] # Offset for row clues
+            for c in range(self.cols):
+                clues = self.col_clues[c]
+                pad = max_col_clues - len(clues)
+                if r_clue >= pad:
+                    val = clues[r_clue - pad]
+                    line_parts.append(f" {val} ")
+                else:
+                    line_parts.append("   ")
+            buf.append(f"{ESC}{grid_top + r_clue};{grid_left}H{TEXT_DIM}" + "".join(line_parts))
+
+        board_start_y = grid_top + max_col_clues + 1
+
+        # Render Board & Row Clues
+        for r in range(self.rows):
+            clue_str = " ".join(str(x) for x in self.row_clues[r])
+            row_prefix = f"{TEXT_DIM}{clue_str:>10} │ "
+
+            row_cells = []
+            for c in range(self.cols):
+                is_cur = (r == self.cursor_r and c == self.cursor_c)
+                val = self.grid[r][c]
+                cur_open = f"{CYAN}[" if is_cur else " "
+                cur_close = f"{CYAN}]" if is_cur else " "
+
+                if val == 1:
+                    cell = f"{self.flavor['accent_code']}{BOLD}█{RESET}{BG_DARK}"
+                elif val == 2:
+                    cell = f"{RED}×{RESET}{BG_DARK}"
+                else:
+                    cell = f"{TEXT_DIM}·{RESET}{BG_DARK}"
+
+                row_cells.append(f"{cur_open}{cell}{cur_close}")
+
+            buf.append(f"{ESC}{board_start_y + r * 2};{grid_left}H" + row_prefix + "".join(row_cells))
+
+        # Status Line
+        buf.append(f"{ESC}{bottom-3};{left+3}H{self.status_color}{self.status_msg[:card_w-6]:<{card_w-6}}{RESET}{BG_DARK}")
+
+        # Footer
+        footer_badge = f"{CYAN}[ NORMAL ]{RESET}{BG_DARK}"
+        footer_keys = f"{TEXT_DIM}h/j/k/l Move • Space Fill • x Cross • Tab Next Flavor • Enter Apply • q Exit{RESET}{BG_DARK}"
+        buf.append(f"{ESC}{bottom-1};{left+3}H{footer_badge}  {footer_keys}")
+
+        buf.append(f"{ESC}{term_h};1H{RESET}")
+        sys.stdout.write("".join(buf))
+        sys.stdout.flush()
+
+def main():
+    old_settings = termios.tcgetattr(sys.stdin)
+    try:
+        tty.setraw(sys.stdin.fileno())
+        game = NonogramGame()
+        while True:
+            try:
+                h, w = os.get_terminal_size()
+            except Exception:
+                w, h = 80, 36
+            game.render(w, h)
+
+            ch = sys.stdin.read(1)
+            if ch in ('q', 'Q', '\x1b'):
+                break
+            elif ch in ('h', 'a'): game.move(0, -1)
+            elif ch in ('l', 'd'): game.move(0, 1)
+            elif ch in ('k', 'w'): game.move(-1, 0)
+            elif ch in ('j', 's'): game.move(1, 0)
+            elif ch == ' ': game.toggle_fill()
+            elif ch in ('x', 'X'): game.toggle_cross()
+            elif ch in ('\r', '\n'): game.quick_apply()
+            elif ch in ('\t', 'n', 'N'):
+                game.flavor_idx = (game.flavor_idx + 1) % len(FLAVORS)
+                game.load_flavor(game.flavor_idx)
+            elif ch in ('r', 'R'):
+                game.load_flavor(game.flavor_idx)
+    finally:
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+        sys.stdout.write(f"{ESC}?25h\n{RESET}")
+        sys.stdout.flush()
+
+if __name__ == "__main__":
+    main()
