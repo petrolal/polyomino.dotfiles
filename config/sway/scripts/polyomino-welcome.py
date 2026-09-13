@@ -11,6 +11,7 @@ import json
 import shutil
 import subprocess
 from pathlib import Path
+from datetime import datetime
 
 # Ensure GTK 3
 import gi
@@ -183,6 +184,77 @@ def find_emulator_binary(emu_id):
         if shutil.which(candidate):
             return candidate
     return None
+
+ROMS_DIR = Path.home() / "Games" / "ROMs"
+ROM_BACKUPS_DIR = Path.home() / "Games" / "Backups"
+
+def _rom_launcher_script():
+    exe = shutil.which("polyomino-rom-launcher")
+    if exe:
+        return [exe]
+    local = Path(__file__).resolve().parent / "polyomino-rom-launcher.sh"
+    return ["bash", str(local)]
+
+def _patch_rom_script():
+    exe = shutil.which("polyomino-patch-rom")
+    if exe:
+        return [exe]
+    local = Path(__file__).resolve().parent / "polyomino-patch-rom.sh"
+    return ["bash", str(local)]
+
+def list_roms():
+    """Runs `polyomino-rom-launcher --list`, parsing tab-separated platform/title/path rows."""
+    roms = []
+    try:
+        out = subprocess.run(_rom_launcher_script() + ["--list"],
+                              capture_output=True, text=True, timeout=5).stdout
+        for line in out.splitlines():
+            parts = line.split("\t")
+            if len(parts) == 3:
+                roms.append({"platform": parts[0], "title": parts[1], "path": parts[2]})
+    except Exception:
+        pass
+    return roms
+
+def launch_rom(rom_path):
+    run_cmd(_rom_launcher_script() + [rom_path])
+
+def apply_rom_patch(base_rom, patch_file):
+    run_cmd(_patch_rom_script() + [base_rom, patch_file], in_terminal=True)
+
+def quick_update_gym(base_rom):
+    run_cmd(_patch_rom_script() + ["--auto", base_rom], in_terminal=True)
+
+def snapshot_saves():
+    """Tar up emulator save/SRAM data into a timestamped archive under ~/Games/Backups/."""
+    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    ROM_BACKUPS_DIR.mkdir(parents=True, exist_ok=True)
+    archive = ROM_BACKUPS_DIR / f"saves-{ts}.tar.gz"
+    save_dirs = [
+        Path.home() / ".local" / "share" / "mesen",
+        Path.home() / ".local" / "share" / "bsnes",
+        Path.home() / ".local" / "share" / "sameboy",
+        Path.home() / ".local" / "share" / "mgba",
+        Path.home() / ".local" / "share" / "mame",
+        Path.home() / ".config" / "duckstation",
+        Path.home() / ".local" / "share" / "simple64",
+    ]
+    existing = [str(d) for d in save_dirs if d.exists()]
+    try:
+        cmd = ["tar", "-czf", str(archive)]
+        cmd += existing
+        if ROMS_DIR.exists():
+            srm_sav = subprocess.run(
+                ["find", str(ROMS_DIR), "-type", "f", "(", "-iname", "*.srm", "-o", "-iname", "*.sav", ")"],
+                capture_output=True, text=True, timeout=5).stdout.splitlines()
+            cmd += srm_sav
+        if len(cmd) > 3:
+            subprocess.run(cmd, timeout=30)
+            run_cmd(["notify-send", "Snapshot Saves", f"Saved to {archive}"])
+        else:
+            run_cmd(["notify-send", "Snapshot Saves", "No save data found to back up."])
+    except Exception as e:
+        run_cmd(["notify-send", "Snapshot Saves", f"Failed: {e}"])
 
 # (icon, title, description, install subcommand, badge)
 INSTALL_SECTIONS = [
@@ -1317,6 +1389,71 @@ class WelcomeWindow(Gtk.Window):
                 badge_style="connected" if installed else "tool"))
         return self.build_gc_flow_page("gc-emulators", cards)
 
+    def _pick_file(self, title, patterns=None):
+        dialog = Gtk.FileChooserDialog(
+            title=title, parent=self, action=Gtk.FileChooserAction.OPEN)
+        dialog.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+                            Gtk.STOCK_OPEN, Gtk.ResponseType.OK)
+        if patterns:
+            for pat_name, pat in patterns:
+                f = Gtk.FileFilter()
+                f.set_name(pat_name)
+                f.add_pattern(pat)
+                dialog.add_filter(f)
+        path = None
+        if dialog.run() == Gtk.ResponseType.OK:
+            path = dialog.get_filename()
+        dialog.destroy()
+        return path
+
+    def on_apply_patch_clicked(self):
+        base_rom = self._pick_file("Select base ROM")
+        if not base_rom:
+            return
+        patch_file = self._pick_file("Select IPS/BPS patch",
+                                      [("IPS/BPS patches", "*.ips"), ("IPS/BPS patches", "*.bps")])
+        if not patch_file:
+            return
+        apply_rom_patch(base_rom, patch_file)
+
+    def on_quick_update_gym_clicked(self):
+        base_rom = self._pick_file("Select base ROM to patch")
+        if not base_rom:
+            return
+        quick_update_gym(base_rom)
+
+    def build_gc_roms_page(self):
+        cards = [
+            self.create_gc_card(
+                "🩹", "Apply IPS/BPS Patch",
+                "Select a base ROM and a patch file; writes a -patched copy via flips.",
+                "Apply Patch →", self.on_apply_patch_clicked,
+                badge_text="TOOL", badge_style="tool"),
+            self.create_gc_card(
+                "⚡", "Quick Update Gym",
+                "Auto-apply the newest .ips/.bps patch found in ~/Downloads to a base ROM.",
+                "Auto-Patch →", self.on_quick_update_gym_clicked,
+                badge_text="TOOL", badge_style="tool"),
+            self.create_gc_card(
+                "💾", "Snapshot Saves",
+                "Archive emulator save/SRAM data into a timestamped tarball under ~/Games/Backups/.",
+                "Snapshot →", snapshot_saves,
+                badge_text="TOOL", badge_style="tool"),
+        ]
+        roms = list_roms()
+        if not roms:
+            cards.append(self.create_gc_card(
+                "📂", "No ROMs Found",
+                f"Drop ROMs into {ROMS_DIR}/<platform>/ (nes, snes, gb, gba, arcade, ...).",
+                "—", lambda: None, badge_text="INFO", badge_style="tool"))
+        else:
+            for rom in roms:
+                cards.append(self.create_gc_card(
+                    "💽", rom["title"], f"Platform: {rom['platform']}", "Launch →",
+                    (lambda p=rom["path"]: launch_rom(p)),
+                    badge_text=rom["platform"].upper(), badge_style="connected"))
+        return self.build_gc_flow_page("gc-roms", cards)
+
     def build_gc_install_page(self):
         cards = [self.create_gc_card(
             "📦", "Install All",
@@ -1555,6 +1692,7 @@ class WelcomeWindow(Gtk.Window):
             (4, "📦", "Installation / Setup", "gc-install"),
             (5, "🎛️", "Controller Configuration", "gc-controller"),
             (6, "⬆️", "Updates", "gc-updates"),
+            (7, "💾", "ROM Direct-Boot", "gc-roms"),
         ]
         for number, icon, label, page in categories:
             nav_box.pack_start(self.create_gc_nav_item(number, icon, label, page), False, False, 0)
@@ -1573,6 +1711,7 @@ class WelcomeWindow(Gtk.Window):
         self.gc_stack.add_named(self.build_gc_install_page(), "gc-install")
         self.gc_stack.add_named(self.build_gc_controller_page(), "gc-controller")
         self.gc_stack.add_named(self.build_gc_updates_page(), "gc-updates")
+        self.gc_stack.add_named(self.build_gc_roms_page(), "gc-roms")
         self.gc_stack.set_visible_child_name("gc-tools")
 
         body.pack_start(self.gc_stack, True, True, 0)

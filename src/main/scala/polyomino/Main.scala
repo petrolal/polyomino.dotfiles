@@ -138,6 +138,8 @@ object Main:
       |  whichkey         wofi cheatsheet of the live sway keybindings
       |  menu             wofi launcher for the waybar POLYOMINO pill (power / theme / config)
       |  projects         project launcher for Sway + Kitty + Neovim
+      |  rom-launcher     scan ~/Games/ROMs/<platform>/ and direct-boot a ROM (--list|--rofi|<rom_path>)
+      |  patch-rom        apply an IPS/BPS patch to a ROM via flips (<base> <patch> | --auto <base> [dir])
       |
       |Run `polyomino <command> --help` for command-specific usage.
       |""".stripMargin
