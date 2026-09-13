@@ -219,14 +219,4 @@
     "on-click-right": "swaync-client -d -sw",
     "escape": true,
   },
-  // waybar-gamemode toggle
-  "custom/gamemode": {
-    "format": "{}",
-    "return-type": "json",
-    "interval": "once",
-    "signal": 8,
-    "exec": "~/.local/bin/polyomino gamemode --waybar",
-    "on-click": "~/.local/bin/polyomino gamemode toggle",
-    "tooltip": true,
-  },
 }
