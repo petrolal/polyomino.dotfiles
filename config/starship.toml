@@ -1,0 +1,44 @@
+# ~/.config/starship.toml — Polyomino Monolith / SwayFX Desktop Theme
+# Strict Monospaced Brackets & Violet/Cyan Accent Hierarchy
+
+format = """
+[ [ ](bold #475569)[⮽](bold #8b5cf6)[ ](bold #475569)] \
+[ [ ](bold #475569)$directory[ ](bold #475569)] \
+$git_branch\
+$git_status\
+$character"""
+
+right_format = """$cmd_duration"""
+
+[directory]
+format = "[$path](bold #38bdf8)"
+truncation_length = 3
+truncation_symbol = "…/"
+truncate_to_repo = true
+style = "bold #38bdf8"
+
+[git_branch]
+format = "[ [ ](bold #475569)[$branch](bold #a855f7)"
+style = "bold #a855f7"
+
+[git_status]
+format = "[$all_status$ahead_behind](bold #f59e0b)[ ](bold #475569)] "
+conflicted = " ="
+ahead = " ⇡${count}"
+behind = " ⇣${count}"
+diverged = " ⇕⇡${ahead_count}⇣${behind_count}"
+untracked = " ?"
+stashed = " $"
+modified = " *"
+staged = " +"
+renamed = " »"
+deleted = " ✘"
+style = "bold #f59e0b"
+
+[character]
+success_symbol = "[❯](bold #8b5cf6) "
+error_symbol = "[❯](bold #ef4444) "
+
+[cmd_duration]
+min_time = 2_000
+format = "[$duration](bold #94a3b8) "

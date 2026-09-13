@@ -107,7 +107,9 @@ object DeployInstaller:
 
     val configMappings = Seq(
       (ctx.home / ".zshrc", ctx.dotfilesDir / "zsh" / ".zshrc"),
+      (ctx.home / ".oh-my-zsh" / "custom" / "themes" / "polyomino.zsh-theme", ctx.dotfilesDir / "zsh" / "themes" / "polyomino.zsh-theme"),
       (ctx.configDir / "polyomino" / "zsh_config", ctx.dotfilesDir / "zsh" / "zsh_config"),
+      (ctx.configDir / "starship.toml", ctx.dotfilesDir / "config" / "starship.toml"),
       (ctx.configDir / "sway", ctx.dotfilesDir / "config" / "sway"),
       (ctx.configDir / "kitty", ctx.dotfilesDir / "config" / "kitty"),
       (ctx.configDir / "waybar", ctx.dotfilesDir / "config" / "waybar"),

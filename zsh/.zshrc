@@ -10,7 +10,7 @@
 #     requires its init line to run at the very end of shell startup).
 
 export ZSH="$HOME/.oh-my-zsh"
-ZSH_THEME="cloud"
+ZSH_THEME="polyomino"
 plugins=(git)
 [ -s "$ZSH/oh-my-zsh.sh" ] && source "$ZSH/oh-my-zsh.sh"
 
