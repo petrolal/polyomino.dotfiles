@@ -7,8 +7,8 @@
 .control-center {
     background-color: #0D1117;
     color: #F0F6FC;
-    border: 2px solid #8B5CF6;
-    border-radius: 0px;
+    border: 1px solid #8B5CF6;
+    border-radius: 8px;
     padding: 14px;
 }
 
@@ -26,11 +26,15 @@
 }
 
 .notification {
-    background-color: #161B22;
-    border: 1px solid #8B5CF6;
-    border-radius: 0px;
+    background-color: #1C2128;
+    border: 1px solid #30363D;
+    border-radius: 6px;
     padding: 10px;
     color: #F0F6FC;
+}
+
+.notification:hover {
+    border-color: #8B5CF6;
 }
 
 .notification-content {
@@ -42,7 +46,7 @@
 .notification-action {
     background: transparent;
     border: none;
-    border-radius: 0px;
+    border-radius: 4px;
     box-shadow: none;
     padding: 4px;
     margin: 0;
@@ -51,14 +55,14 @@
 
 .notification-default-action:hover,
 .notification-action:hover {
-    background-color: #1C2128;
+    background-color: #21262D;
 }
 
 .close-button {
-    background-color: #161B22;
+    background-color: #1C2128;
     color: #F0F6FC;
-    border: 1px solid #8B5CF6;
-    border-radius: 0px;
+    border: 1px solid #30363D;
+    border-radius: 4px;
     margin: 6px;
     padding: 2px;
     min-width: 24px;
@@ -80,30 +84,31 @@
 }
 
 .widget-title > button {
-    background-color: #161B22;
+    background-color: #1C2128;
     color: #F0F6FC;
-    border: 1px solid #8B5CF6;
-    border-radius: 0px;
+    border: 1px solid #30363D;
+    border-radius: 6px;
     padding: 4px 10px;
 }
 
 .widget-title > button:hover {
     background-color: #8B5CF6;
     color: #0D1117;
+    border-color: #8B5CF6;
 }
 
 switch,
 switch trough,
 switch slider {
-    border-radius: 0px;
+    border-radius: 4px;
     box-shadow: none;
     outline: none;
 }
 
 .widget-dnd {
-    background-color: #161B22;
-    border: 1px solid #8B5CF6;
-    border-radius: 0px;
+    background-color: #1C2128;
+    border: 1px solid #30363D;
+    border-radius: 6px;
     padding: 8px 12px;
     margin: 8px;
 }
@@ -111,8 +116,8 @@ switch slider {
 .widget-dnd > switch,
 .widget-dnd > switch trough {
     background-color: #0D1117;
-    border-radius: 0px;
-    border: 1px solid #8B5CF6;
+    border-radius: 4px;
+    border: 1px solid #30363D;
     box-shadow: none;
 }
 
@@ -126,7 +131,7 @@ switch slider {
 .widget-dnd > switch slider,
 .widget-dnd > switch > slider {
     background-color: #8B5CF6;
-    border-radius: 0px;
+    border-radius: 4px;
     border: 1px solid #8B5CF6;
     box-shadow: none;
     outline: none;
@@ -135,16 +140,16 @@ switch slider {
 .widget-dnd > switch:checked slider,
 .widget-dnd > switch:checked > slider {
     background-color: #0D1117;
-    border-radius: 0px;
+    border-radius: 4px;
     border: 1px solid #0D1117;
     box-shadow: none;
     outline: none;
 }
 
 .widget-mpris {
-    background-color: #161B22;
-    border: 1px solid #8B5CF6;
-    border-radius: 0px;
+    background-color: #1C2128;
+    border: 1px solid #30363D;
+    border-radius: 6px;
     padding: 8px;
     margin: 8px;
 }
@@ -160,9 +165,9 @@ switch slider {
 }
 
 .widget-calendar {
-    background-color: #161B22;
-    border: 1px solid #8B5CF6;
-    border-radius: 0px;
+    background-color: #1C2128;
+    border: 1px solid #30363D;
+    border-radius: 6px;
     padding: 12px;
     margin: 8px;
     font-size: 14px;
@@ -178,7 +183,7 @@ switch slider {
 .widget-calendar > calendar:selected {
     background-color: #8B5CF6;
     color: #0D1117;
-    border-radius: 0px;
+    border-radius: 4px;
 }
 
 .widget-calendar > calendar.header {
@@ -191,7 +196,7 @@ switch slider {
 .widget-calendar > calendar.button {
     color: #F0F6FC;
     background: transparent;
-    border-radius: 0px;
+    border-radius: 4px;
     padding: 4px 8px;
 }
 

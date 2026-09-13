@@ -151,7 +151,7 @@
   },
   // waybar-sway-mode
   "sway/mode": {
-    "format": "[ MODE: {} ]",
+    "format": "MODE: {}",
     "tooltip": false,
   },
   // waybar-sway-window
@@ -166,6 +166,12 @@
     "disable-click": false,
     "all-outputs": true,
     "format": "{name} <span size='small'>{icon}</span>",
+    "persistent_workspaces": {
+      "1": [],
+      "2": [],
+      "3": [],
+      "4": []
+    },
     "format-icons": {
       "1": "⠸ SYS",
       "2": "⊞ DEV",
@@ -176,6 +182,10 @@
       "7": "⬝ INFRA",
       "8": "⬝ MISC",
       "9": "⬝ SCRATCH",
+      "1:SYS": "⠸ SYS",
+      "2:DEV": "⊞ DEV",
+      "3:WEB": "⠯ WEB",
+      "4:MEDIA": "⠵ MEDIA",
       "1:web": "⠸ SYS",
       "2:code": "⊞ DEV",
       "3:term": "⠯ WEB",

@@ -61,49 +61,56 @@ tooltip label {
 }
 
 #workspaces {
-    background-color: transparent;
-    color: @@BLUE@@;
+    background-color: @@BASE@@;
+    border: 1px solid @@OVERLAY0@@;
+    border-radius: 2px;
     padding: 0;
-    margin: 0;
+    margin: 3px 4px;
 }
 
 #workspaces button {
-    min-width: 20px;
-    padding: 0 10px;
-    margin: 0 2px;
+    min-width: 24px;
+    padding: 2px 8px;
+    margin: 0;
     background-color: transparent;
     color: @@SUBTEXT0@@;
     border: none;
-    border-bottom: 1px solid transparent;
+    border-right: 1px solid @@OVERLAY0@@;
+    border-bottom: 2px solid transparent;
     border-radius: 0px;
     font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
+    font-size: 13px;
+    font-weight: bold;
+    transition: all 120ms ease-in-out;
+}
+
+#workspaces button:last-child {
+    border-right: none;
 }
 
 #workspaces button label {
     padding: 0;
 }
 
+#workspaces button:hover {
+    background-color: @@SURFACE1@@;
+    color: @@TEXT@@;
+    border-bottom: 2px solid @@ACCENT@@;
+}
+
 #workspaces button.focused,
 #workspaces button.active {
     background-color: @@SURFACE0@@;
-    color: @@BLUE@@;
-    border-bottom: 1px solid @@BLUE@@;
-    border-radius: 0px;
+    border-bottom: 2px solid @@ACCENT@@;
+    color: @@YELLOW@@;
     font-weight: bold;
-}
-
-#workspaces button:hover {
-    background-color: @@SURFACE0@@;
-    color: @@BLUE@@;
-    border-bottom: 1px solid @@BLUE@@;
-    border-radius: 0px;
 }
 
 #workspaces button.urgent {
     background-color: @@RED@@;
     color: @@BASE@@;
-    border-bottom: 1px solid @@RED@@;
-    border-radius: 0px;
+    border-bottom: 2px solid @@YELLOW@@;
+    font-weight: bold;
 }
 
 #clock,
@@ -120,18 +127,17 @@ tooltip label {
 #custom-notification,
 #custom-spotify,
 #mode {
-    background-color: transparent;
-    padding: 0 10px;
-    margin: 0 1px;
+    background-color: @@SURFACE0@@;
+    padding: 2px 8px;
+    margin: 3px 2px;
     color: @@TEXT@@;
-    border: none;
-    border-bottom: 1px solid transparent;
-    border-radius: 0px;
+    border: 1px solid @@OVERLAY0@@;
+    border-radius: 2px;
     font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
 }
 
 #tray {
-    padding: 0 8px;
+    padding: 2px 8px;
 }
 
 #window.empty,
@@ -144,8 +150,8 @@ tooltip label {
 #clock {
     color: @@TEXT@@;
     font-weight: bold;
-    padding: 0 12px;
-    border-bottom: 1px solid transparent;
+    padding: 2px 8px;
+    border: 1px solid @@OVERLAY0@@;
 }
 
 #pulseaudio {
@@ -179,26 +185,25 @@ tooltip label {
 
 #custom-gamemode {
     color: @@SUBTEXT0@@;
-    padding: 0 10px;
-    margin: 0;
+    padding: 2px 8px;
+    margin: 3px 2px;
 }
 
 #custom-gamemode.active {
     color: @@BLUE@@;
     font-weight: bold;
-    border-bottom: 1px solid @@BLUE@@;
-    background-color: @@SURFACE0@@;
+    border: 1px solid @@BLUE@@;
+    background-color: @@SURFACE1@@;
 }
 
 #custom-polyomino {
     background-color: @@BLUE@@;
     color: @@BASE@@;
     font-weight: bold;
-    padding: 0 12px;
-    margin: 0 0 0 6px;
-    border-radius: 0px;
-    border: none;
-    border-bottom: 1px solid @@BLUE@@;
+    padding: 2px 8px;
+    margin: 3px 4px;
+    border-radius: 2px;
+    border: 1px solid @@BLUE@@;
 }
 
 #clock:hover,

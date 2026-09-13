@@ -283,13 +283,13 @@ object ThemeEngine:
         |    font-size: 13px;
         |    min-height: 0;
         |    border: none;
-        |    border-radius: 4px;
+        |    border-radius: 2px;
         |    transition: all 120ms ease-in-out;
         |}
         |
         |/* Waybar Polyomino Header Bar */
         |window#waybar {
-        |    background-color: alpha(@base, 0.95);
+        |    background-color: #0d1117;
         |    color: @text;
         |    border-bottom: 1px solid @overlay0;
         |    border-radius: 0px;
@@ -300,12 +300,13 @@ object ThemeEngine:
         |   opacity: 0.5;
         |}
         |
+        |.modules-left,
         |.modules-center,
         |.modules-right {
         |    background: transparent;
         |    border: none;
         |    border-radius: 0px;
-        |    padding: 2px 4px;
+        |    padding: 0;
         |}
         |
         |#left,
@@ -329,7 +330,7 @@ object ThemeEngine:
         |    background-color: @surface0;
         |    color: @text;
         |    border: 1px solid @blue;
-        |    border-radius: 6px;
+        |    border-radius: 2px;
         |    padding: 8px 12px;
         |}
         |
@@ -339,27 +340,33 @@ object ThemeEngine:
         |    font-size: 13px;
         |}
         |
+        |/* Crisp segmented workspace indicators */
         |#workspaces {
         |    background-color: #0d1117;
-        |    border: 1px solid #1c2128;
-        |    border-radius: 6px;
-        |    padding: 2px 4px;
+        |    border: 1px solid #30363d;
+        |    border-radius: 2px;
+        |    padding: 0;
         |    margin: 3px 4px;
         |}
         |
-        |/* Crisp segmented workspace indicators */
         |#workspaces button {
         |    min-width: 24px;
-        |    padding: 0 10px;
-        |    margin: 2px 2px;
-        |    background-color: #161b22;
-        |    color: #8b949e;
-        |    border: 1px solid transparent;
-        |    border-radius: 4px;
+        |    padding: 2px 8px;
+        |    margin: 0;
+        |    background-color: transparent;
+        |    color: @subtext0;
+        |    border: none;
+        |    border-right: 1px solid #30363d;
+        |    border-bottom: 2px solid transparent;
+        |    border-radius: 0px;
         |    font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
-        |    font-size: 14px;
+        |    font-size: 13px;
         |    font-weight: bold;
         |    transition: all 120ms ease-in-out;
+        |}
+        |
+        |#workspaces button:last-child {
+        |    border-right: none;
         |}
         |
         |#workspaces button label {
@@ -367,24 +374,23 @@ object ThemeEngine:
         |}
         |
         |#workspaces button:hover {
-        |    border-color: #3b82f6;
-        |    color: #f8fafc;
-        |    background-color: #1c2128;
+        |    background-color: @surface1;
+        |    color: @text;
+        |    border-bottom: 2px solid @accent;
         |}
         |
         |#workspaces button.focused,
         |#workspaces button.active {
-        |    background-color: #1c2128;
-        |    border: 1px solid #8b5cf6;
+        |    background-color: @surface0;
+        |    border-bottom: 2px solid #8b5cf6;
         |    color: #f59e0b;
-        |    box-shadow: 0 0 6px rgba(139, 92, 246, 0.35);
         |    font-weight: bold;
         |}
         |
         |#workspaces button.urgent {
-        |    background-color: #d97706;
-        |    color: #0d1117;
-        |    border: 1px solid #fbbf24;
+        |    background-color: @red;
+        |    color: @base;
+        |    border-bottom: 2px solid #f59e0b;
         |    font-weight: bold;
         |}
         |
@@ -404,16 +410,16 @@ object ThemeEngine:
         |#custom-spotify,
         |#mode {
         |    background-color: @surface0;
-        |    padding: 0 10px;
+        |    padding: 2px 8px;
         |    margin: 3px 2px;
         |    color: @text;
         |    border: 1px solid @overlay0;
-        |    border-radius: 4px;
+        |    border-radius: 2px;
         |    font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
         |}
         |
         |#tray {
-        |    padding: 0 8px;
+        |    padding: 2px 8px;
         |}
         |
         |#window.empty,
@@ -427,7 +433,7 @@ object ThemeEngine:
         |#clock {
         |    color: @text;
         |    font-weight: bold;
-        |    padding: 0 12px;
+        |    padding: 2px 8px;
         |    border: 1px solid @overlay0;
         |}
         |
@@ -475,9 +481,9 @@ object ThemeEngine:
         |    background-color: @blue;
         |    color: @base;
         |    font-weight: bold;
-        |    padding: 0 12px;
+        |    padding: 2px 8px;
         |    margin: 3px 4px;
-        |    border-radius: 4px;
+        |    border-radius: 2px;
         |    border: 1px solid @blue;
         |}
         |

@@ -203,51 +203,85 @@ workspace $ws9
 ### ────────────────────────────────────────────────────────────────
 ### Application -> workspace assignment
 ### ────────────────────────────────────────────────────────────────
-# 1: web
-assign [app_id="microsoft-edge"] $ws1
-assign [class="Microsoft-edge"] $ws1
-assign [app_id="firefox"] $ws1
-assign [class="firefox"] $ws1
-assign [app_id="google-chrome"] $ws1
-assign [class="google-chrome"] $ws1
+# 1: SYS (Terminal, system monitors)
+assign [app_id="btop"] $ws1
+assign [class="btop"] $ws1
+assign [app_id="htop"] $ws1
+assign [class="htop"] $ws1
+assign [app_id="kitty" title="(?i).*(btop|htop|system-monitor).*"] $ws1
 
-# 2: code
-assign [class="jetbrains-idea"] $ws2
-assign [class="jetbrains-idea-ce"] $ws2
+# 2: DEV (Tetravim, Neovim project sessions)
+assign [app_id="nvim-project"] $ws2
+assign [class="nvim-project"] $ws2
+assign [app_id="tetravim"] $ws2
+assign [class="tetravim"] $ws2
 assign [app_id="code"] $ws2
 assign [class="Code"] $ws2
+assign [class="jetbrains-idea"] $ws2
+assign [class="jetbrains-idea-ce"] $ws2
 for_window [app_id="nvim-project"] move to workspace $ws2, workspace $ws2
 for_window [class="nvim-project"] move to workspace $ws2, workspace $ws2
+for_window [app_id="tetravim"] move to workspace $ws2, workspace $ws2
+for_window [class="tetravim"] move to workspace $ws2, workspace $ws2
 
-# 7: infra
-assign [app_id="kitty" title="infra"] $ws7
+# 3: WEB (Browser, API clients)
+assign [app_id="firefox"] $ws3
+assign [class="firefox"] $ws3
+assign [app_id="google-chrome"] $ws3
+assign [class="google-chrome"] $ws3
+assign [app_id="google-chrome-stable"] $ws3
+assign [class="Google-chrome"] $ws3
+assign [app_id="microsoft-edge"] $ws3
+assign [class="Microsoft-edge"] $ws3
+assign [app_id="chromium"] $ws3
+assign [class="Chromium"] $ws3
+assign [app_id="postman"] $ws3
+assign [class="Postman"] $ws3
+assign [app_id="insomnia"] $ws3
+assign [class="Insomnia"] $ws3
+assign [app_id="bruno"] $ws3
+assign [class="Bruno"] $ws3
 
-# 5: comms
+# 4: MEDIA (Media players, gaming, idle screensavers)
+assign [app_id="spotify"] $ws4
+assign [class="[sS]potify.*"] $ws4
+assign [app_id="spotify_player"] $ws4
+assign [app_id="kitty" title="spotify"] $ws4
+assign [app_id="kitty" title="^spotify$"] $ws4
+for_window [app_id="spotify_player"] move to workspace $ws4
+for_window [app_id="kitty" title="^spotify$"] move to workspace $ws4
+assign [app_id="mpv"] $ws4
+assign [class="mpv"] $ws4
+assign [app_id="vlc"] $ws4
+assign [class="vlc"] $ws4
+assign [app_id="Steam"] $ws4
+assign [class="^Steam$"] $ws4
+assign [class="^heroic$"] $ws4
+assign [class="^lutris$"] $ws4
+assign [app_id="gamescope"] $ws4
+assign [class="^gamescope$"] $ws4
+
+# 5: COMMS
 assign [app_id="kitty" title="aerc"] $ws5
 assign [app_id="thunderbird"] $ws5
 assign [class="Thunderbird"] $ws5
 assign [app_id="telegramdesktop"] $ws5
 assign [class="TelegramDesktop"] $ws5
+assign [app_id="discord"] $ws5
+assign [class="discord"] $ws5
+assign [app_id="Slack"] $ws5
+assign [class="Slack"] $ws5
 
-# 8: misc/media
-assign [app_id="kitty" title="spotify"] $ws8
-assign [app_id="spotify_player"] $ws8
-assign [app_id="spotify"] $ws8
-assign [class="[sS]potify.*"] $ws8
-for_window [app_id="spotify_player"] move to workspace $ws8
-for_window [app_id="kitty" title="^spotify$"] move to workspace $ws8
-
-# 3: term (unassigned so default terminal launches open in active workspace)
-
-# 4: containers
-assign [app_id="docker-desktop"] $ws4
-assign [class="Docker Desktop"] $ws4
-assign [app_id="lens"] $ws4
-assign [class="Lens"] $ws4
-
-# 6: notes
+# 6: NOTES
 assign [app_id="obsidian"] $ws6
 assign [class="obsidian"] $ws6
+
+# 7: INFRA
+assign [app_id="kitty" title="infra"] $ws7
+assign [app_id="docker-desktop"] $ws7
+assign [class="Docker Desktop"] $ws7
+assign [app_id="lens"] $ws7
+assign [class="Lens"] $ws7
 
 ### ────────────────────────────────────────────────────────────────
 ### Key bindings
