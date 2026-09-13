@@ -214,7 +214,7 @@ object WofiPickers:
           spawn(Seq(polyomino, "gamemode", "toggle"))
           Right(())
         case "power" =>
-          spawn(Seq(term, "--class=polyomino-power-menu", "-o", "font_size=14", "-e", polyomino, "power-menu"))
+          spawn(Seq(term, "--class=polyomino-power", "--app-id=polyomino-power", "-o", "font_size=14", "-e", polyomino, "power-menu"))
           Right(())
         case "theme" =>
           spawn(Seq((binDir / "polyomino-theme-picker").toString) ++ outputArgs)

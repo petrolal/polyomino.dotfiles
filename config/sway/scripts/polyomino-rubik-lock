@@ -308,6 +308,10 @@ AMBIENT_BREATH_AMPLITUDE = 0.15   # scale(0.85) .. scale(1.15) "breathing"
 AMBIENT_BREATH_SPEED = 0.6
 AMBIENT_SHUFFLE_MIN = 1.5         # seconds between ambient slice shuffles
 AMBIENT_SHUFFLE_MAX = 2.0
+AMBIENT_BURST_CHANCE = 0.3        # odds a shuffle beat is a rapid multi-turn "fast hit" burst
+AMBIENT_BURST_MIN_TURNS = 3
+AMBIENT_BURST_MAX_TURNS = 4
+AMBIENT_BURST_TURN_DURATION = 0.16  # each burst turn snaps much quicker than a normal shuffle
 WAKE_DURATION = 0.25              # ease-out snap back to canonical camera
 
 # ---------------------------------------------------------------------------
@@ -752,13 +756,22 @@ class RubikEngine:
             if self.ambient_shuffle_timer <= 0.0:
                 self.ambient_shuffle_timer = random.uniform(AMBIENT_SHUFFLE_MIN, AMBIENT_SHUFFLE_MAX)
                 slices = ['U', 'D', 'L', 'R', 'F', 'B']
-                s = random.choice(slices)
-                cw = random.choice([True, False])
-                turn = ActiveSliceTurn(s, cw, duration=random.uniform(0.5, 0.9))
-                if self.active_turn is None:
-                    self.active_turn = turn
+                if random.random() < AMBIENT_BURST_CHANCE:
+                    # Rapid "fast hits" burst: several quick slice turns back to back.
+                    n = random.randint(AMBIENT_BURST_MIN_TURNS, AMBIENT_BURST_MAX_TURNS)
+                    new_turns = [
+                        ActiveSliceTurn(random.choice(slices), random.choice([True, False]),
+                                        duration=AMBIENT_BURST_TURN_DURATION)
+                        for _ in range(n)
+                    ]
                 else:
-                    self.turn_queue.append(turn)
+                    new_turns = [ActiveSliceTurn(random.choice(slices), random.choice([True, False]),
+                                                  duration=random.uniform(0.5, 0.9))]
+                for turn in new_turns:
+                    if self.active_turn is None:
+                        self.active_turn = turn
+                    else:
+                        self.turn_queue.append(turn)
         else:
             if self.checking_time > 0.0:
                 self.checking_time = 0.0
@@ -1456,6 +1469,11 @@ class PolyominoRubikLockApp:
         # resting pose/flash gets painted.
         if still_animating or was_animating:
             self.queue_redraw_all()
+
+        if still_animating:
+            return True  # GLib.SOURCE_CONTINUE: keep receiving frame ticks
+        self.tick_callback_id = None
+        return False  # GLib.SOURCE_REMOVE: stop until _start_ticking() fires again
 
         if still_animating:
             return True  # GDK_TICK_CALLBACK_CONTINUE

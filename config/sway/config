@@ -106,10 +106,11 @@ for_window [class="^lutris$"] floating enable
 
 for_window [app_id="mpv"] fullscreen enable
 
-# Tetris-themed power / exit modal (polyomino power-menu)
-for_window [app_id="polyomino-power-menu"] fullscreen enable, floating enable, border none, resize set width 100 ppt height 100 ppt, move position center
-for_window [class="polyomino-power-menu"] fullscreen enable, floating enable, border none, resize set width 100 ppt height 100 ppt, move position center
-for_window [app_id="kitty" title="(?i).*polyomino.*power-menu.*"] fullscreen enable, floating enable, border none, resize set width 100 ppt height 100 ppt, move position center
+# Bento-card power / exit modal (polyomino power-menu)
+for_window [app_id="polyomino-power"] floating enable, border pixel 1, resize set width 760 px height 640 px, move position center, blur enable, shadow enable
+for_window [app_id="polyomino-power-menu"] floating enable, border pixel 1, resize set width 760 px height 640 px, move position center, blur enable, shadow enable
+for_window [class="polyomino-power-menu"] floating enable, border pixel 1, resize set width 760 px height 640 px, move position center, blur enable, shadow enable
+for_window [app_id="kitty" title="(?i).*polyomino.*power-menu.*"] floating enable, border pixel 1, resize set width 760 px height 640 px, move position center, blur enable, shadow enable
 
 # System tray helper for network/VPN status
 exec nm-applet --indicator
@@ -395,7 +396,7 @@ bindsym $mod+F6 exec ~/.local/bin/polyomino wallpaper next
 
 # Lock screen & Power menu
 bindsym $mod+Escape exec ~/.local/bin/polyomino-rubik-lock
-bindsym $mod+Control+Escape exec $term --class=polyomino-power-menu -o font_size=14 -e ~/.local/bin/polyomino power-menu
+bindsym $mod+Control+Escape exec $term --class=polyomino-power --app-id=polyomino-power -o font_size=14 -e ~/.local/bin/polyomino power-menu
 
 # Screenshots
 bindsym Print exec ~/.local/bin/polyomino screenshot full

@@ -6,35 +6,26 @@ import polyomino.dotfiles.theme.{Palette, ThemeEngine}
 
 import scala.util.control.NonFatal
 
-/** `power-menu` — Authentic Tetris workstation power & session modal.
+/** `power-menu` — Bento-card Tetris workstation power & session modal.
   *
-  * An authentic playable Tetris matrix with:
-  *   - Full tetromino rotation (`Up` / `k` / `w`)
-  *   - Lateral translation (`Left` / `Right` or `h` / `l` / `a` / `d`)
-  *   - Soft drop (`Down` / `s`) and Hard drop (`Enter` / `Space` / `j`)
-  *   - Direct lane jump keys:
-  *       - `1` / `r`: Lane 1 REBOOT
-  *       - `2` / `p`: Lane 2 SHUTDOWN
-  *       - `3`      : Lane 3 SUSPEND
-  *       - `4`      : Lane 4 LOCK / LOGOUT
-  *   - Ghost piece projection showing exact landing location
-  *   - Four dedicated system action chutes:
-  *       - Lane 0 (Amber)   : REBOOT          (`systemctl reboot`)
-  *       - Lane 1 (Carmine) : SHUTDOWN        (`systemctl poweroff`)
-  *       - Lane 2 (Violet)  : SUSPEND         (`swaylock -f` ; `systemctl suspend`)
-  *       - Lane 3 (Cyan)    : LOCK / LOGOUT   (`polyomino-rubik-lock` / `swaylock -f` / `swaymsg exit`)
-  *
-  * Hard Drop & Confirmation:
-  *   Hard-drop triggers a lock flash (100ms), line dissolve animation (200ms),
-  *   and transitions to a GAME OVER confirmation countdown before executing.
+  * Strictly adheres to the signature Polyomino bento-card aesthetic:
+  *   - Outer floating dialog with 1px violet borders and frosted glass background
+  *   - Integrated top header bar with `[ ⮽ ] [ POLYOMINO // POWER CONTROL ]` & `[ TIMEOUT: 30s ]`
+  *   - Faint 1px square grid matrix with solid vertical guide rails
+  *   - Three dedicated action chutes with dynamic glowing landing target wells:
+  *       - Lane 1 (Left, Amber)     : REBOOT          (`systemctl reboot`)
+  *       - Lane 2 (Center, Red)     : SHUTDOWN        (`systemctl poweroff`)
+  *       - Lane 3 (Right, Violet)   : LOCK + SUSPEND  (`swaylock -f` ; `systemctl suspend`)
+  *   - Monospaced tabular status footer:
+  *       `[ NORMAL ]  h/l (←/→) Lane  •  k (↑) Rotate  •  j/Enter Drop & Confirm  •  q/Esc Cancel`
+  *   - Lock flash (100ms), line dissolve (200ms), and GAME OVER confirmation window
   */
 object PowerMenu:
 
   enum Lane(val label: String, val glyph: String, val index: Int):
     case Reboot   extends Lane("REBOOT", "↻", 0)
     case Shutdown extends Lane("SHUTDOWN", "⏻", 1)
-    case Suspend  extends Lane("SUSPEND", "☾", 2)
-    case Lock     extends Lane("LOCK / LOGOUT", "⚿", 3)
+    case Suspend  extends Lane("LOCK + SUSPEND", "☾", 2)
 
   private val CountdownSecs = 30.0
 
@@ -43,7 +34,6 @@ object PowerMenu:
     case Lane.Reboot   => Seq(Seq("systemctl", "reboot"))
     case Lane.Shutdown => Seq(Seq("systemctl", "poweroff"))
     case Lane.Suspend  => Seq(Seq("swaylock", "-f"), Seq("systemctl", "suspend"))
-    case Lane.Lock     => Seq(Seq("polyomino-rubik-lock"))
 
   def run(ctx: Context, args: List[String]): Either[PolyominoError, Unit] =
     if args.contains("--help") || args.contains("-h") then
@@ -203,17 +193,6 @@ object PowerMenu:
           else
             try os.proc(cmd).call(check = false, stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit)
             catch case NonFatal(_) => ()
-      case Lane.Lock =>
-        val rubik = os.home / ".local" / "bin" / "polyomino-rubik-lock"
-        if os.exists(rubik) then
-          try os.proc(rubik.toString).call(check = false, stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit)
-          catch case NonFatal(_) => ()
-        else if commandExists("swaylock") then
-          try os.proc("swaylock", "-f").call(check = false, stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit)
-          catch case NonFatal(_) => ()
-        else
-          try os.proc("swaymsg", "exit").call(check = false, stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit)
-          catch case NonFatal(_) => ()
       case _ =>
         for cmd <- actionFor(lane) do
           try os.proc(cmd).call(check = false, stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit)
@@ -248,10 +227,14 @@ object PowerMenu:
   private def grabFocus(): Unit =
     var i = 0
     while i < 4 do
+      try os.proc("swaymsg", "[app_id=polyomino-power]", "focus").call(check = false, stderr = os.Pipe)
+      catch case NonFatal(_) => ()
       try os.proc("swaymsg", "[app_id=polyomino-power-menu]", "focus").call(check = false, stderr = os.Pipe)
       catch case NonFatal(_) => ()
       i += 1
       if i < 4 then try Thread.sleep(60) catch case NonFatal(_) => ()
+    try os.proc("swaymsg", "[app_id=polyomino-power]", "opacity", "0.96").call(check = false, stderr = os.Pipe)
+    catch case NonFatal(_) => ()
     try os.proc("swaymsg", "[app_id=polyomino-power-menu]", "opacity", "0.96").call(check = false, stderr = os.Pipe)
     catch case NonFatal(_) => ()
 
@@ -282,26 +265,12 @@ object PowerMenu:
   private def termSize(): (Int, Int) =
     try
       val parts = os.proc("stty", "size").call(stdin = os.Inherit, stderr = os.Pipe).out.trim().split("\\s+")
-      (math.max(44, parts(1).toInt), math.max(20, parts(0).toInt))
+      (math.max(48, parts(1).toInt), math.max(20, parts(0).toInt))
     catch case NonFatal(_) => (80, 24)
 
   private def commandExists(cmd: String): Boolean =
     try os.proc("which", cmd).call(check = false).exitCode == 0
     catch case NonFatal(_) => false
-
-  private def getUptimeString(): String =
-    try
-      val content = os.read(os.Path("/proc/uptime")).trim()
-      val sec = content.split("\\s+").headOption.map(_.toDouble.toLong).getOrElse(0L)
-      if sec >= 86400 then s"${sec / 86400}d ${(sec % 86400) / 3600}h"
-      else if sec >= 3600 then s"${sec / 3600}h ${(sec % 3600) / 60}m"
-      else s"${sec / 60}m ${sec % 60}s"
-    catch
-      case NonFatal(_) =>
-        try
-          val out = os.proc("uptime", "-p").call(check = false).out.trim()
-          out.stripPrefix("up ")
-        catch case NonFatal(_) => "unknown"
 
   // ── model ─────────────────────────────────────────────────────────────────
 
@@ -369,7 +338,7 @@ object PowerMenu:
       val idx = rnd.nextInt(Tetrominoes.length)
       val initialShape = Tetrominoes(idx)
 
-      // Start centered in Lane 1 (Shutdown lane)
+      // Start centered in Lane 1 (Shutdown center lane)
       val initX = 1 * g.laneCells + math.max(0, (g.laneCells - initialShape.head.length) / 2)
 
       val rows = g.rowsInner
@@ -428,14 +397,21 @@ object PowerMenu:
       )
 
   private final case class Geom(cols: Int, rows: Int):
+    val cardW      = math.min(cols, 74)
+    val cardH      = math.min(rows, 22)
+    val cardLeft   = math.max(0, (cols - cardW) / 2)
+    val cardRight  = cardLeft + cardW - 1
+    val cardTop    = math.max(0, (rows - cardH) / 2)
+    val cardBottom = cardTop + cardH - 1
+
     val laneCells = 4
-    val wellCols  = laneCells * 4 // 16 cells (4 dedicated chutes)
-    val innerW    = wellCols * CellW // 32 chars
-    val wellLeft  = math.max(1, (cols - (innerW + 2)) / 2)
+    val wellCols  = laneCells * 3 // 12 cells across 3 dedicated action chutes
+    val innerW    = wellCols * CellW // 24 chars
+    val wellLeft  = cardLeft + math.max(1, (cardW - (innerW + 2)) / 2)
     val wellRight = wellLeft + innerW + 1
 
-    val wellTop         = math.max(4, math.min(6, (rows - 20) / 2))
-    val wellBottom      = math.max(wellTop + 8, rows - 6)
+    val wellTop         = cardTop + 3
+    val wellBottom      = cardBottom - 5
     val interiorTopY    = wellTop + 1
     val interiorBottomY = wellBottom - 1
     val rowsInner       = interiorBottomY - interiorTopY + 1
@@ -448,7 +424,9 @@ object PowerMenu:
 
     def laneForCol(cx: Int, pieceW: Int): Int =
       val center = cx + pieceW / 2
-      math.max(0, math.min(3, center / laneCells))
+      if center < laneCells then 0
+      else if center < laneCells * 2 then 1
+      else 2
 
   // ── input parser ──────────────────────────────────────────────────────────
 
@@ -502,7 +480,6 @@ object PowerMenu:
               case '2'                       => out += Input.JumpLane(1)
               case 'p' | 'P'                 => out += Input.JumpLane(1)
               case '3'                       => out += Input.JumpLane(2)
-              case '4'                       => out += Input.JumpLane(3)
               case 'q' | 'Q'                 => out += Input.Cancel
               case _                         => ()
             buf = buf.tail
@@ -513,14 +490,16 @@ object PowerMenu:
 
   private final case class Theme(
       bg: String,
+      cardBg: String,
+      cardBorder: String,
       wall: String,
+      grid: String,
       floor: String,
       divider: String,
       dividerHot: String,
       ghost: String,
       dim: String,
       help: String,
-      accentGold: String,
       accentAmber: String,
       accentRed: String,
       accentViolet: String,
@@ -534,7 +513,6 @@ object PowerMenu:
       case Lane.Reboot   => accentAmber
       case Lane.Shutdown => accentRed
       case Lane.Suspend  => accentViolet
-      case Lane.Lock     => accentCyan
 
   private object Theme:
     private type Rgb = (Int, Int, Int)
@@ -550,28 +528,31 @@ object PowerMenu:
     )
 
     def from(p: Palette): Theme =
-      val base    = rgb(p.base, (15, 17, 23))
-      val txt     = rgb(p.text, (248, 250, 252))
-      val overlay = rgb(p.overlay0, (46, 64, 87))
+      val base      = rgb(p.base, (15, 17, 26)) // #0f111a
+      val txt       = rgb(p.text, (248, 250, 252))
+      val overlay   = rgb(p.overlay0, (46, 64, 87))
 
-      val amberRgb  = (245, 158, 11)  // Amber (#f59e0b)
-      val redRgb    = rgb(p.red, (239, 68, 68)) // Carmine/Red (#ef4444)
-      val violetRgb = rgb(p.mauve, (139, 92, 246)) // Violet (#8b5cf6)
-      val cyanRgb   = rgb(p.teal, (6, 182, 212)) // Cyan (#06b6d4)
-      val goldRgb   = rgb(p.blue, (245, 158, 11))
+      val amberRgb  = (245, 158, 11)   // Warm Amber (#f59e0b)
+      val redRgb    = rgb(p.red, (239, 68, 68)) // Carmine Red (#ef4444)
+      val violetRgb = rgb(p.mauve, (139, 92, 246)) // Deep Violet (#8b5cf6)
+      val cyanRgb   = rgb(p.teal, (56, 189, 248)) // Cyan (#38bdf8)
+      val gridRgb   = (40, 45, 65)     // rgba(255, 255, 255, 0.04)
+      val divRgb    = (55, 50, 85)     // rgba(139, 92, 246, 0.2)
 
       def tone(t: Double): String = fgSeq(mix(txt, base, t))
 
       Theme(
         bg           = bgSeq(base),
+        cardBg       = bgSeq(base),
+        cardBorder   = fgSeq(violetRgb),
         wall         = tone(0.60),
+        grid         = fgSeq(gridRgb),
         floor        = tone(0.50),
-        divider      = fgSeq(mix(overlay, base, 0.40)),
-        dividerHot   = fgSeq(mix(violetRgb, base, 0.30)),
-        ghost        = tone(0.72),
+        divider      = fgSeq(divRgb),
+        dividerHot   = fgSeq(mix(violetRgb, txt, 0.20)),
+        ghost        = fgSeq((75, 80, 105)),
         dim          = tone(0.70),
         help         = tone(0.55),
-        accentGold   = fgSeq(goldRgb),
         accentAmber  = fgSeq(amberRgb),
         accentRed    = fgSeq(redRgb),
         accentViolet = fgSeq(violetRgb),
@@ -618,46 +599,49 @@ object PowerMenu:
       val buf = new Buf(g.cols, g.rows)
       val curLane = st.laneIdx(g)
 
-      // 1. Workstation Header Bar (SwayFX / Waybar bracketed aesthetics)
-      val headerTitle = "[ ⊞ POLYOMINO POWER CONTROL ]"
-      val upStr = getUptimeString()
-      val userStr = sys.env.getOrElse("USER", "user")
+      // 1. Outer Bento Card Framing (1px border, 0px radius aesthetic)
+      drawBentoCard(buf, g, th)
+
+      // 2. Integrated Header Panel (Glyph [ ⮽ ] + Title + Tabular [ TIMEOUT: 30s ])
+      val glyphTag = "[ ⮽ ]"
+      val titleTag = "[ POLYOMINO // POWER CONTROL ]"
       val timeoutSec = math.ceil(remaining).toInt
-      val statusLine = s"[ USER: $userStr ]  [ UPTIME: $upStr ]  [ TIMEOUT: ${timeoutSec}s ]"
+      val timeoutTag = f"[ TIMEOUT: ${timeoutSec}%02ds ]"
 
-      buf.put(math.max(0, (g.cols - headerTitle.length) / 2), math.max(0, g.wellTop - 3), headerTitle, th.accentViolet)
-      buf.put(math.max(0, (g.cols - statusLine.length) / 2), math.max(1, g.wellTop - 2), statusLine, th.help)
+      buf.put(g.cardLeft + 2, g.cardTop + 1, glyphTag, th.accentViolet)
+      buf.put(g.cardLeft + 2 + glyphTag.length + 1, g.cardTop + 1, titleTag, th.accentCyan)
+      buf.put(g.cardRight - timeoutTag.length - 1, g.cardTop + 1, timeoutTag, th.accentAmber)
 
-      // 2. Matrix Box
+      // 3. Matrix Well Box inside Bento Card
       drawWell(buf, g, th)
 
-      // 3. Subtle CAD grid dots inside empty matrix
+      // 4. Clean 1px Vector Square Grid (rgba(255, 255, 255, 0.04))
       var cy = g.interiorTopY
       while cy <= g.interiorBottomY do
         for k <- 0 until g.wellCols do
-          buf.put(g.cellX(k), cy, "· ", th.divider)
+          buf.put(g.cellX(k), cy, "┼─", th.grid)
         cy += 1
 
-      // 4. Faint 1px chute divider guide rails separating the 4 lanes
+      // 5. Solid 1px Vertical Guide Rails separating the 3 Action Chutes
       val pileTopY = g.interiorBottomY - st.stackMaxRows * CellH
-      for k <- 1 to 3 do
+      for k <- 1 to 2 do
         val dx  = g.cellX(k * g.laneCells)
         val hot = k == curLane || k == curLane + 1
         var y   = g.wellTop + 1
         while y <= pileTopY do
-          buf.put(dx, y, "┊", if hot then th.dividerHot else th.divider)
+          buf.put(dx, y, "│ ", if hot then th.dividerHot else th.divider)
           y += 1
 
-      // 5. Debris pile
+      // 6. Debris Pile
       for d <- st.stack do
         drawBlock(buf, g.cellX(d.cellX), g.interiorBottomY - d.cellY * CellH,
                   th.stackFg(d.colorIdx), th.stackEdge(d.colorIdx))
 
-      // 6. Ghost piece projection
+      // 7. Faint Dashed/Wireframe Ghost Piece at Bottom of Active Lane
       val ghostY = st.groundY(st.shape, st.cellX, g)
       drawShape(buf, st.shape, g.cellX(st.cellX), ghostY, th.ghost, th.ghost, "░")
 
-      // 7. Active piece rendering according to phase
+      // 8. Active Piece (supports White Lock Flash & Line Dissolve animations)
       st.phase match
         case Phase.LockFlash(lane, _) =>
           drawShape(buf, st.shape, g.cellX(st.cellX), math.round(st.pieceY).toInt,
@@ -671,22 +655,35 @@ object PowerMenu:
           drawShape(buf, st.shape, g.cellX(st.cellX), math.round(st.pieceY).toInt,
                     th.pieceFg(st.pieceIdx), th.pieceEdge(st.pieceIdx), "█")
 
-      // 8. 4-Lane Floor Landing Pads & Action Badges underneath matrix
+      // 9. Dedicated Dynamic Target Landing Pads & Well Badges at Base
       drawLanes(buf, g, th, curLane)
 
-      // 9. Game Over overlay banner if triggered
+      // 10. Game Over Modal Overlay if Triggered
       st.phase match
         case Phase.GameOver(lane, deadline) =>
           val leftSec = math.max(0.0, (deadline - System.nanoTime()) / 1e9)
           drawGameOverModal(buf, g, th, lane, leftSec)
         case _ => ()
 
-      // 10. Footer controls legend
-      val help = "h/l move • k rotate • 1-4 snap lane • j/Space drop & confirm • q/Esc cancel"
-      val hx = math.max(0, math.min(g.cols - help.length, (g.cols - help.length) / 2))
-      buf.put(hx, g.rows - 1, help, th.help)
+      // 11. Pinned Bottom Footer Strip
+      val normalBadge = "[ NORMAL ]"
+      val helpText = "h/l (←/→) Lane • k (↑) Rotate • j/Enter Drop • q/Esc Cancel"
+      buf.put(g.cardLeft + 2, g.cardBottom - 1, normalBadge, th.accentCyan)
+      buf.put(g.cardLeft + 2 + normalBadge.length + 2, g.cardBottom - 1, helpText, th.help)
 
       buf.render(th.bg)
+
+    private def drawBentoCard(buf: Buf, g: Geom, th: Theme): Unit =
+      val span = "─" * math.max(0, g.cardRight - g.cardLeft - 1)
+      var y = g.cardTop + 1
+      while y < g.cardBottom do
+        buf.put(g.cardLeft, y, "│", th.cardBorder)
+        buf.put(g.cardRight, y, "│", th.cardBorder)
+        y += 1
+      buf.put(g.cardLeft, g.cardTop, "┌" + span + "┐", th.cardBorder)
+      buf.put(g.cardLeft, g.cardTop + 2, "├" + span + "┤", th.cardBorder)
+      buf.put(g.cardLeft, g.cardBottom - 2, "├" + span + "┤", th.cardBorder)
+      buf.put(g.cardLeft, g.cardBottom, "└" + span + "┘", th.cardBorder)
 
     private def drawWell(buf: Buf, g: Geom, th: Theme): Unit =
       val span = "─" * math.max(0, g.wellRight - g.wellLeft - 1)
@@ -699,31 +696,30 @@ object PowerMenu:
         y += 1
 
     private def drawLanes(buf: Buf, g: Geom, th: Theme, laneIdx: Int): Unit =
-      // Floor landing pads directly beneath each lane
-      for i <- 0 to 3 do
-        val sel     = i == laneIdx
-        val w       = g.laneCells * CellW - 2
-        val lane    = Lane.values(i)
+      // Dynamic Landing Target Wells directly under each chute
+      for i <- 0 to 2 do
+        val sel      = i == laneIdx
+        val w        = g.laneCells * CellW - 2
+        val lane     = Lane.values(i)
         val padColor = if sel then th.laneColor(lane) else th.dim
         buf.put(g.laneCenterX(i) - w / 2, g.wellBottom + 1,
                 (if sel then "▀" else "─") * w, padColor)
 
-      // Action badges
-      val quarter = math.max(1, g.cols / 4)
-      for i <- 0 to 3 do
-        val lane      = Lane.values(i)
-        val sel       = i == laneIdx
-        val badgeText = if lane == Lane.Lock && g.cols < 88 then "LOCK / LOGOUT".take(4) else lane.label
-        val label     = s"[ ${i + 1}: ${lane.glyph} $badgeText ]"
-        val color     = if sel then th.laneColor(lane) else th.dim
-        val cx        = quarter * i + quarter / 2
-        val lx        = math.max(0, math.min(g.cols - label.length - 1, cx - label.length / 2))
-        buf.put(lx, g.wellBottom + 3, label, color)
+      // Spaced Landing Target Well Badges with Glow Highlight
+      val third = math.max(1, (g.cardW - 4) / 3)
+      for i <- 0 to 2 do
+        val lane  = Lane.values(i)
+        val sel   = i == laneIdx
+        val label = s"[ ${lane.glyph} ${lane.label} ]"
+        val color = if sel then th.laneColor(lane) else th.dim
+        val cx    = g.cardLeft + 2 + third * i + third / 2
+        val lx    = math.max(g.cardLeft + 2, math.min(g.cardRight - label.length - 1, cx - label.length / 2))
+        buf.put(lx, g.wellBottom + 2, label, color)
 
     private def drawGameOverModal(buf: Buf, g: Geom, th: Theme, lane: Lane, leftSec: Double): Unit =
       val modalW = 38
       val modalH = 8
-      val mx = math.max(0, (g.cols - modalW) / 2)
+      val mx = math.max(g.cardLeft + 2, (g.cols - modalW) / 2)
       val my = g.wellTop + math.max(1, (g.wellH - modalH) / 2)
       val acc = th.laneColor(lane)
 
@@ -794,23 +790,22 @@ object PowerMenu:
       sb.toString
 
   private val HelpText: String =
-    """polyomino power-menu — Authentic Tetris workstation power/exit modal.
+    """polyomino power-menu — Bento-card Tetris workstation power/exit modal.
       |
-      |A tetromino descends down a 16-column matrix with 4 action lanes:
-      |  1 (left)    reboot             (systemctl reboot)
-      |  2 (mid-l)   shutdown [default] (systemctl poweroff)
-      |  3 (mid-r)   suspend            (swaylock -f ; systemctl suspend)
-      |  4 (right)   lock / logout      (polyomino-rubik-lock / swaylock -f / swaymsg exit)
+      |A tetromino descends down a 12-column matrix with 3 dedicated action chutes:
+      |  Lane 1 (left)    reboot             (systemctl reboot)
+      |  Lane 2 (center)  shutdown [default] (systemctl poweroff)
+      |  Lane 3 (right)   lock + suspend     (swaylock -f ; systemctl suspend)
       |
       |Controls:
-      |  left/right or h/l/a/d   move piece across lanes
+      |  left/right or h/l/a/d   move piece across chutes
       |  up or k / w             rotate tetromino clockwise
       |  down or s               soft drop
-      |  1 / 2 / 3 / 4           direct lane snap (reboot, shutdown, suspend, lock)
-      |  enter / space / j       hard drop into chosen lane & confirm
+      |  1 / 2 / 3               direct chute snap (reboot, shutdown, lock+suspend)
+      |  enter / space / j       hard drop into chosen chute & confirm
       |  esc / q                 cancel, run nothing
       |
-      |When the piece lands, a Game Over countdown begins for the chosen lane
+      |When the piece lands, a Game Over countdown begins for the chosen chute
       |with an abort window before executing.
       |
       |Flags:

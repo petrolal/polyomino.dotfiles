@@ -8,7 +8,7 @@
     "format": "⊞",
     "tooltip": false,
     "on-click": "~/.local/bin/polyomino menu",
-    "on-click-right": "kitty --class=polyomino-power-menu -o font_size=14 -e ~/.local/bin/polyomino power-menu",
+    "on-click-right": "kitty --class=polyomino-power --app-id=polyomino-power -o font_size=14 -e ~/.local/bin/polyomino power-menu",
   },
   // waybar-battery
   "battery": {
