@@ -65,7 +65,7 @@ fi
 SLURP_BG="#191C2488"
 SLURP_BORDER="#EBB434ff"
 SLURP_SEL="#00D2D344"
-SLURP_BOX="#0F1117"
+SLURP_BOX="#0F1117ff"
 
 # Run slurp to capture coordinates (x, y, width, height)
 # Cancelled selection exits quietly
@@ -97,13 +97,13 @@ fi
 # Determine action
 if [[ "$MODE" == "current" ]] || ([[ "$MODE" == "auto" ]] && [[ "$FOCUSED_TYPE" =~ ^(con|floating_con)$ ]]); then
     # Move and resize the current focused window
-    swaymsg "floating enable; resize set $W $H; move absolute position $X $Y" >/dev/null 2>&1
+    swaymsg "floating enable; resize set ${W}px ${H}px; move absolute position ${X}px ${Y}px" >/dev/null 2>&1
 else
     # Generate unique ID for this drawn window instance
-    UNIQUE_ID="sway_drawn_$RANDOM$RANDOM"
+    UNIQUE_ID="sway_drawn_${RANDOM}_$(( $(date +%s%N 2>/dev/null || date +%s) ))"
 
-    # Pre-register the for_window rule in Sway so the window maps immediately with exact drawn geometry
-    swaymsg "for_window [app_id=\"$UNIQUE_ID\"] floating enable, border pixel 2, resize set $W $H, move absolute position $X $Y; for_window [class=\"$UNIQUE_ID\"] floating enable, border pixel 2, resize set $W $H, move absolute position $X $Y" >/dev/null 2>&1
+    # Pre-register the for_window rule in Sway so the window maps immediately as floating
+    swaymsg "for_window [app_id=\"^${UNIQUE_ID}$\"] floating enable, border pixel 2; for_window [class=\"^${UNIQUE_ID}$\"] floating enable, border pixel 2; for_window [title=\"^${UNIQUE_ID}$\"] floating enable, border pixel 2" >/dev/null 2>&1
 
     # Detect preferred terminal
     TERM_BIN="kitty"
@@ -130,19 +130,22 @@ else
         fi
     elif [[ "$TERM_BIN" == "alacritty" ]]; then
         if [[ ${#TARGET_CMD[@]} -eq 0 ]]; then
-            alacritty --class "$UNIQUE_ID","$UNIQUE_ID" &
+            alacritty --class "$UNIQUE_ID","$UNIQUE_ID" --title "$UNIQUE_ID" &
         else
-            alacritty --class "$UNIQUE_ID","$UNIQUE_ID" -e "${TARGET_CMD[@]}" &
+            alacritty --class "$UNIQUE_ID","$UNIQUE_ID" --title "$UNIQUE_ID" -e "${TARGET_CMD[@]}" &
         fi
     else
         "$TERM_BIN" &
     fi
 
-    # Background polling to enforce exact geometry once mapped
+    # Background watcher to enforce exact drawn geometry and focus once mapped
     (
-        for _ in {1..25}; do
-            sleep 0.04
-            swaymsg "[app_id=\"$UNIQUE_ID\"] floating enable; [app_id=\"$UNIQUE_ID\"] resize set $W $H; [app_id=\"$UNIQUE_ID\"] move absolute position $X $Y" >/dev/null 2>&1 || true
+        for _ in {1..40}; do
+            if swaymsg -t get_tree 2>/dev/null | grep -q "\"$UNIQUE_ID\""; then
+                swaymsg "[app_id=\"^${UNIQUE_ID}$\"] floating enable; [app_id=\"^${UNIQUE_ID}$\"] resize set ${W}px ${H}px; [app_id=\"^${UNIQUE_ID}$\"] move absolute position ${X}px ${Y}px; [app_id=\"^${UNIQUE_ID}$\"] focus; [class=\"^${UNIQUE_ID}$\"] floating enable; [class=\"^${UNIQUE_ID}$\"] resize set ${W}px ${H}px; [class=\"^${UNIQUE_ID}$\"] move absolute position ${X}px ${Y}px; [class=\"^${UNIQUE_ID}$\"] focus" >/dev/null 2>&1
+                break
+            fi
+            sleep 0.025
         done
     ) &
 fi

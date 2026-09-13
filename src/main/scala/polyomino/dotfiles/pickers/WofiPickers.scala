@@ -438,6 +438,8 @@ object WofiPickers:
 
   private def friendlyAction(action: String): String =
     action match
+      case a if a.contains("sway-draw-window") || a.contains("draw-window") => "Draw interactive floating window (slurp)"
+      case a if a.contains("floating-term") => "Floating terminal"
       case a if a.contains("sway-project-launcher") => "Project picker launcher (Neovim)"
       case a if a.contains("polyomino-menu") || a.contains("polyomino menu") => "Polyomino launcher menu"
       case a if a.contains("polyomino-whichkey") => "Keybindings cheatsheet"

@@ -182,7 +182,7 @@ cp target/native-image/polyomino ~/.local/bin/polyomino
 | `Mod+M`                 | **Polyomino Menu**        | Quick menu (power, themes, wallpapers, configs, health)    |
 | `Mod+P`                 | **Neovim Project Picker** | Search `~/Projects` and open in dedicated Workspace 2      |
 | `Mod+D`                 | App launcher              | Wofi application launcher                                  |
-| `Mod+Shift+Return`      | Floating terminal         | Floating centered terminal                                 |
+| `Mod+Shift+Return` / `Mod+Shift+W` | Drag floating window | Draw interactive floating terminal with slurp |
 | `Mod+Shift+F`           | File manager TUI          | `yazi` file manager                                        |
 | `Mod+Shift+M`           | Spotify player TUI        | `spotify_player`                                           |
 | `Mod+Shift+U`           | Bluetooth manager TUI     | `bluetui`                                                  |
