@@ -72,8 +72,14 @@ rofi_pick() {
     IFS=$'\t' read -r platform title path <<<"$row"
     menu+="$(printf '%-8s %s' "$platform" "$title")"$'\n'
   done
-  local idx
-  idx="$(printf '%s' "$menu" | rofi -dmenu -i -p "ROMs" -format i)" || exit 0
+  local idx=""
+  if command -v rofi >/dev/null 2>&1; then
+    idx="$(printf '%s' "$menu" | rofi -dmenu -i -p "ROMs" -format i 2>/dev/null)" || exit 0
+  elif command -v wofi >/dev/null 2>&1; then
+    idx="$(printf '%s' "$menu" | wofi --dmenu --prompt "ROMs" --index 2>/dev/null)" || exit 0
+  elif command -v fuzzel >/dev/null 2>&1; then
+    idx="$(printf '%s' "$menu" | fuzzel --dmenu --index -p "ROMs: " 2>/dev/null)" || exit 0
+  fi
   [ -n "$idx" ] || exit 0
   IFS=$'\t' read -r platform title path <<<"${rows[$idx]}"
   launch_rom "$path"
