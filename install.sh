@@ -82,6 +82,7 @@ fi
 echo ""
 echo -e "  ${CYAN}[2/4] Executing bootstrap.sh (system packages, swayfx, zoxide, projects & tetravim)...${RESET}"
 chmod +x "$DOTFILES_DIR/bootstrap.sh"
+export POLYOMINO_BOOTSTRAP_CALLED_FROM_INSTALLER=1
 "$DOTFILES_DIR/bootstrap.sh" "$@"
 
 # Refresh shell environment paths in current runner

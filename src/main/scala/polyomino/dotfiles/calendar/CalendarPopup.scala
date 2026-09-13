@@ -167,7 +167,7 @@ object CalendarPopup:
       |        nav_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
       |        nav_box.set_name("cal-nav")
       |        
-      |        self.prev_btn = Gtk.Button(label="‹")
+      |        self.prev_btn = Gtk.Button(label="<")
       |        self.prev_btn.set_name("nav-btn")
       |        self.prev_btn.connect("clicked", self.prev_month)
       |        nav_box.pack_start(self.prev_btn, False, False, 0)
@@ -177,7 +177,7 @@ object CalendarPopup:
       |        self.month_label.set_xalign(0.5)
       |        nav_box.pack_start(self.month_label, True, True, 0)
       |        
-      |        self.next_btn = Gtk.Button(label="›")
+      |        self.next_btn = Gtk.Button(label=">")
       |        self.next_btn.set_name("nav-btn")
       |        self.next_btn.connect("clicked", self.next_month)
       |        nav_box.pack_end(self.next_btn, False, False, 0)
@@ -225,23 +225,31 @@ object CalendarPopup:
       |        dot_divider.set_xalign(0.5)
       |        self.pack_start(dot_divider, False, False, 0)
       |
-      |        # Diff / Info Box (fixed size)
-      |        self.diff_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
+      |        # Telemetry footer: date/relative status line + segmented instrument pod
+      |        self.diff_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
       |        self.diff_box.set_name("cal-diff")
-      |        self.diff_box.set_size_request(300, 50)
-      |        
+      |
       |        self.diff_title = Gtk.Label()
       |        self.diff_title.set_name("cal-diff-title")
       |        self.diff_title.set_xalign(0.5)
       |        self.diff_title.set_ellipsize(Pango.EllipsizeMode.END)
       |        self.diff_box.pack_start(self.diff_title, False, False, 0)
-      |        
-      |        self.diff_detail = Gtk.Label()
-      |        self.diff_detail.set_name("cal-diff-detail")
-      |        self.diff_detail.set_xalign(0.5)
-      |        self.diff_detail.set_ellipsize(Pango.EllipsizeMode.END)
-      |        self.diff_box.pack_start(self.diff_detail, False, False, 0)
-      |        
+      |
+      |        self.footer_pod = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+      |        self.footer_pod.set_name("cal-footer")
+      |        self.footer_pod.set_halign(Gtk.Align.CENTER)
+      |
+      |        self.footer_seg1 = Gtk.Label()
+      |        self.footer_seg2 = Gtk.Label()
+      |        self.footer_seg3 = Gtk.Label()
+      |        for i, seg in enumerate([self.footer_seg1, self.footer_seg2, self.footer_seg3]):
+      |            seg.set_name("footer-segment")
+      |            seg.set_xalign(0.5)
+      |            if i == 2:
+      |                seg.get_style_context().add_class("last-segment")
+      |            self.footer_pod.pack_start(seg, False, False, 0)
+      |        self.diff_box.pack_start(self.footer_pod, False, False, 0)
+      |
       |        self.pack_start(self.diff_box, False, False, 0)
       |        
       |        self.render_calendar()
@@ -261,8 +269,10 @@ object CalendarPopup:
       |            total_days = 366 if is_leap else 365
       |            week_num = d_sel.isocalendar()[1]
       |            quarter = (d_sel.month - 1) // 3 + 1
-      |            self.diff_title.set_markup(f"<span weight='bold'>{sel_fmt}</span> ({rel_str})")
-      |            self.diff_detail.set_markup(f"<span size='100%'><b>Day:</b> {day_of_year}/{total_days}  •  <b>Week:</b> {week_num}  •  <b>Quarter:</b> Q{quarter}</span>")
+      |            self.diff_title.set_markup(f"<span weight='bold'>{sel_fmt}</span> <span alpha='60%'>({rel_str})</span>")
+      |            self.footer_seg1.set_markup(f"[ DAY {day_of_year}/{total_days}")
+      |            self.footer_seg2.set_markup(f"WEEK {week_num}")
+      |            self.footer_seg3.set_markup(f"Q{quarter} ]")
       |            return
       |
       |        abs_days = abs(delta)
@@ -300,8 +310,10 @@ object CalendarPopup:
       |            months_str = f"{abs_days}d"
       |
       |        days_str = f"{abs_days}d"
-      |        self.diff_title.set_markup(f"<span weight='bold'>{sel_fmt}</span> ({rel_str})")
-      |        self.diff_detail.set_markup(f"<span size='100%'><b>Days:</b> {days_str}  •  <b>Weeks:</b> {weeks_str}  •  <b>Months:</b> {months_str}</span>")
+      |        self.diff_title.set_markup(f"<span weight='bold'>{sel_fmt}</span> <span alpha='60%'>({rel_str})</span>")
+      |        self.footer_seg1.set_markup(f"[ {days_str}")
+      |        self.footer_seg2.set_markup(f"{weeks_str}")
+      |        self.footer_seg3.set_markup(f"{months_str} ]")
       |
       |    def prev_month(self, btn):
       |        if self.view_month == 1:
@@ -341,16 +353,16 @@ object CalendarPopup:
       |                    btn._day = 0
       |                    lbl.set_text("")
       |                    btn.set_sensitive(False)
-      |                    btn.set_name("day-cube")
+      |                    btn.set_name("day-cube-empty")
       |                else:
       |                    btn._day = day
       |                    lbl.set_text(str(day))
       |                    btn.set_sensitive(True)
       |                    cur_d = datetime.date(self.view_year, self.view_month, day)
-      |                    if cur_d == d_sel:
-      |                        btn.set_name("day-cube-selected")
-      |                    elif cur_d == d_today:
+      |                    if cur_d == d_today:
       |                        btn.set_name("day-cube-today")
+      |                    elif cur_d == d_sel:
+      |                        btn.set_name("day-cube-selected")
       |                    elif r_start < cur_d < r_end:
       |                        btn.set_name("day-cube-range")
       |                    else:
@@ -394,17 +406,18 @@ object CalendarPopup:
       |        except Exception:
       |            pass
       |
-      |    def hex_to_rgba(hex_color, alpha=0.25):
-      |        h = hex_color.lstrip("#")
-      |        if len(h) == 6:
-      |            r, g, b = tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
-      |            return f"rgba({r}, {g}, {b}, {alpha})"
-      |        return f"rgba(255, 153, 0, {alpha})"
-      |
-      |    range_bg = hex_to_rgba(accent_color, 0.25)
-      |    # Muted hairline that matches the wofi menu's borders (a faint tint of the
-      |    # text colour over the opaque card) instead of a bright accent outline.
-      |    border_color = hex_to_rgba(text_color, 0.14)
+      |    # Fixed "arcade CAD terminal" palette. Deliberately independent of the
+      |    # active desktop theme so the calendar keeps the same violet/gold
+      |    # instrument-panel look no matter which palette is active elsewhere.
+      |    cad_bg = "#0d1117"
+      |    cad_violet = "#8b5cf6"
+      |    cad_border_muted = "#30363d"
+      |    cad_text_muted = "#8b949e"
+      |    cad_gold = "#f59e0b"
+      |    cad_today_bg = "rgba(139, 92, 246, 0.18)"
+      |    cad_range_bg = "rgba(139, 92, 246, 0.25)"
+      |    cad_footer_bg = "#161b22"
+      |    cad_footer_divider = "#21262d"
       |
       |    win = Gtk.Window()
       |    win.set_name("calendar-window")
@@ -451,16 +464,15 @@ object CalendarPopup:
       |    popup_card.set_size_request(340, 430)
       |    win.add(popup_card)
       |
-      |    now = datetime.datetime.now()
       |    header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
       |    
       |    header_label = Gtk.Label()
-      |    header_label.set_markup(f"<span size='105%' weight='bold'>[ ⊞  POLYOMINO CALENDAR · · · ]  {now.strftime('%a %d %b %Y')}</span>")
+      |    header_label.set_markup("<span font_family='JetBrainsMono Nerd Font, monospace' weight='bold' letter_spacing='1024'>POLYOMINO // CALENDAR</span>")
       |    header_label.set_name("calendar-header")
       |    header_label.set_xalign(0.0)
       |    header_box.pack_start(header_label, True, True, 0)
       |
-      |    close_btn = Gtk.Button(label="[ ✕ ]")
+      |    close_btn = Gtk.Button(label="[×]")
       |    close_btn.set_name("calendar-close-btn")
       |    close_btn.set_relief(Gtk.ReliefStyle.NONE)
       |    close_btn.connect("clicked", lambda b: Gtk.main_quit())
@@ -495,8 +507,8 @@ object CalendarPopup:
       |        border: none;
       |    }}
       |    #calendar-card {{
-      |        background-color: {mantle_color};
-      |        border: 1px solid {accent_color};
+      |        background-color: {cad_bg};
+      |        border: 1px solid {cad_violet};
       |        border-radius: 0px;
       |        padding: 12px 14px;
       |        min-width: 360px;
@@ -504,7 +516,7 @@ object CalendarPopup:
       |        box-shadow: none;
       |    }}
       |    #calendar-header {{
-      |        color: {accent_color};
+      |        color: {cad_violet};
       |        font-family: "JetBrainsMono Nerd Font", monospace;
       |        font-size: 13px;
       |        font-weight: bold;
@@ -523,7 +535,7 @@ object CalendarPopup:
       |        background-color: transparent;
       |        background-image: none;
       |        box-shadow: none;
-      |        color: {text_color};
+      |        color: {cad_text_muted};
       |        font-size: 12px;
       |        font-weight: bold;
       |        padding: 2px 6px;
@@ -534,16 +546,16 @@ object CalendarPopup:
       |    button#calendar-close-btn:hover {{
       |        background: {red_color};
       |        background-color: {red_color};
-      |        color: {base_color};
+      |        color: {cad_bg};
       |    }}
       |    #cal-nav {{
-      |        background-color: {base_color};
-      |        border: 1px solid {border_color};
+      |        background-color: {cad_bg};
+      |        border: 1px solid {cad_border_muted};
       |        border-radius: 0px;
       |        padding: 4px 6px;
       |    }}
       |    #month-header-label {{
-      |        color: {accent_color};
+      |        color: {cad_violet};
       |        font-family: "JetBrainsMono Nerd Font", monospace;
       |        font-weight: bold;
       |    }}
@@ -561,30 +573,30 @@ object CalendarPopup:
       |    }}
       |    button#nav-btn label,
       |    #nav-btn label {{
-      |        color: {accent_color};
+      |        color: {cad_violet};
       |        font-family: "JetBrainsMono Nerd Font", monospace;
       |        font-size: 16px;
       |        font-weight: bold;
       |    }}
       |    button#nav-btn:hover,
       |    #nav-btn:hover {{
-      |        background: {accent_color};
-      |        background-color: {accent_color};
+      |        background: {cad_violet};
+      |        background-color: {cad_violet};
       |        background-image: none;
       |        box-shadow: none;
       |    }}
       |    button#nav-btn:hover label,
       |    #nav-btn:hover label {{
-      |        color: {base_color};
+      |        color: {cad_bg};
       |    }}
       |    #cal-grid {{
-      |        background-color: {base_color};
-      |        border: 1px solid {border_color};
+      |        background-color: {cad_bg};
+      |        border: 1px solid {cad_border_muted};
       |        border-radius: 0px;
       |        padding: 8px;
       |    }}
       |    #weekday-header {{
-      |        color: {accent_color};
+      |        color: {cad_text_muted};
       |        font-family: "JetBrainsMono Nerd Font", monospace;
       |        font-weight: bold;
       |        font-size: 12px;
@@ -593,10 +605,12 @@ object CalendarPopup:
       |    #day-cube-today,
       |    #day-cube-selected,
       |    #day-cube-range,
+      |    #day-cube-empty,
       |    button#day-cube,
       |    button#day-cube-today,
       |    button#day-cube-selected,
-      |    button#day-cube-range {{
+      |    button#day-cube-range,
+      |    button#day-cube-empty {{
       |        background-image: none;
       |        box-shadow: none;
       |        border-radius: 0px;
@@ -614,72 +628,91 @@ object CalendarPopup:
       |    }}
       |    #day-cube:hover,
       |    button#day-cube:hover {{
-      |        background-color: {range_bg};
-      |        color: {accent_color};
+      |        background-color: {cad_range_bg};
+      |        color: {cad_violet};
+      |    }}
+      |    #day-cube-empty,
+      |    button#day-cube-empty {{
+      |        background: transparent;
+      |        background-color: transparent;
+      |        color: {cad_border_muted};
+      |        border: 1px solid {cad_border_muted};
       |    }}
       |    #day-cube-range,
       |    button#day-cube-range {{
-      |        background: {range_bg};
-      |        background-color: {range_bg};
-      |        color: {accent_color};
+      |        background: {cad_range_bg};
+      |        background-color: {cad_range_bg};
+      |        color: {cad_violet};
       |        border-radius: 0px;
       |    }}
       |    #day-cube-range label,
       |    button#day-cube-range label {{
-      |        color: {accent_color};
+      |        color: {cad_violet};
       |        font-weight: bold;
       |    }}
       |    #day-cube-range:hover,
       |    button#day-cube-range:hover {{
-      |        background: {accent_color};
-      |        background-color: {accent_color};
-      |        color: {base_color};
+      |        background: {cad_violet};
+      |        background-color: {cad_violet};
+      |        color: {cad_bg};
       |    }}
       |    #day-cube-range:hover label,
       |    button#day-cube-range:hover label {{
-      |        color: {base_color};
+      |        color: {cad_bg};
       |    }}
       |    #day-cube-today,
       |    button#day-cube-today {{
-      |        background: transparent;
-      |        background-color: transparent;
-      |        color: {accent_color};
-      |        border: 1px solid {accent_color};
+      |        background: {cad_today_bg};
+      |        background-color: {cad_today_bg};
+      |        color: {cad_gold};
+      |        border: 1px solid {cad_violet};
       |        font-weight: bold;
       |    }}
       |    #day-cube-today:hover,
       |    button#day-cube-today:hover {{
-      |        background: {accent_color};
-      |        background-color: {accent_color};
-      |        color: {base_color};
+      |        background: {cad_violet};
+      |        background-color: {cad_violet};
+      |        color: {cad_bg};
       |    }}
       |    #day-cube-selected,
       |    button#day-cube-selected {{
-      |        background: {accent_color};
-      |        background-color: {accent_color};
-      |        color: {base_color};
+      |        background: {cad_violet};
+      |        background-color: {cad_violet};
+      |        color: {cad_bg};
       |        font-weight: bold;
       |    }}
       |    #day-cube-selected label,
       |    button#day-cube-selected label {{
-      |        color: {base_color};
+      |        color: {cad_bg};
       |        font-weight: bold;
       |    }}
       |    #cal-diff {{
-      |        background-color: {base_color};
-      |        border: 1px solid {border_color};
+      |        background-color: {cad_bg};
+      |        border: 1px solid {cad_border_muted};
       |        border-radius: 0px;
       |        padding: 6px 8px;
       |    }}
       |    #cal-diff-title {{
-      |        color: {accent_color};
-      |        font-family: "JetBrainsMono Nerd Font", monospace;
-      |        font-size: 13px;
-      |    }}
-      |    #cal-diff-detail {{
       |        color: {text_color};
       |        font-family: "JetBrainsMono Nerd Font", monospace;
       |        font-size: 13px;
+      |    }}
+      |    #cal-footer {{
+      |        background-color: {cad_footer_bg};
+      |        border: 1px solid {cad_border_muted};
+      |        border-radius: 0px;
+      |        margin-top: 2px;
+      |    }}
+      |    #footer-segment {{
+      |        color: {cad_text_muted};
+      |        font-family: "JetBrainsMono Nerd Font", monospace;
+      |        font-size: 12px;
+      |        font-weight: bold;
+      |        padding: 4px 10px;
+      |        border-right: 1px solid {cad_footer_divider};
+      |    }}
+      |    #footer-segment.last-segment {{
+      |        border-right: none;
       |    }}
       |    '''
       |    css_provider.load_from_data(custom_css.encode("utf-8"))

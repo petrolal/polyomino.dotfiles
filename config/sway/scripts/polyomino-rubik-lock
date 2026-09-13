@@ -700,83 +700,64 @@ class RubikEngine:
 # Solid Polyomino Polycube 3D Rubik Renderer
 # ---------------------------------------------------------------------------
 def render_rubik_lockscreen(cr, width, height, engine, preview_mode=False):
-    # 1. Background Void: Deep Obsidian / Blackout (#0F1117)
-    cr.set_source_rgb(*COLOR_BG)
+    # 1. Background Void: Deep Obsidian / Blackout (#0d1117)
+    cr.set_source_rgb(13 / 255, 17 / 255, 23 / 255)
     cr.paint()
 
     cx = width / 2.0
     cy = height / 2.0 - 15.0
 
-    # CAD Viewport Box size
+    # CAD Viewport bounds
     vp_w = min(width * 0.70, 720.0)
     vp_h = min(height * 0.60, 500.0)
     vp_x = cx - vp_w / 2.0
     vp_y = cy - vp_h / 2.0
 
-    # 2. Outer Subtle Dot Matrix Grid (Background)
+    # 2. Single continuous CAD dot matrix — full background, uniform opacity,
+    #    no separate inner grid so there are no clashing nested dot layers.
     cr.save()
-    cr.set_source_rgba(COLOR_DOT[0], COLOR_DOT[1], COLOR_DOT[2], 0.35)
-    dot_step = 36
+    dot_step = 34
+    cr.set_source_rgba(COLOR_DOT[0], COLOR_DOT[1], COLOR_DOT[2], 0.30)
     for x in range(dot_step // 2, int(width), dot_step):
         for y in range(dot_step // 2, int(height), dot_step):
-            if vp_x - 12 <= x <= vp_x + vp_w + 12 and vp_y - 12 <= y <= vp_y + vp_h + 12:
-                continue
-            cr.arc(x, y, 0.75, 0, 2 * math.pi)
+            cr.arc(x, y, 0.7, 0, 2 * math.pi)
             cr.fill()
     cr.restore()
 
-    # 3. Viewport Background & Subtle CAD Grid
+    # 3. Viewport: clean void panel (no duplicate inner grid)
     cr.save()
-    cr.set_source_rgba(18 / 255, 21 / 255, 29 / 255, 0.65)
+    cr.set_source_rgba(13 / 255, 17 / 255, 23 / 255, 0.88)
     cr.rectangle(vp_x, vp_y, vp_w, vp_h)
     cr.fill()
 
-    # CAD Grid Dots inside matrix well (identical to PowerMenu well dots)
-    cr.set_source_rgb(*COLOR_DOT)
-    grid_spacing = 28
-    start_gx = int(vp_x) + (int(vp_w) % grid_spacing) // 2 + grid_spacing
-    start_gy = int(vp_y) + (int(vp_h) % grid_spacing) // 2 + grid_spacing
-    for gx in range(start_gx, int(vp_x + vp_w) - grid_spacing // 2, grid_spacing):
-        for gy in range(start_gy, int(vp_y + vp_h) - grid_spacing // 2, grid_spacing):
-            cr.arc(gx, gy, 1.0, 0, 2 * math.pi)
-            cr.fill()
-
-    # Viewport Frame
+    # Minimal CAD corner crosshair reticles — no heavy bounding rect stroke.
+    # Each corner gets a short 1px horizontal tick + 1px vertical tick.
+    tick = 14.0          # tick arm length
+    gap  =  5.0          # inset from the corner vertex
     cr.set_line_width(1.0)
-    cr.set_source_rgb(*COLOR_WALL_DIM)
-    cr.rectangle(vp_x, vp_y, vp_w, vp_h)
+    cr.set_source_rgba(COLOR_WALL[0], COLOR_WALL[1], COLOR_WALL[2], 0.80)
+
+    corners = [
+        (vp_x,          vp_y,          +1, +1),  # top-left
+        (vp_x + vp_w,   vp_y,          -1, +1),  # top-right
+        (vp_x + vp_w,   vp_y + vp_h,   -1, -1),  # bottom-right
+        (vp_x,          vp_y + vp_h,   +1, -1),  # bottom-left
+    ]
+    for (cx0, cy0, sx, sy) in corners:
+        # horizontal arm
+        cr.move_to(cx0 + sx * gap,           cy0 + sy * gap)
+        cr.line_to(cx0 + sx * (gap + tick),  cy0 + sy * gap)
+        # vertical arm
+        cr.move_to(cx0 + sx * gap,           cy0 + sy * gap)
+        cr.line_to(cx0 + sx * gap,           cy0 + sy * (gap + tick))
     cr.stroke()
 
-    # Corner brackets in COLOR_WALL
-    bracket_len = 18.0
-    cr.set_line_width(2.0)
-    cr.set_source_rgb(*COLOR_WALL)
-
-    # Top-Left
-    cr.move_to(vp_x, vp_y + bracket_len)
-    cr.line_to(vp_x, vp_y)
-    cr.line_to(vp_x + bracket_len, vp_y)
-    # Top-Right
-    cr.move_to(vp_x + vp_w - bracket_len, vp_y)
-    cr.line_to(vp_x + vp_w, vp_y)
-    cr.line_to(vp_x + vp_w, vp_y + bracket_len)
-    # Bottom-Right
-    cr.move_to(vp_x + vp_w, vp_y + vp_h - bracket_len)
-    cr.line_to(vp_x + vp_w, vp_y + vp_h)
-    cr.line_to(vp_x + vp_w - bracket_len, vp_y + vp_h)
-    # Bottom-Left
-    cr.move_to(vp_x + bracket_len, vp_y + vp_h)
-    cr.line_to(vp_x, vp_y + vp_h)
-    cr.line_to(vp_x, vp_y + vp_h - bracket_len)
-    cr.stroke()
-
-    # Alignment ticks
-    cr.set_line_width(1.0)
-    cr.set_source_rgb(*COLOR_WALL_DIM)
-    cr.move_to(cx, vp_y); cr.line_to(cx, vp_y + 8)
-    cr.move_to(cx, vp_y + vp_h - 8); cr.line_to(cx, vp_y + vp_h)
-    cr.move_to(vp_x, cy); cr.line_to(vp_x + 8, cy)
-    cr.move_to(vp_x + vp_w - 8, cy); cr.line_to(vp_x + vp_w, cy)
+    # Centre alignment micro-ticks (very subtle, 1px)
+    cr.set_source_rgba(COLOR_WALL_DIM[0], COLOR_WALL_DIM[1], COLOR_WALL_DIM[2], 0.55)
+    cr.move_to(cx, vp_y);             cr.line_to(cx, vp_y + 7)
+    cr.move_to(cx, vp_y + vp_h - 7); cr.line_to(cx, vp_y + vp_h)
+    cr.move_to(vp_x, cy);             cr.line_to(vp_x + 7, cy)
+    cr.move_to(vp_x + vp_w - 7, cy); cr.line_to(vp_x + vp_w, cy)
     cr.stroke()
     cr.restore()
 
@@ -925,22 +906,23 @@ def render_rubik_lockscreen(cr, width, height, engine, preview_mode=False):
 
     cr.restore()
 
-    # 5. Header Bar (Mirrors Power Menu Header)
+    # 5. Header Bar
     try:
         username = getpass.getuser()
         hostname = socket.gethostname().split('.')[0]
     except Exception:
         username, hostname = "user", "workstation"
 
-    header_title = "⊞  POLYOMINO SESSION LOCK" if not preview_mode else "⊞  POLYOMINO SESSION LOCK  •  PREVIEW"
-    draw_text(cr, header_title, cx, vp_y - 36.0, "JetBrainsMono Nerd Font Bold 15", COLOR_ACTIVE_GOLD)
+    # Electric violet (#8b5cf6) bold monospace title
+    COLOR_VIOLET = (139 / 255, 92 / 255, 246 / 255)
+    header_title = "POLYOMINO // SECURE LOCK" if not preview_mode else "POLYOMINO // SECURE LOCK  •  PREVIEW"
+    draw_text(cr, header_title, cx, vp_y - 36.0, "JetBrainsMono Nerd Font Bold 15", COLOR_VIOLET)
 
-    status_line = (
-        f"SESSION: LOCKED  •  HOST: {hostname}  •  PAM/FIDO2 ACTIVE"
-        if not preview_mode
-        else f"SESSION: PREVIEW  •  HOST: {hostname}  •  PAM TEST HARNESS"
-    )
-    draw_text(cr, status_line, cx, vp_y - 16.0, "JetBrainsMono Nerd Font 10.5", COLOR_HELP)
+    # Dim host/session line to #6e7681 — no debug harness labels outside preview
+    COLOR_DIM_HOST = (110 / 255, 118 / 255, 129 / 255)
+    session_label = "PREVIEW" if preview_mode else "LOCKED"
+    status_line = f"HOST // {hostname.upper()}  •  SESSION: {session_label}"
+    draw_text(cr, status_line, cx, vp_y - 16.0, "JetBrainsMono Nerd Font 10.5", COLOR_DIM_HOST)
 
     # 6. Status Badging / Modal Overlay inside Viewport
     modal_y = vp_y + vp_h - 76.0
@@ -1004,16 +986,55 @@ def render_rubik_lockscreen(cr, width, height, engine, preview_mode=False):
 
         draw_text(cr, "⇪  CAPS LOCK ACTIVE", cx, by + 17.0, "JetBrainsMono Nerd Font Bold 11", COLOR_ACTIVE_GOLD)
     else:
-        status_hud = "─── [ PAM: SECURE ] ─── [ FIDO2: READY ] ─── [ WORKSTATION: ENCRYPTED ] ───"
-        draw_text(cr, status_hud, cx, vp_y + vp_h - 22.0, "JetBrainsMono Nerd Font 10", COLOR_WALL_DIM)
+        # Instrument-style segmented status pod
+        # Segments: [ PAM: ACTIVE │ FIDO2: ARMED │ LUKS: ENCRYPTED ]
+        pod_w = 460.0
+        pod_h = 26.0
+        pod_x = cx - pod_w / 2.0
+        pod_y = vp_y + vp_h - 38.0
 
-    # 7. Footer Controls Line
+        # Pod background #161b22
+        cr.set_source_rgb(22 / 255, 27 / 255, 34 / 255)
+        cr.rectangle(pod_x, pod_y, pod_w, pod_h)
+        cr.fill()
+
+        # Pod border #21262d, 1px
+        cr.set_source_rgb(33 / 255, 38 / 255, 45 / 255)
+        cr.set_line_width(1.0)
+        cr.rectangle(pod_x, pod_y, pod_w, pod_h)
+        cr.stroke()
+
+        # Segment dividers
+        seg_div_x1 = pod_x + pod_w / 3.0
+        seg_div_x2 = pod_x + pod_w * 2.0 / 3.0
+        cr.set_source_rgb(33 / 255, 38 / 255, 45 / 255)
+        cr.move_to(seg_div_x1, pod_y + 4);     cr.line_to(seg_div_x1, pod_y + pod_h - 4)
+        cr.move_to(seg_div_x2, pod_y + 4);     cr.line_to(seg_div_x2, pod_y + pod_h - 4)
+        cr.stroke()
+
+        # Segment labels with status colours
+        COLOR_STATUS_GREEN = (63 / 255, 185 / 255, 80 / 255)   # active/ok
+        COLOR_STATUS_CYAN  = (56 / 255, 189 / 255, 248 / 255)  # armed/ready
+        COLOR_STATUS_GOLD  = COLOR_ACTIVE_GOLD                  # encrypted
+
+        seg_cy = pod_y + pod_h / 2.0
+        seg1_cx = pod_x + pod_w / 6.0
+        seg2_cx = pod_x + pod_w / 2.0
+        seg3_cx = pod_x + pod_w * 5.0 / 6.0
+
+        draw_text(cr, "PAM: ACTIVE",      seg1_cx, seg_cy, "JetBrainsMono Nerd Font Bold 9.5",  COLOR_STATUS_GREEN)
+        draw_text(cr, "FIDO2: ARMED",     seg2_cx, seg_cy, "JetBrainsMono Nerd Font Bold 9.5",  COLOR_STATUS_CYAN)
+        draw_text(cr, "LUKS: ENCRYPTED",  seg3_cx, seg_cy, "JetBrainsMono Nerd Font Bold 9.5",  COLOR_STATUS_GOLD)
+
+    # 7. Footer Controls Line — muted #484f58 for clear visual hierarchy
+    COLOR_FOOTER = (72 / 255, 79 / 255, 88 / 255)
     help_line = (
-        "enter password to unlock  •  [enter] authenticate  •  [esc] clear buffer"
+        "type password  •  [enter] unlock  •  [esc] clear"
         if not preview_mode
         else "type keys to test 3D slice shuffle  •  [enter] test pam  •  [esc/q] exit preview"
     )
-    draw_text(cr, help_line, cx, height - 32.0, "JetBrainsMono Nerd Font 10.5", COLOR_HELP)
+    draw_text(cr, help_line, cx, height - 32.0, "JetBrainsMono Nerd Font 10.5", COLOR_FOOTER)
+
 
 # ---------------------------------------------------------------------------
 # PNG Snapshot Generator
