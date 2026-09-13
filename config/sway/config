@@ -107,10 +107,10 @@ for_window [class="^lutris$"] floating enable
 for_window [app_id="mpv"] fullscreen enable
 
 # Bento-card power / exit modal (polyomino power-menu)
-for_window [app_id="polyomino-power"] floating enable, border pixel 1, resize set width 760 px height 640 px, move position center, blur enable, shadow enable
-for_window [app_id="polyomino-power-menu"] floating enable, border pixel 1, resize set width 760 px height 640 px, move position center, blur enable, shadow enable
-for_window [class="polyomino-power-menu"] floating enable, border pixel 1, resize set width 760 px height 640 px, move position center, blur enable, shadow enable
-for_window [app_id="kitty" title="(?i).*polyomino.*power-menu.*"] floating enable, border pixel 1, resize set width 760 px height 640 px, move position center, blur enable, shadow enable
+for_window [app_id="polyomino-power"] floating enable, border pixel 1, resize set 620 700, move position center, blur enable, shadow enable
+for_window [app_id="polyomino-power-menu"] floating enable, border pixel 1, resize set 620 700, move position center, blur enable, shadow enable
+for_window [class="polyomino-power-menu"] floating enable, border pixel 1, resize set 620 700, move position center, blur enable, shadow enable
+for_window [app_id="kitty" title="(?i).*polyomino.*power-menu.*"] floating enable, border pixel 1, resize set 620 700, move position center, blur enable, shadow enable
 
 # System tray helper for network/VPN status
 exec nm-applet --indicator

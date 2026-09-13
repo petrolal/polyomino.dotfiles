@@ -12,12 +12,13 @@ import scala.util.control.NonFatal
   *   - Outer floating dialog with 1px violet borders and frosted glass background
   *   - Integrated top header bar with `[ ⮽ ] [ POLYOMINO // POWER CONTROL ]` & `[ TIMEOUT: 30s ]`
   *   - Faint 1px square grid matrix with solid vertical guide rails
-  *   - Three dedicated action chutes with dynamic glowing landing target wells:
-  *       - Lane 1 (Left, Amber)     : REBOOT          (`systemctl reboot`)
-  *       - Lane 2 (Center, Red)     : SHUTDOWN        (`systemctl poweroff`)
-  *       - Lane 3 (Right, Violet)   : LOCK + SUSPEND  (`swaylock -f` ; `systemctl suspend`)
+  *   - Four dedicated action chutes with dynamic glowing landing target wells:
+  *       - Lane 1 (`1`): REBOOT   — Warm Amber (`#f59e0b` -> `systemctl reboot`)
+  *       - Lane 2 (`2`): SHUTDOWN — Carmine Red (`#ef4444` -> `systemctl poweroff`)
+  *       - Lane 3 (`3`): SUSPEND  — Deep Violet (`#8b5cf6` -> `swaylock -f` ; `systemctl suspend`)
+  *       - Lane 4 (`4`): LOCK     — Vivid Cyan  (`#06b6d4` -> `polyomino-rubik-lock` / fallback `swaylock -f`)
   *   - Monospaced tabular status footer:
-  *       `[ NORMAL ]  h/l (←/→) Lane  •  k (↑) Rotate  •  j/Enter Drop & Confirm  •  q/Esc Cancel`
+  *       `[ NORMAL ]  1-4 Snap • h/l Lane • k Rotate • j/Enter Drop • q/Esc Cancel`
   *   - Lock flash (100ms), line dissolve (200ms), and GAME OVER confirmation window
   */
 object PowerMenu:
@@ -25,7 +26,8 @@ object PowerMenu:
   enum Lane(val label: String, val glyph: String, val index: Int):
     case Reboot   extends Lane("REBOOT", "↻", 0)
     case Shutdown extends Lane("SHUTDOWN", "⏻", 1)
-    case Suspend  extends Lane("LOCK + SUSPEND", "☾", 2)
+    case Suspend  extends Lane("SUSPEND", "☾", 2)
+    case Lock     extends Lane("LOCK", "⚿", 3)
 
   private val CountdownSecs = 30.0
 
@@ -34,6 +36,7 @@ object PowerMenu:
     case Lane.Reboot   => Seq(Seq("systemctl", "reboot"))
     case Lane.Shutdown => Seq(Seq("systemctl", "poweroff"))
     case Lane.Suspend  => Seq(Seq("swaylock", "-f"), Seq("systemctl", "suspend"))
+    case Lane.Lock     => Seq(Seq("polyomino-rubik-lock"))
 
   def run(ctx: Context, args: List[String]): Either[PolyominoError, Unit] =
     if args.contains("--help") || args.contains("-h") then
@@ -193,6 +196,17 @@ object PowerMenu:
           else
             try os.proc(cmd).call(check = false, stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit)
             catch case NonFatal(_) => ()
+      case Lane.Lock =>
+        val rubik = os.home / ".local" / "bin" / "polyomino-rubik-lock"
+        if os.exists(rubik) then
+          try os.proc(rubik.toString).call(check = false, stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit)
+          catch case NonFatal(_) => ()
+        else if commandExists("swaylock") then
+          try os.proc("swaylock", "-f").call(check = false, stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit)
+          catch case NonFatal(_) => ()
+        else
+          try os.proc("swaymsg", "exit").call(check = false, stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit)
+          catch case NonFatal(_) => ()
       case _ =>
         for cmd <- actionFor(lane) do
           try os.proc(cmd).call(check = false, stdin = os.Inherit, stdout = os.Inherit, stderr = os.Inherit)
@@ -338,7 +352,7 @@ object PowerMenu:
       val idx = rnd.nextInt(Tetrominoes.length)
       val initialShape = Tetrominoes(idx)
 
-      // Start centered in Lane 1 (Shutdown center lane)
+      // Start centered in Lane 1 (Shutdown center-left lane)
       val initX = 1 * g.laneCells + math.max(0, (g.laneCells - initialShape.head.length) / 2)
 
       val rows = g.rowsInner
@@ -397,7 +411,7 @@ object PowerMenu:
       )
 
   private final case class Geom(cols: Int, rows: Int):
-    val cardW      = math.min(cols, 74)
+    val cardW      = math.min(cols, 76)
     val cardH      = math.min(rows, 22)
     val cardLeft   = math.max(0, (cols - cardW) / 2)
     val cardRight  = cardLeft + cardW - 1
@@ -405,8 +419,8 @@ object PowerMenu:
     val cardBottom = cardTop + cardH - 1
 
     val laneCells = 4
-    val wellCols  = laneCells * 3 // 12 cells across 3 dedicated action chutes
-    val innerW    = wellCols * CellW // 24 chars
+    val wellCols  = laneCells * 4 // 16 cells across 4 dedicated action chutes
+    val innerW    = wellCols * CellW // 32 chars
     val wellLeft  = cardLeft + math.max(1, (cardW - (innerW + 2)) / 2)
     val wellRight = wellLeft + innerW + 1
 
@@ -424,9 +438,7 @@ object PowerMenu:
 
     def laneForCol(cx: Int, pieceW: Int): Int =
       val center = cx + pieceW / 2
-      if center < laneCells then 0
-      else if center < laneCells * 2 then 1
-      else 2
+      math.max(0, math.min(3, center / laneCells))
 
   // ── input parser ──────────────────────────────────────────────────────────
 
@@ -480,6 +492,7 @@ object PowerMenu:
               case '2'                       => out += Input.JumpLane(1)
               case 'p' | 'P'                 => out += Input.JumpLane(1)
               case '3'                       => out += Input.JumpLane(2)
+              case '4'                       => out += Input.JumpLane(3)
               case 'q' | 'Q'                 => out += Input.Cancel
               case _                         => ()
             buf = buf.tail
@@ -513,6 +526,7 @@ object PowerMenu:
       case Lane.Reboot   => accentAmber
       case Lane.Shutdown => accentRed
       case Lane.Suspend  => accentViolet
+      case Lane.Lock     => accentCyan
 
   private object Theme:
     private type Rgb = (Int, Int, Int)
@@ -535,7 +549,7 @@ object PowerMenu:
       val amberRgb  = (245, 158, 11)   // Warm Amber (#f59e0b)
       val redRgb    = rgb(p.red, (239, 68, 68)) // Carmine Red (#ef4444)
       val violetRgb = rgb(p.mauve, (139, 92, 246)) // Deep Violet (#8b5cf6)
-      val cyanRgb   = rgb(p.teal, (56, 189, 248)) // Cyan (#38bdf8)
+      val cyanRgb   = (6, 182, 212)    // Vivid Cyan (#06b6d4)
       val gridRgb   = (40, 45, 65)     // rgba(255, 255, 255, 0.04)
       val divRgb    = (55, 50, 85)     // rgba(139, 92, 246, 0.2)
 
@@ -622,9 +636,9 @@ object PowerMenu:
           buf.put(g.cellX(k), cy, "┼─", th.grid)
         cy += 1
 
-      // 5. Solid 1px Vertical Guide Rails separating the 3 Action Chutes
+      // 5. Solid 1px Vertical Guide Rails separating the 4 Action Chutes
       val pileTopY = g.interiorBottomY - st.stackMaxRows * CellH
-      for k <- 1 to 2 do
+      for k <- 1 to 3 do
         val dx  = g.cellX(k * g.laneCells)
         val hot = k == curLane || k == curLane + 1
         var y   = g.wellTop + 1
@@ -667,7 +681,7 @@ object PowerMenu:
 
       // 11. Pinned Bottom Footer Strip
       val normalBadge = "[ NORMAL ]"
-      val helpText = "h/l (←/→) Lane • k (↑) Rotate • j/Enter Drop • q/Esc Cancel"
+      val helpText = "1-4 Snap • h/l Lane • k Rotate • j/Enter Drop • q/Esc Cancel"
       buf.put(g.cardLeft + 2, g.cardBottom - 1, normalBadge, th.accentCyan)
       buf.put(g.cardLeft + 2 + normalBadge.length + 2, g.cardBottom - 1, helpText, th.help)
 
@@ -697,7 +711,7 @@ object PowerMenu:
 
     private def drawLanes(buf: Buf, g: Geom, th: Theme, laneIdx: Int): Unit =
       // Dynamic Landing Target Wells directly under each chute
-      for i <- 0 to 2 do
+      for i <- 0 to 3 do
         val sel      = i == laneIdx
         val w        = g.laneCells * CellW - 2
         val lane     = Lane.values(i)
@@ -705,14 +719,14 @@ object PowerMenu:
         buf.put(g.laneCenterX(i) - w / 2, g.wellBottom + 1,
                 (if sel then "▀" else "─") * w, padColor)
 
-      // Spaced Landing Target Well Badges with Glow Highlight
-      val third = math.max(1, (g.cardW - 4) / 3)
-      for i <- 0 to 2 do
+      // 4 Spaced Landing Target Well Badges with Glow Highlight
+      val quarter = math.max(1, (g.cardW - 4) / 4)
+      for i <- 0 to 3 do
         val lane  = Lane.values(i)
         val sel   = i == laneIdx
-        val label = s"[ ${lane.glyph} ${lane.label} ]"
+        val label = s"[ ${i + 1}: ${lane.glyph} ${lane.label} ]"
         val color = if sel then th.laneColor(lane) else th.dim
-        val cx    = g.cardLeft + 2 + third * i + third / 2
+        val cx    = g.cardLeft + 2 + quarter * i + quarter / 2
         val lx    = math.max(g.cardLeft + 2, math.min(g.cardRight - label.length - 1, cx - label.length / 2))
         buf.put(lx, g.wellBottom + 2, label, color)
 
@@ -792,16 +806,17 @@ object PowerMenu:
   private val HelpText: String =
     """polyomino power-menu — Bento-card Tetris workstation power/exit modal.
       |
-      |A tetromino descends down a 12-column matrix with 3 dedicated action chutes:
-      |  Lane 1 (left)    reboot             (systemctl reboot)
-      |  Lane 2 (center)  shutdown [default] (systemctl poweroff)
-      |  Lane 3 (right)   lock + suspend     (swaylock -f ; systemctl suspend)
+      |A tetromino descends down a 16-column matrix with 4 dedicated action chutes:
+      |  Lane 1 (1)    reboot             (systemctl reboot)
+      |  Lane 2 (2)    shutdown [default] (systemctl poweroff)
+      |  Lane 3 (3)    suspend            (swaylock -f ; systemctl suspend)
+      |  Lane 4 (4)    lock               (polyomino-rubik-lock / swaylock -f / swaymsg exit)
       |
       |Controls:
       |  left/right or h/l/a/d   move piece across chutes
       |  up or k / w             rotate tetromino clockwise
       |  down or s               soft drop
-      |  1 / 2 / 3               direct chute snap (reboot, shutdown, lock+suspend)
+      |  1 / 2 / 3 / 4           direct chute snap (reboot, shutdown, suspend, lock)
       |  enter / space / j       hard drop into chosen chute & confirm
       |  esc / q                 cancel, run nothing
       |
