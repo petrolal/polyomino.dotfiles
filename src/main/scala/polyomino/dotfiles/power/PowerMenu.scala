@@ -279,8 +279,8 @@ object PowerMenu:
   private def termSize(): (Int, Int) =
     try
       val parts = os.proc("stty", "size").call(stdin = os.Inherit, stderr = os.Pipe).out.trim().split("\\s+")
-      (math.max(48, parts(1).toInt), math.max(20, parts(0).toInt))
-    catch case NonFatal(_) => (80, 24)
+      (math.max(80, parts(1).toInt), math.max(36, parts(0).toInt))
+    catch case NonFatal(_) => (80, 36)
 
   private def commandExists(cmd: String): Boolean =
     try os.proc("which", cmd).call(check = false).exitCode == 0
@@ -411,8 +411,8 @@ object PowerMenu:
       )
 
   private final case class Geom(cols: Int, rows: Int):
-    val cardW      = math.min(cols, 76)
-    val cardH      = math.min(rows, 22)
+    val cardW      = math.min(cols, 78)
+    val cardH      = math.min(rows, math.max(24, rows - 2))
     val cardLeft   = math.max(0, (cols - cardW) / 2)
     val cardRight  = cardLeft + cardW - 1
     val cardTop    = math.max(0, (rows - cardH) / 2)
@@ -425,7 +425,7 @@ object PowerMenu:
     val wellRight = wellLeft + innerW + 1
 
     val wellTop         = cardTop + 3
-    val wellBottom      = cardBottom - 5
+    val wellBottom      = math.max(wellTop + 8, cardBottom - 6)
     val interiorTopY    = wellTop + 1
     val interiorBottomY = wellBottom - 1
     val rowsInner       = interiorBottomY - interiorTopY + 1
@@ -728,7 +728,7 @@ object PowerMenu:
         val color = if sel then th.laneColor(lane) else th.dim
         val cx    = g.cardLeft + 2 + quarter * i + quarter / 2
         val lx    = math.max(g.cardLeft + 2, math.min(g.cardRight - label.length - 1, cx - label.length / 2))
-        buf.put(lx, g.wellBottom + 2, label, color)
+        buf.put(lx, g.wellBottom + 3, label, color)
 
     private def drawGameOverModal(buf: Buf, g: Geom, th: Theme, lane: Lane, leftSec: Double): Unit =
       val modalW = 38
