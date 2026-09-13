@@ -96,7 +96,7 @@ class InstallSuite extends FunSuite:
 
   test("ToolInstallers.detectKnownSubcommands contains expected tasks"):
     val tasks = Seq(
-      "install-deps", "install-brew", "install-gh", "install-coursier",
+      "install-deps", "install-brew", "install-gh",
       "install-fonts", "install-apps", "install-sway", "install-swayfx", "install-swaync",
       "install-browser", "install-devops", "install-telegram", "install-zsh",
       "install-sdkman", "install-node", "install-npm", "install-npx", "install-nvm", "install-tools",

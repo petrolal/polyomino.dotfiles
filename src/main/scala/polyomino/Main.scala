@@ -109,7 +109,6 @@ object Main:
       |  install-gaming   install gaming dependencies & tools (gamemode/gamescope/mangohud/etc.)
       |  install-brew     install Homebrew package manager
       |  install-gh       install GitHub CLI (gh)
-      |  install-coursier install Coursier (cs) Scala application manager
       |  install-fonts    install the JetBrainsMono Nerd Font
       |  install-apps     install core desktop apps (sway/waybar/kitty/etc.)
       |  install-swaync   install SwayNC notification daemon & control center

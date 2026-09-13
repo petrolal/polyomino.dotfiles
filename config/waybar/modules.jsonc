@@ -117,13 +117,13 @@
   // waybar-network
   "network": {
     "interval": 5,
-    "format-wifi": " {essid}",
-    "format-ethernet": "󰩠 {ipaddr}/{cidr}",
+    "format-wifi": "󰩠",
+    "format-ethernet": "󰩠",
     "format-linked": "󰩠 {ifname} (No IP)",
     "format-disconnected": " Disconnected",
     "format-disabled": "󰈂 Disabled",
     "format-alt": " {bandwidthUpBits} |  {bandwidthDownBits}",
-    "tooltip-format": " {ifname} via {gwaddr}",
+    "tooltip-format": "{ifname}: {ipaddr}/{cidr}",
     "on-click-right": "~/.config/sway/scripts/rofi_network",
   },
   // waybar-pulseaudio

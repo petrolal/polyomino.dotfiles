@@ -26,7 +26,7 @@ Complete guide to all polyomino.dotfiles documentation.
 - Install from source
 
 **Publishing to Maven Central:** [PUBLISHING.md](PUBLISHING.md)
-- Setup Sonatype account
+- Build GraalVM native binary
 - Configure GPG keys
 - Manual publishing commands
 - CI/CD integration
@@ -183,10 +183,10 @@ Scala-based CLI handles full setup:
 See [MANUAL_PUBLISHING.md](MANUAL_PUBLISHING.md)
 
 ```bash
-export SONATYPE_USERNAME="..."
-export SONATYPE_PASSWORD="..."
+export 
+export 
 export PGP_PASSPHRASE="..."
-sbt +publishSigned sonatypeBundleRelease
+sbt nativeImage
 ```
 
 ## Development Workflow

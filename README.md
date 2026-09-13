@@ -78,10 +78,10 @@ curl -fsSL https://raw.githubusercontent.com/petrolal/polyomino.dotfiles/master/
 > 1. **Clones / Updates Repository:** Fetches `polyomino.dotfiles` into `~/polyomino.dotfiles`.
 > 2. **Executes `bootstrap.sh`:**
 >    - Installs core desktop & system packages (`sway`/`swayfx`, `kitty`, `wofi`, `waybar`, `swaync`, `zoxide`, `fastfetch`, `zsh`, `neovim`).
->    - Provisions **SDKMAN!**, **Java 21 (GraalVM)**, **SBT**, and **Coursier (`cs`)**.
+>    - Provisions **SDKMAN!**, **Java 21 (GraalVM)**, and **SBT**.
 >    - Creates the **`~/Projects`** workspace directory.
 >    - Clones **`git@github.com:petrolal/tetravim.nvim.git`** into `~/tetravim.nvim` and links it to `~/.config/nvim`.
-> 3. **Compiles Native Binary:** Builds the standalone GraalVM native binary (`sbt nativeImage`) and places `polyomino` in `~/.local/bin/`.
+> 3. **Installs Native Binary:** Installs the standalone GraalVM native binary in `~/.local/bin/polyomino` (instant ~10ms execution time).
 > 4. **Deploys Configurations:** Runs `polyomino install` to deploy all symlinks, render active theme colors/tokens, and configure Sway shortcuts.
 
 ---
@@ -100,19 +100,17 @@ cd ~/polyomino.dotfiles
 
 ---
 
-### Case 3: 3-Stage Modular Installation (Maven Central / Coursier)
+### Case 3: Standalone Pre-built Native Binary (GitHub Releases)
 
-For environments where you prefer running individual stages manually:
+Download and install the standalone Linux x86_64 native binary directly without needing Java or sbt:
 
 ```bash
-# Stage 1: Bootstrap system packages, Java, SBT, zoxide, and Tetravim
-bash <(curl -fsSL https://raw.githubusercontent.com/petrolal/polyomino.dotfiles/master/bootstrap.sh)
+mkdir -p ~/.local/bin
+curl -fsSL https://github.com/petrolal/polyomino.dotfiles/releases/latest/download/polyomino-x86_64-linux -o ~/.local/bin/polyomino
+chmod +x ~/.local/bin/polyomino
 
-# Stage 2: Download polyomino binary directly from Maven Central
-cs bootstrap io.github.petrolal::polyomino -o ~/.local/bin/polyomino
-
-# Stage 3: Deploy dotfiles, symlinks, and run healthcheck
-polyomino install
+# Deploy dotfiles and symlinks
+polyomino deploy
 ```
 
 ---

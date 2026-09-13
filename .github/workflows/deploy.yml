@@ -1,4 +1,4 @@
-name: SBT Build, Test & Deploy
+name: Build & Release Native Binary
 
 on:
   push:
@@ -12,9 +12,12 @@ on:
         required: false
         type: string
 
+permissions:
+  contents: write
+
 jobs:
-  build-and-test:
-    name: Build & Test (Scala)
+  build-native:
+    name: Build GraalVM Native Image (Linux x86_64)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -22,7 +25,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup JDK 21
+      - name: Setup GraalVM JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: 'graalvm-community'
@@ -31,7 +34,8 @@ jobs:
       - name: Setup sbt
         uses: sbt/setup-sbt@v1
 
-      - name: Extract version from git tag
+      - name: Extract Version
+        id: version
         run: |
           if [ -n "${{ github.event.inputs.version }}" ]; then
             VERSION="${{ github.event.inputs.version }}"
@@ -41,133 +45,56 @@ jobs:
           else
             VERSION="0.1.0-SNAPSHOT"
           fi
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "CI_VERSION=$VERSION" >> $GITHUB_ENV
           echo "Building version: $VERSION"
 
-      - name: Cache sbt dependencies
+      - name: Cache sbt & native-image cache
         uses: actions/cache@v4
         with:
           path: |
             ~/.sbt
             ~/.ivy2/cache
-          key: ${{ runner.os }}-sbt-${{ hashFiles('**/build.sbt', '**/project/**') }}
+            ~/.cache/native-image
+          key: ${{ runner.os }}-sbt-graalvm-${{ hashFiles('**/build.sbt', '**/project/**') }}
           restore-keys: |
-            ${{ runner.os }}-sbt-
+            ${{ runner.os }}-sbt-graalvm-
 
-      - name: Run sbt Compile & Tests
+      - name: Run Tests
+        run: sbt test
+
+      - name: Build Native Binary
+        run: sbt nativeImage
+
+      - name: Prepare Release Artifacts
         run: |
-          if [ -f "engine/build.sbt" ] && [ ! -f "build.sbt" ]; then
-            cd engine
-          fi
-          sbt compile test
+          mkdir -p dist
+          cp target/native-image/polyomino dist/polyomino-x86_64-linux
+          chmod +x dist/polyomino-x86_64-linux
 
-  publish-maven-central:
-    name: Publish to Maven Central
-    needs: build-and-test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+          # Create standalone tarball distribution
+          mkdir -p dist/bundle/bin
+          cp target/native-image/polyomino dist/bundle/bin/polyomino
+          cp -r config zsh themes bootstrap.sh dist/bundle/ 2>/dev/null || true
+          tar -czf dist/polyomino-v${{ steps.version.outputs.VERSION }}-x86_64-linux.tar.gz -C dist/bundle .
 
-      - name: Setup JDK 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'graalvm-community'
-          java-version: '21'
-
-      - name: Setup sbt
-        uses: sbt/setup-sbt@v1
-
-      - name: Cache sbt dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.sbt
-            ~/.ivy2/cache
-          key: ${{ runner.os }}-sbt-${{ hashFiles('**/build.sbt', '**/project/**') }}
-          restore-keys: |
-            ${{ runner.os }}-sbt-
-
-      - name: Prepare Signing Key
-        env:
-          RAW_KEY: ${{ secrets.PGP_SECRET || secrets.SIGNING_KEY }}
-        run: |
-          if [ -z "$RAW_KEY" ]; then
-            echo "::error::PGP_SECRET / SIGNING_KEY secret is missing!"
-            exit 1
-          fi
-
-          if echo "$RAW_KEY" | grep -q "BEGIN PGP PRIVATE KEY BLOCK"; then
-            KEY="$RAW_KEY"
-          else
-            DECODED=$(echo "$RAW_KEY" | base64 -d 2>/dev/null || true)
-            if echo "$DECODED" | grep -q "BEGIN PGP PRIVATE KEY BLOCK"; then
-              KEY="$DECODED"
-            else
-              KEY="$RAW_KEY"
-            fi
-          fi
-
-          KEY=$(echo "$KEY" | sed 's/\\n/\n/g')
-          # sbt-ci-release expects PGP_SECRET to be a base64-encoded string without line breaks
-          B64_KEY=$(printf '%s' "$KEY" | base64 -w 0)
-          echo "BASE64_PGP_SECRET=$B64_KEY" >> $GITHUB_ENV
-
-      - name: Publish to Maven Central
-        run: |
-          if [ -f "engine/build.sbt" ] && [ ! -f "build.sbt" ]; then
-            cd engine
-          fi
-          if [ -n "${{ github.event.inputs.version }}" ]; then
-            VERSION="${{ github.event.inputs.version }}"
-          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            TAG_NAME="${GITHUB_REF_NAME}"
-            VERSION="${TAG_NAME#v}"
-          else
-            VERSION="0.1.0-SNAPSHOT"
-          fi
-          echo "Publishing version: $VERSION"
-          export CI_VERSION="$VERSION"
-          sbt ci-release
-        env:
-          PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE || secrets.SIGNING_PASSWORD }}
-          PGP_SECRET: ${{ env.BASE64_PGP_SECRET }}
-          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME || secrets.MAVEN_CENTRAL_USERNAME }}
-          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD || secrets.MAVEN_CENTRAL_PASSWORD }}
-
-  create-release:
-    name: Create GitHub Release
-    needs: publish-maven-central
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Extract Tag Name
-        id: tag
-        run: |
-          if [ -n "${{ github.event.inputs.version }}" ]; then
-            VERSION="${{ github.event.inputs.version }}"
-            TAG_NAME="v${VERSION#v}"
-          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            TAG_NAME="${GITHUB_REF_NAME}"
-          else
-            TAG_NAME="v0.1.0"
-          fi
-          echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_OUTPUT
+          # Generate SHA256 checksums
+          cd dist
+          sha256sum polyomino-x86_64-linux polyomino-v${{ steps.version.outputs.VERSION }}-x86_64-linux.tar.gz > SHA256SUMS.txt
+          cd ..
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         with:
-          tag_name: ${{ steps.tag.outputs.TAG_NAME }}
-          name: Release ${{ steps.tag.outputs.TAG_NAME }}
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('v{0}', steps.version.outputs.VERSION) }}
+          name: Release ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('v{0}', steps.version.outputs.VERSION) }}
           generate_release_notes: true
           draft: false
           prerelease: false
+          files: |
+            dist/polyomino-x86_64-linux
+            dist/polyomino-v${{ steps.version.outputs.VERSION }}-x86_64-linux.tar.gz
+            dist/SHA256SUMS.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -55,20 +55,20 @@ package() {
   cd "${pkgname}"
 
   # Install main binary
-  install -Dm755 "target/native-image/polyomino" "${pkgdir}/usr/local/bin/polyomino"
+  install -Dm755 "target/native-image/polyomino" "${pkgdir}/usr/bin/polyomino"
 
   # Create subcommand symlinks
   local subcommands=(
-    theme runtime-refresh os-colorscheme lock idle screenshot autotiling
+    theme runtime-refresh os-colorscheme lock preview-lock rubik-lock idle screenshot draw-window sway-draw-window autotiling
     healthcheck backup restore update sdd install deploy install-deps
-    install-brew install-homebrew install-gh install-github-cli install-coursier install-cs
+    install-brew install-homebrew install-gh install-github-cli
     install-fonts install-apps install-browser install-devops install-zsh
     install-sdkman install-nvim install-nvim-deps install-neovim install-tools install-spotify install-spotify-player install-fastfetch full-install
-    theme-picker whichkey
+    theme-picker theme-cycle wallpaper wallpaper-picker whichkey menu power-menu powermenu welcome gamemode
   )
 
   for cmd in "${subcommands[@]}"; do
-    ln -s "/usr/local/bin/polyomino" "${pkgdir}/usr/local/bin/polyomino-${cmd}"
+    ln -s "/usr/bin/polyomino" "${pkgdir}/usr/bin/polyomino-${cmd}"
   done
 
   # Install dotfiles config directory

@@ -862,7 +862,6 @@ object ToolInstallers:
 
     for
       _ <- installSystemDeps(ctx)
-      _ <- installCoursier(ctx)
       _ <- installApps(ctx)
       _ <- installSwayfx(ctx)
       _ <- installSwaync(ctx)

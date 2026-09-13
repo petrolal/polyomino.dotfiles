@@ -335,35 +335,40 @@ install_java() {
   fi
 }
 
-install_coursier() {
-  if command -v cs &> /dev/null; then
-    echo -e "  \033[32m[OK]\033[0m Coursier already installed"
-    cs --version 2>/dev/null || true
-    return
-  fi
-
-  echo -e "  \033[1;36m[polyomino]\033[0m Installing Coursier..."
-
+install_polyomino_binary() {
+  echo -e "  \033[1;36m[polyomino]\033[0m Installing polyomino native binary..."
   mkdir -p "$BIN_DIR"
 
-  case "$(uname -s)" in
-    Linux)
-      COURSIER_FILE="cs-x86_64-pc-linux.gz"
-      ;;
-    Darwin)
-      COURSIER_FILE="cs-x86_64-apple-darwin.gz"
-      ;;
-    *)
-      echo -e "  \033[33m[NOTE]\033[0m Unsupported platform for Coursier installation"
-      return 1
-      ;;
-  esac
+  # 1. If local native binary exists, install it
+  if [ -f "$SCRIPT_DIR/target/native-image/polyomino" ]; then
+    cp "$SCRIPT_DIR/target/native-image/polyomino" "$BIN_DIR/polyomino"
+    chmod +x "$BIN_DIR/polyomino"
+    echo -e "  \033[32m[OK]\033[0m Installed local native binary to $BIN_DIR/polyomino"
+  elif command -v sbt &>/dev/null && [ -f "$SCRIPT_DIR/build.sbt" ]; then
+    echo -e "  \033[36m[INFO]\033[0m Compiling standalone GraalVM native binary..."
+    (cd "$SCRIPT_DIR" && sbt nativeImage) || true
+    if [ -f "$SCRIPT_DIR/target/native-image/polyomino" ]; then
+      cp "$SCRIPT_DIR/target/native-image/polyomino" "$BIN_DIR/polyomino"
+      chmod +x "$BIN_DIR/polyomino"
+      echo -e "  \033[32m[OK]\033[0m Built & installed native binary to $BIN_DIR/polyomino"
+    fi
+  fi
 
-  curl -fL "https://github.com/coursier/launchers/raw/master/$COURSIER_FILE" | gzip -d > "$BIN_DIR/cs"
-  chmod +x "$BIN_DIR/cs"
+  # 2. If not installed yet, download latest native binary from GitHub Releases
+  if [ ! -f "$BIN_DIR/polyomino" ]; then
+    echo -e "  \033[36m[INFO]\033[0m Fetching latest native binary release from GitHub..."
+    if curl -fL "https://github.com/petrolal/polyomino.dotfiles/releases/latest/download/polyomino-x86_64-linux" -o "$BIN_DIR/polyomino" 2>/dev/null; then
+      chmod +x "$BIN_DIR/polyomino"
+      echo -e "  \033[32m[OK]\033[0m Downloaded polyomino native binary to $BIN_DIR/polyomino"
+    else
+      echo -e "  \033[33m[NOTE]\033[0m Could not download binary directly (run 'sbt nativeImage' to compile locally)"
+    fi
+  fi
 
-  echo -e "  \033[32m[OK]\033[0m Coursier installed to $BIN_DIR/cs"
-  "$BIN_DIR/cs" update 2>/dev/null || true
+  # 3. Create helper symlinks if binary is present
+  if [ -x "$BIN_DIR/polyomino" ]; then
+    "$BIN_DIR/polyomino" deploy 2>/dev/null || true
+  fi
 }
 
 install_tools() {
@@ -644,8 +649,8 @@ fi
 install_java
 echo ""
 
-# Install Coursier
-install_coursier
+# Install polyomino native binary & create helper symlinks
+install_polyomino_binary
 echo ""
 
 # Ensure PATH is set
@@ -656,17 +661,14 @@ echo ""
 echo -e "\033[1;32m[SUCCESS]\033[0m Bootstrap complete!"
 echo ""
 echo -e "\033[1;36m[Next Steps]\033[0m"
-echo -e "  1. Install polyomino from Maven Central:"
-echo -e "     \033[33mcs bootstrap io.github.petrolal::polyomino:0.1.0 -o ~/.local/bin/polyomino\033[0m"
-echo ""
-echo -e "  2. Run the interactive installer:"
+echo -e "  1. Run the interactive installer:"
 echo -e "     \033[33mpolyomino install\033[0m"
 echo ""
-echo -e "  3. Optional: Install or toggle gaming optimization:"
+echo -e "  2. Optional: Install or toggle gaming optimization:"
 echo -e "     \033[33mpolyomino install-gaming\033[0m    (install GameMode, Gamescope, MangoHud)"
 echo -e "     \033[33mpolyomino gamemode toggle\033[0m   (toggle Game Mode ON/OFF live)"
 echo ""
-echo -e "  4. Follow the interactive prompts to:"
+echo -e "  3. Follow the interactive prompts to:"
 echo -e "     - Choose your preferred tools and versions"
 echo -e "     - Deploy dotfiles and symlinks"
 echo -e "     - Run system health check"

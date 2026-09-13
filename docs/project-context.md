@@ -43,10 +43,10 @@ organization := "io.github.petrolal"
 version := "0.1.0"
 Compile / mainClass := Some("polyomino.Main")
 
-// Maven Central publishing via Sonatype Central Portal
-publishMavenStyle := true
-sonatypeCredentialHost := "s01.oss.sonatype.org"
-sonatypeRepository := "https://s01.oss.sonatype.org/service/local"
+// GitHub Releases via GraalVM Native Image
+
+
+
 
 // Native image configuration
 nativeImageOptions ++= Seq(
@@ -55,7 +55,7 @@ nativeImageOptions ++= Seq(
   "--enable-preview"
 )
 
-// Fat JAR assembly for Maven Central
+// Fat JAR assembly (local dev / assembly)
 assembly / assemblyJarName := s"${name.value}-${version.value}-assembly.jar"
 assembly / mainClass := Some("polyomino.Main")
 
@@ -151,7 +151,7 @@ polyomino.dotfiles/
 └── docs/
     ├── DOCUMENTATION.md                    # Documentation index
     ├── INSTALLATION_FLOW.md                # 3-stage installation workflow
-    ├── PUBLISHING.md                       # Maven Central & AUR publishing
+    ├── PUBLISHING.md                       # GitHub Releases & AUR publishing
     ├── SDKMAN_MAINTENANCE.md               # JVM tool management
     ├── migration-rust-to-scala.md          # Rust → Scala migration notes
     └── project-context.md                  # This file
@@ -186,7 +186,7 @@ polyomino.dotfiles/
 | `polyomino install-deps` | Install system & build dependencies (sbt, gcc, git, etc.) |
 | `polyomino install-brew` | Install Homebrew package manager |
 | `polyomino install-gh` | Install GitHub CLI (`gh`) |
-| `polyomino install-coursier` | Install Coursier (`cs`) Scala application launcher |
+
 | `polyomino install-fonts` | Download and install JetBrainsMono Nerd Font |
 | `polyomino install-apps` | Install core desktop apps (sway, waybar, kitty, etc.) |
 | `polyomino install-browser` | Install web browser (chromium/firefox) |
@@ -265,8 +265,8 @@ Format error with ANSI colors or exit cleanly
 
 ### Binary Size
 - Typical native image size: 40–60 MB
-- Fat JAR for Maven Central: ~15–20 MB (all Scala stdlib included)
-- Coursier installation: Downloads JAR from Maven Central, creates launch script wrapper
+- Standalone native binary: ~20-35 MB (GraalVM native image, zero JVM startup)
+- 
 
 ---
 
@@ -290,7 +290,7 @@ All modules have corresponding unit test suites in `src/test/scala/polyomino/`:
 
 ## Publishing & Distribution
 
-### Maven Central
+### GitHub Releases (Native Binary)
 - Published via Sonatype Central Portal
 - Coordinates: `io.github.petrolal:polyomino:0.1.0`
 - Artifact types:
@@ -299,9 +299,9 @@ All modules have corresponding unit test suites in `src/test/scala/polyomino/`:
   - Native image: Built via GitHub Actions, attached to GitHub Releases
 
 ### Installation Methods
-1. **From Maven Central (Recommended)**:
+1. **Pre-built native binary (Recommended)**:
    ```bash
-   cs bootstrap io.github.petrolal::polyomino:0.1.0 -o ~/.local/bin/polyomino
+   curl -fsSL https://github.com/petrolal/polyomino.dotfiles/releases/latest/download/polyomino-x86_64-linux -o ~/.local/bin/polyomino
    ```
 
 2. **From GitHub Releases (Native Binary)**:
@@ -332,7 +332,7 @@ All modules have corresponding unit test suites in `src/test/scala/polyomino/`:
 - **Zero reflection**: `uPickle` and `mainargs` macros avoid GraalVM config burden
 - **Functional style**: `Either[E, A]` enables clean error propagation
 - **Ecosystem**: `os-lib` provides batteries-included Unix I/O
-- **Compatibility**: Maven Central + Coursier enables easy distribution
+- **Distribution**: GitHub Releases native binary + AUR (no JVM required)
 
 ### 2. Why Not Scala.js or JVM?
 - **Startup latency**: JVM warm-up would violate 50ms target
@@ -373,7 +373,7 @@ All modules have corresponding unit test suites in `src/test/scala/polyomino/`:
 - **Sway Configuration**: https://man.archlinux.org/man/sway.5.en
 - **XDG Base Directory Specification**: https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
 - **GitHub Repository**: https://github.com/petrolal/polyomino.dotfiles
-- **Maven Central**: https://search.maven.org/search?q=io.github.petrolal:polyomino
+  - **GitHub Releases**: https://github.com/petrolal/polyomino.dotfiles/releases
 
 ---
 
