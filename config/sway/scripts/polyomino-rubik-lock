@@ -298,6 +298,19 @@ SLICE_MAPPINGS = {
 }
 
 # ---------------------------------------------------------------------------
+# Ambient Idle Screensaver Tuning
+# ---------------------------------------------------------------------------
+IDLE_TIMEOUT_SECONDS = 3.0        # no keypress/motion for this long -> ambient mode
+AMBIENT_YAW_SPEED = 0.18          # rad/s continuous isometric yaw drift
+AMBIENT_PITCH_AMPLITUDE = 0.18    # rad, gentle pitch sway around the base angle
+AMBIENT_PITCH_SPEED = 0.35
+AMBIENT_BREATH_AMPLITUDE = 0.15   # scale(0.85) .. scale(1.15) "breathing"
+AMBIENT_BREATH_SPEED = 0.6
+AMBIENT_SHUFFLE_MIN = 1.5         # seconds between ambient slice shuffles
+AMBIENT_SHUFFLE_MAX = 2.0
+WAKE_DURATION = 0.25              # ease-out snap back to canonical camera
+
+# ---------------------------------------------------------------------------
 # 3D Math & Cubic-Bezier Easing
 # ---------------------------------------------------------------------------
 def mat_mul_vec(m, v):
@@ -484,10 +497,23 @@ class RubikEngine:
         self.flash_time = 0.0
         self.flash_color = COLOR_ACTIVE_GOLD
 
+        # Ambient idle-screensaver state
+        self.screensaver = False
+        self.ambient_time = 0.0
+        self.ambient_scale = 1.0
+        self.ambient_shuffle_timer = 0.0
+        self.waking = False
+        self.wake_elapsed = 0.0
+        self.wake_start_yaw = self.base_yaw
+        self.wake_start_pitch = self.base_pitch
+        self.wake_start_scale = 1.0
+
     def is_animating(self):
         """True while any camera/cube/feedback motion is still in flight.
         Lets the app skip the (expensive) redraw entirely once the scene is
         fully at rest, instead of re-rendering an unchanged frame 60x/sec."""
+        if self.screensaver or self.waking:
+            return True
         if self.is_checking or self.active_turn or self.turn_queue:
             return True
         if self.shake_time > 0.0 or self.flash_time > 0.0 or self.error_pulse_time > 0.0:
@@ -498,6 +524,57 @@ class RubikEngine:
         if abs(yaw_diff) > 1e-4:
             return True
         return False
+
+    def enter_screensaver(self):
+        """Idle timeout fired: take the cube over for the ambient loop.
+
+        Resets the permutation/password buffer to a clean solved cube —
+        the ambient rotation/shuffle is a self-contained loop independent of
+        whatever was mid-typed, and the wake transition hands a freshly
+        solved cube back to password entry anyway.
+        """
+        if self.screensaver or self.waking or self.is_checking:
+            return
+        self.screensaver = True
+        self.ambient_time = 0.0
+        self.ambient_shuffle_timer = random.uniform(AMBIENT_SHUFFLE_MIN, AMBIENT_SHUFFLE_MAX)
+        self.password = ""
+        self.move_history = []
+        self.turn_queue = []
+        self.active_turn = None
+        for c in self.cubies:
+            c.pos = c.orig_pos
+            c.rot = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+
+    def begin_wake(self):
+        """Any keypress/motion during the screensaver: halt shuffling, snap
+        the permutation back to solved, and ease the camera back to the
+        canonical isometric origin over WAKE_DURATION before handing off to
+        normal password entry."""
+        if not self.screensaver:
+            return
+        self.screensaver = False
+        self.waking = True
+        self.wake_elapsed = 0.0
+        self.wake_start_yaw = self.yaw
+        self.wake_start_pitch = self.pitch
+        self.wake_start_scale = self.ambient_scale
+
+        self.turn_queue = []
+        self.active_turn = None
+        for c in self.cubies:
+            c.pos = c.orig_pos
+            c.rot = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+
+        # Fast "solve" flourish in Teal Light, mirroring clear_password's
+        # shockwave feedback so the wake reads as an intentional reset.
+        self.flash_color = COLOR_CLEAR_CYAN
+        self.flash_time = 0.25
+        slices = ['U', 'D', 'L', 'R', 'F', 'B']
+        for _ in range(2):
+            s = random.choice(slices)
+            cw = random.choice([True, False])
+            self.turn_queue.append(ActiveSliceTurn(s, cw, duration=0.06))
 
     def twist_slice(self, slice_name, clockwise=True):
         axis, coord, thresh, dir_sign = SLICE_MAPPINGS[slice_name]
@@ -641,6 +718,7 @@ class RubikEngine:
         # state, so the shuffle turns are the only motion reading as "busy".
         if self.is_checking:
             self.checking_time += dt
+            self.ambient_scale = 1.0
             self.pitch += (self.base_pitch - self.pitch) * min(1.0, dt * 6.0)
             diff = (self.base_yaw - self.yaw + math.pi) % (2 * math.pi) - math.pi
             self.yaw += diff * min(1.0, dt * 5.0)
@@ -651,9 +729,40 @@ class RubikEngine:
                 s = random.choice(slices)
                 cw = random.choice([True, False])
                 self.active_turn = ActiveSliceTurn(s, cw, duration=0.12)
+        elif self.waking:
+            self.wake_elapsed += dt
+            t = min(1.0, self.wake_elapsed / WAKE_DURATION)
+            eased = 1.0 - (1.0 - t) ** 3  # ease-out cubic
+            diff = (self.base_yaw - self.wake_start_yaw + math.pi) % (2 * math.pi) - math.pi
+            self.yaw = self.wake_start_yaw + diff * eased
+            self.pitch = self.wake_start_pitch + (self.base_pitch - self.wake_start_pitch) * eased
+            self.ambient_scale = self.wake_start_scale + (1.0 - self.wake_start_scale) * eased
+            if t >= 1.0:
+                self.waking = False
+                self.yaw = self.base_yaw
+                self.pitch = self.base_pitch
+                self.ambient_scale = 1.0
+        elif self.screensaver:
+            self.ambient_time += dt
+            self.yaw = self.base_yaw + self.ambient_time * AMBIENT_YAW_SPEED
+            self.pitch = self.base_pitch + math.sin(self.ambient_time * AMBIENT_PITCH_SPEED) * AMBIENT_PITCH_AMPLITUDE
+            self.ambient_scale = 1.0 + math.sin(self.ambient_time * AMBIENT_BREATH_SPEED) * AMBIENT_BREATH_AMPLITUDE
+
+            self.ambient_shuffle_timer -= dt
+            if self.ambient_shuffle_timer <= 0.0:
+                self.ambient_shuffle_timer = random.uniform(AMBIENT_SHUFFLE_MIN, AMBIENT_SHUFFLE_MAX)
+                slices = ['U', 'D', 'L', 'R', 'F', 'B']
+                s = random.choice(slices)
+                cw = random.choice([True, False])
+                turn = ActiveSliceTurn(s, cw, duration=random.uniform(0.5, 0.9))
+                if self.active_turn is None:
+                    self.active_turn = turn
+                else:
+                    self.turn_queue.append(turn)
         else:
             if self.checking_time > 0.0:
                 self.checking_time = 0.0
+            self.ambient_scale = 1.0
             # Smoothly re-align pitch and yaw to base isometric perspective
             self.pitch += (self.base_pitch - self.pitch) * min(1.0, dt * 6.0)
             diff = (self.base_yaw - self.yaw + math.pi) % (2 * math.pi) - math.pi

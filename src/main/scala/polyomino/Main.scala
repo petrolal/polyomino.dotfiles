@@ -104,7 +104,7 @@ object Main:
       |  idle             run the swayidle daemon (auto-lock, dpms, suspend)
       |  screenshot       capture a screenshot (full|region|window)
       |  draw-window      interactively draw floating window geometry with slurp
-      |  power-menu       workstation power & session modal (reboot | shutdown | lock+suspend)
+      |  power-menu       workstation power & session modal (reboot | shutdown | suspend | lock)
       |  autotiling       Fibonacci spiral autotiling daemon for Sway
       |  healthcheck      read-only health check of the deployed setup
       |  backup           snapshot managed configs to a timestamped tarball
