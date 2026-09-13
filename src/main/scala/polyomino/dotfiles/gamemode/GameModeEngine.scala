@@ -34,7 +34,7 @@ object GameModeEngine:
   def printWaybarJson(ctx: Context): Unit =
     if isActive(ctx) then
       val json =
-        """{"text": "󰊴 GAME", "alt": "active", "tooltip": "Game Mode ACTIVE\n• SwayFX Blur: Disabled\n• VRR (Adaptive Sync): Enabled\n• Shortcuts Inhibitor: Enabled\n• CPU/Power: Performance\n• Screen Sleep: Inhibited", "class": "active"}"""
+        """{"text": "󰊴 GAME", "alt": "active", "tooltip": "Game Mode ACTIVE\n• SwayFX Blur: Disabled\n• VRR (Adaptive Sync): Enabled\n• CPU/Power: Performance\n• Screen Sleep: Inhibited", "class": "active"}"""
       println(json)
     else
       val json =
@@ -46,7 +46,6 @@ object GameModeEngine:
       println("\u001b[1;32m[polyomino gamemode]\u001b[0m State: \u001b[1;32mACTIVE\u001b[0m")
       println("  • Blur: Disabled")
       println("  • VRR (Adaptive Sync): Enabled")
-      println("  • Shortcuts Inhibitor: Enabled")
       println("  • Power Profile: Performance")
       println("  • Screen Sleep/Lock: Inhibited")
     else

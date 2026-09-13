@@ -46,7 +46,7 @@ install_system_deps() {
 
       sudo pacman -S --needed --noconfirm \
         base-devel git curl wget \
-        zsh fontconfig fastfetch cmatrix \
+        zsh fontconfig fastfetch cmatrix zoxide \
         $SWAY_PKG waybar kitty wofi swaylock gtklock swayidle grim slurp \
         brightnessctl libpulse playerctl wireplumber swaync mako \
         python-gobject python-cairo gtk3 gtk-layer-shell gtk-session-lock pam \
@@ -65,7 +65,7 @@ install_system_deps() {
 
       sudo apt-get install -y \
         build-essential git curl wget \
-        zsh fontconfig fastfetch cmatrix \
+        zsh fontconfig fastfetch cmatrix zoxide \
         sway waybar kitty wofi swaylock swayidle grim slurp \
         brightnessctl playerctl wireplumber pulseaudio-utils sway-notification-center mako-notifier \
         python3-gi python3-cairo gir1.2-gtk-3.0 gir1.2-gtklayershell-0.1 libpam0g-dev \
@@ -78,7 +78,7 @@ install_system_deps() {
     dnf)
       sudo dnf install -y \
         gcc gcc-c++ git curl wget \
-        zsh fontconfig fastfetch cmatrix \
+        zsh fontconfig fastfetch cmatrix zoxide \
         sway waybar kitty wofi swaylock swayidle grim slurp \
         brightnessctl playerctl wireplumber pulseaudio-libs sway-notification-center mako \
         python3-gobject python3-cairo gtk3 gtk-layer-shell pam-devel \
@@ -116,11 +116,17 @@ install_java() {
     set +u
     source "$HOME/.sdkman/bin/sdkman-init.sh"
     sdk install java 21.0.1-graal --default 2>/dev/null || true
+    if ! command -v sbt &> /dev/null; then
+      sdk install sbt --default 2>/dev/null || true
+    fi
     set -u
   fi
 
   if [ -d "$HOME/.sdkman/candidates/java/current/bin" ]; then
     export PATH="$HOME/.sdkman/candidates/java/current/bin:$PATH"
+  fi
+  if [ -d "$HOME/.sdkman/candidates/sbt/current/bin" ]; then
+    export PATH="$HOME/.sdkman/candidates/sbt/current/bin:$PATH"
   fi
 
   if command -v java &> /dev/null; then
@@ -243,6 +249,54 @@ install_tools() {
         ;;
     esac
   fi
+
+  # 4. zoxide directory jumper (system / cargo / standalone fallback)
+  if command -v zoxide &> /dev/null; then
+    echo -e "  \033[32m[OK]\033[0m zoxide already installed"
+  elif command -v cargo &> /dev/null; then
+    echo -e "  \033[36m[INFO]\033[0m Installing zoxide via cargo..."
+    cargo install zoxide --locked 2>/dev/null || true
+  elif command -v curl &> /dev/null; then
+    echo -e "  \033[36m[INFO]\033[0m Installing zoxide via standalone script..."
+    curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | sh 2>/dev/null || true
+  fi
+}
+
+setup_workspace_and_tetravim() {
+  echo -e "  \033[1;36m[polyomino]\033[0m Setting up ~/Projects workspace & Tetravim Neovim distribution..."
+
+  # 1. Ensure ~/Projects workspace exists
+  mkdir -p "$HOME/Projects"
+  echo -e "  \033[32m[OK]\033[0m Workspace directory ready at $HOME/Projects"
+
+  # 2. Clone Tetravim (git@github.com:petrolal/tetravim.nvim.git) with HTTPS fallback
+  local tetravim_dir="$HOME/tetravim.nvim"
+  local nvim_config_dir="$HOME/.config/nvim"
+
+  if [ ! -d "$tetravim_dir/.git" ]; then
+    echo -e "  \033[36m[INFO]\033[0m Cloning Tetravim Neovim distribution..."
+    if ! git clone git@github.com:petrolal/tetravim.nvim.git "$tetravim_dir" 2>/dev/null; then
+      echo -e "  \033[33m[WARN]\033[0m SSH clone failed (SSH keys not registered). Falling back to HTTPS..."
+      git clone https://github.com/petrolal/tetravim.nvim.git "$tetravim_dir" 2>/dev/null || {
+        echo -e "  \033[31m[ERROR]\033[0m Could not clone Tetravim repo"
+      }
+    fi
+  else
+    echo -e "  \033[32m[OK]\033[0m Tetravim repo already present at $tetravim_dir"
+  fi
+
+  # 3. Symlink ~/.config/nvim -> ~/tetravim.nvim
+  if [ -d "$tetravim_dir" ]; then
+    mkdir -p "$HOME/.config"
+    if [ -e "$nvim_config_dir" ] && [ ! -L "$nvim_config_dir" ]; then
+      local backup_dir="$HOME/.polyomino_backup/nvim_$(date +%s)"
+      mkdir -p "$backup_dir"
+      mv "$nvim_config_dir" "$backup_dir/"
+      echo -e "  \033[33m[INFO]\033[0m Existing nvim config backed up to $backup_dir"
+    fi
+    ln -sfn "$tetravim_dir" "$nvim_config_dir"
+    echo -e "  \033[32m[OK]\033[0m Linked $nvim_config_dir -> $tetravim_dir"
+  fi
 }
 
 install_swayfx() {
@@ -364,8 +418,12 @@ echo ""
 install_system_deps "$PKG_MGR"
 echo ""
 
-# Install TUI tools (spotify_player, bluetui)
+# Install TUI tools (spotify_player, bluetui, zoxide)
 install_tools "$PKG_MGR"
+echo ""
+
+# Setup ~/Projects and Tetravim Neovim distribution
+setup_workspace_and_tetravim
 echo ""
 
 # Install / Build SwayFX

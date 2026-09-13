@@ -35,6 +35,7 @@ object ToolInstallers:
       case "install-fastfetch" => installFastfetch(ctx)
       case "install-spotify" | "install-spotify-player" => installSpotifyPlayer(ctx)
       case "install-gaming" | "install-games" | "install-gamemode" => installGaming(ctx)
+      case "install-zoxide" => installZoxide(ctx)
       case "full-install" => installAll(ctx)
       case _ => Left(CommandError(s"Unknown installer task '$name'", 1))
 
@@ -43,13 +44,13 @@ object ToolInstallers:
     println(s"\u001b[1;36m[polyomino install-deps]\u001b[0m Installing system & build dependencies (PM: $pm)...")
     pm match
       case PackageManager.Pacman =>
-        runPkgInstall("sudo", Seq("pacman", "-S", "--needed", "--noconfirm", "sbt", "jdk-openjdk", "gcc", "git", "curl", "fontconfig", "zsh", "tar", "unzip", "which", "fastfetch"))
+        runPkgInstall("sudo", Seq("pacman", "-S", "--needed", "--noconfirm", "sbt", "jdk-openjdk", "gcc", "git", "curl", "fontconfig", "zsh", "tar", "unzip", "which", "fastfetch", "zoxide"))
       case PackageManager.Dnf =>
-        runPkgInstall("sudo", Seq("dnf", "install", "-y", "gcc", "gcc-c++", "java-latest-openjdk-devel", "git", "curl", "fontconfig", "zsh", "tar", "unzip", "which", "fastfetch"))
+        runPkgInstall("sudo", Seq("dnf", "install", "-y", "gcc", "gcc-c++", "java-latest-openjdk-devel", "git", "curl", "fontconfig", "zsh", "tar", "unzip", "which", "fastfetch", "zoxide"))
       case PackageManager.Apt =>
-        runPkgInstall("sudo", Seq("apt-get", "install", "-y", "build-essential", "default-jdk", "git", "curl", "fontconfig", "zsh", "tar", "unzip", "fastfetch"))
+        runPkgInstall("sudo", Seq("apt-get", "install", "-y", "build-essential", "default-jdk", "git", "curl", "fontconfig", "zsh", "tar", "unzip", "fastfetch", "zoxide"))
       case PackageManager.Brew =>
-        runPkgInstall("brew", Seq("install", "openjdk", "gcc", "git", "curl", "fontconfig", "zsh", "tar", "unzip", "fastfetch"))
+        runPkgInstall("brew", Seq("install", "openjdk", "gcc", "git", "curl", "fontconfig", "zsh", "tar", "unzip", "fastfetch", "zoxide"))
       case _ =>
         Right(println("  \u001b[33m[NOTE]\u001b[0m Manual package dependency installation recommended for current OS."))
 
@@ -77,7 +78,7 @@ object ToolInstallers:
     println(s"\u001b[1;36m[polyomino install-apps]\u001b[0m Installing core desktop apps (PM: $pm)...")
     pm match
       case PackageManager.Pacman =>
-        runPkgInstall("sudo", Seq("pacman", "-S", "--needed", "--noconfirm", "waybar", "kitty", "wofi", "swaylock", "gtklock", "swayidle", "grim", "slurp", "brightnessctl", "libpulse", "playerctl", "wireplumber", "ttf-jetbrains-mono-nerd", "swaync", "mako", "cmake", "ncurses", "neovim", "fastfetch", "cmatrix", "jq", "xdotool", "network-manager-applet", "polkit-gnome", "wl-clipboard", "pavucontrol", "python-gobject", "python-cairo", "gtk3", "gtk-layer-shell", "gtk-session-lock", "pam"))
+        runPkgInstall("sudo", Seq("pacman", "-S", "--needed", "--noconfirm", "waybar", "kitty", "wofi", "swaylock", "gtklock", "swayidle", "grim", "slurp", "brightnessctl", "libpulse", "playerctl", "wireplumber", "ttf-jetbrains-mono-nerd", "swaync", "mako", "cmake", "ncurses", "neovim", "fastfetch", "cmatrix", "jq", "xdotool", "network-manager-applet", "polkit-gnome", "wl-clipboard", "pavucontrol", "python-gobject", "python-cairo", "gtk3", "gtk-layer-shell", "gtk-session-lock", "pam", "zoxide"))
         if isAvailable("yay") then
           if isSwayInstalled && !isSwayfxInstalled then
             try os.proc("sudo", "pacman", "-Rdd", "--noconfirm", "sway").call(check = false) catch case _: Exception => ()
@@ -87,13 +88,13 @@ object ToolInstallers:
         else
           Right(())
       case PackageManager.Dnf =>
-        runPkgInstall("sudo", Seq("dnf", "install", "-y", "sway", "waybar", "kitty", "wofi", "swaylock", "swayidle", "grim", "slurp", "brightnessctl", "playerctl", "wireplumber", "sway-notification-center", "mako", "neovim", "onlyoffice-desktopeditors", "fastfetch", "cmatrix", "jq", "xdotool", "network-manager-applet", "polkit-gnome", "wl-clipboard", "pavucontrol", "python3-gobject", "python3-cairo", "gtk3", "gtk-layer-shell", "pam-devel"))
+        runPkgInstall("sudo", Seq("dnf", "install", "-y", "sway", "waybar", "kitty", "wofi", "swaylock", "swayidle", "grim", "slurp", "brightnessctl", "playerctl", "wireplumber", "sway-notification-center", "mako", "neovim", "onlyoffice-desktopeditors", "fastfetch", "cmatrix", "jq", "xdotool", "network-manager-applet", "polkit-gnome", "wl-clipboard", "pavucontrol", "python3-gobject", "python3-cairo", "gtk3", "gtk-layer-shell", "pam-devel", "zoxide"))
         installSwayfx(ctx)
       case PackageManager.Apt =>
-        runPkgInstall("sudo", Seq("apt-get", "install", "-y", "sway", "waybar", "kitty", "wofi", "swaylock", "swayidle", "grim", "slurp", "brightnessctl", "playerctl", "wireplumber", "pulseaudio-utils", "fonts-jetbrains-mono", "sway-notification-center", "mako-notifier", "python3-gi", "python3-cairo", "gir1.2-gtk-3.0", "gir1.2-gtklayershell-0.1", "libpam0g-dev", "neovim", "fastfetch", "cmatrix", "jq", "xdotool", "network-manager-gnome", "policykit-1-gnome", "wl-clipboard", "pavucontrol"))
+        runPkgInstall("sudo", Seq("apt-get", "install", "-y", "sway", "waybar", "kitty", "wofi", "swaylock", "swayidle", "grim", "slurp", "brightnessctl", "playerctl", "wireplumber", "pulseaudio-utils", "fonts-jetbrains-mono", "sway-notification-center", "mako-notifier", "python3-gi", "python3-cairo", "gir1.2-gtk-3.0", "gir1.2-gtklayershell-0.1", "libpam0g-dev", "neovim", "fastfetch", "cmatrix", "jq", "xdotool", "network-manager-gnome", "policykit-1-gnome", "wl-clipboard", "pavucontrol", "zoxide"))
         installSwayfx(ctx)
       case PackageManager.Brew =>
-        runPkgInstall("brew", Seq("install", "fastfetch", "cmatrix", "jq"))
+        runPkgInstall("brew", Seq("install", "fastfetch", "cmatrix", "jq", "zoxide"))
       case _ =>
         Right(println("  \u001b[33m[NOTE]\u001b[0m Manual package installation recommended for current OS."))
 
@@ -791,6 +792,35 @@ object ToolInstallers:
       case _ =>
         Right(println("  \u001b[33m[NOTE]\u001b[0m Manual installation of gaming tools recommended for this OS."))
 
+  private def installZoxide(ctx: Context): Either[PolyominoError, Unit] =
+    val pm = detectPackageManager()
+    val isZoxideInstalled = isAvailable("zoxide") || os.exists(ctx.home / ".local" / "bin" / "zoxide")
+    if isZoxideInstalled then
+      println("  \u001b[32m[OK]\u001b[0m zoxide is already installed.")
+      return Right(())
+
+    println(s"\u001b[1;36m[polyomino install-tools]\u001b[0m Installing zoxide directory jumper (PM: $pm)...")
+    pm match
+      case PackageManager.Pacman =>
+        runPkgInstall("sudo", Seq("pacman", "-S", "--needed", "--noconfirm", "zoxide"))
+      case PackageManager.Dnf =>
+        runPkgInstall("sudo", Seq("dnf", "install", "-y", "zoxide"))
+      case PackageManager.Apt =>
+        val res = runPkgInstall("sudo", Seq("apt-get", "install", "-y", "zoxide"))
+        if !isAvailable("zoxide") then
+          try
+            println("  \u001b[36m[INFO]\u001b[0m Installing zoxide via official standalone script...")
+            os.proc("bash", "-c", "curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | sh").call(check = false)
+          catch case _: Exception => ()
+        Right(())
+      case PackageManager.Brew =>
+        runPkgInstall("brew", Seq("install", "zoxide"))
+      case _ =>
+        try
+          os.proc("bash", "-c", "curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | sh").call(check = false)
+        catch case _: Exception => ()
+        Right(())
+
   private def installAll(ctx: Context): Either[PolyominoError, Unit] =
     println("\u001b[1;36m[polyomino full-install]\u001b[0m Installing all system dependencies, desktop apps, fonts, and tooling...")
     for
@@ -810,6 +840,7 @@ object ToolInstallers:
       _ <- installSdkman(ctx)
       _ <- installNode(ctx)
       _ <- installTools(ctx)
+      _ <- installZoxide(ctx)
       _ <- installSpotifyPlayer(ctx)
       _ <- installYazi(ctx)
       _ <- polyomino.dotfiles.refresh.NotificationIntegration.configureApps(ctx)

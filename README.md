@@ -33,6 +33,7 @@ This repo is the source of truth for configuration files — they are **symlinke
 ```
 
 `polyomino install` handles creating those links safely:
+
 1. If the target is already a symlink to the repo → skip.
 2. If the target is a real file/dir → move it to `~/.polyomino_backup/<timestamp>/` first.
 3. Runs `bootstrap.sh` to provision system packages (`pacman` / `apt-get`).
@@ -58,146 +59,116 @@ This file is automatically sourced by `zsh/zsh_config/40-environment.zsh` if it 
 
 ## Installation & Usage
 
-### Quick Start (3 Commands)
+### Case 1: One-Shot Automated Web Installer (Recommended)
 
-**On a fresh machine:**
+Run the entire installation in a single shot via `curl` (zero prior setup needed):
 
 ```bash
-# Stage 1: Bootstrap (install Java & Coursier)
+curl -fsSL https://raw.githubusercontent.com/petrolal/polyomino.dotfiles/master/install.sh | bash
+```
+
+**With optional Gaming Stack (GameMode, Gamescope, MangoHud, Steam):**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/petrolal/polyomino.dotfiles/master/install.sh | bash -s -- --gaming
+```
+
+> **What the One-Shot Installer does end-to-end:**
+>
+> 1. **Clones / Updates Repository:** Fetches `polyomino.dotfiles` into `~/polyomino.dotfiles`.
+> 2. **Executes `bootstrap.sh`:**
+>    - Installs core desktop & system packages (`sway`/`swayfx`, `kitty`, `wofi`, `waybar`, `swaync`, `zoxide`, `fastfetch`, `zsh`, `neovim`).
+>    - Provisions **SDKMAN!**, **Java 21 (GraalVM)**, **SBT**, and **Coursier (`cs`)**.
+>    - Creates the **`~/Projects`** workspace directory.
+>    - Clones **`git@github.com:petrolal/tetravim.nvim.git`** into `~/tetravim.nvim` and links it to `~/.config/nvim`.
+> 3. **Compiles Native Binary:** Builds the standalone GraalVM native binary (`sbt nativeImage`) and places `polyomino` in `~/.local/bin/`.
+> 4. **Deploys Configurations:** Runs `polyomino install` to deploy all symlinks, render active theme colors/tokens, and configure Sway shortcuts.
+
+---
+
+### Case 2: From Local Git Repository
+
+If you have already cloned the repository or want to install from source:
+
+```bash
+git clone https://github.com/petrolal/polyomino.dotfiles.git ~/polyomino.dotfiles
+cd ~/polyomino.dotfiles
+
+# Run one-shot local installer
+./install.sh
+```
+
+---
+
+### Case 3: 3-Stage Modular Installation (Maven Central / Coursier)
+
+For environments where you prefer running individual stages manually:
+
+```bash
+# Stage 1: Bootstrap system packages, Java, SBT, zoxide, and Tetravim
 bash <(curl -fsSL https://raw.githubusercontent.com/petrolal/polyomino.dotfiles/master/bootstrap.sh)
 
-# Stage 2: Install polyomino binary from Maven Central (resolves the latest release)
+# Stage 2: Download polyomino binary directly from Maven Central
 cs bootstrap io.github.petrolal::polyomino -o ~/.local/bin/polyomino
 
-# Stage 3: Run installer (auto-clones this repo if needed, then full setup: symlinks, Homebrew, GitHub CLI, Coursier, Desktop Apps)
-polyomino install
-```
-
-### Alternative: From Cloned Repository
-
-```bash
-git clone https://github.com/petrolal/polyomino.dotfiles.git ~/polyomino.dotfiles
-cd ~/polyomino.dotfiles
-
-# Stage 1: Bootstrap
-./bootstrap.sh
-
-# Stage 2: Install polyomino from Maven Central (resolves the latest release)
-cs bootstrap io.github.petrolal::polyomino -o ~/.local/bin/polyomino
-
-# Stage 3: Full setup
+# Stage 3: Deploy dotfiles, symlinks, and run healthcheck
 polyomino install
 ```
 
 ---
 
-## How It Works (3-Stage Installation)
+### Case 4: Arch Linux Package (PKGBUILD / AUR)
 
-The installation is orchestrated by a Scala-based CLI tool:
-
-```
-Stage 1: Bootstrap (Java + Coursier setup)
-    ↓ bash bootstrap.sh
-Stage 2: Coursier (Download polyomino binary from Maven Central)
-    ↓ cs bootstrap io.github.petrolal::polyomino -o ~/.local/bin/polyomino
-Stage 3: Installer & Provisioning (Full system setup via Scala CLI)
-    ↓ polyomino install
-    ├── Symlink dotfiles (~/.config, ~/.zshrc)
-    ├── Provision Homebrew, GitHub CLI (gh), Coursier (cs)
-    ├── Install Desktop Apps, Fonts, TUI tools & Devops tooling
-    └── Run System Healthcheck
-    ↓
-COMPLETE! All dotfiles symlinked and tooling configured
-```
-
-See [docs/INSTALLATION_FLOW.md](docs/INSTALLATION_FLOW.md) for detailed walkthrough.
-
----
-
-## Building from Source
-
-To build and test locally:
+On Arch Linux / Manjaro, build and install as a native Arch package:
 
 ```bash
 git clone https://github.com/petrolal/polyomino.dotfiles.git ~/polyomino.dotfiles
 cd ~/polyomino.dotfiles
+makepkg -si
+```
 
-# Requirements: Java 21+ and sbt
-# Install via: bash bootstrap.sh && cs bootstrap io.github.petrolal::polyomino -o ~/.local/bin/polyomino
+---
 
-# Compile & run unit tests
+### Case 5: Day-to-Day Maintenance & Updates
+
+Once installed, use the built-in CLI for updates, themes, and configuration backups:
+
+- **Update everything:** `polyomino update` (pulls latest git changes and re-deploys)
+- **Re-link configurations:** `polyomino deploy` or `polyomino install --links-only`
+- **System Healthcheck:** `polyomino healthcheck`
+- **Change desktop theme:** `polyomino-theme-picker` (or `Mod+Shift+T`)
+- **Switch wallpaper:** `polyomino-wallpaper` (or `Mod+Shift+P`)
+- **Snapshot configurations:** `polyomino backup`
+- **Restore snapshot:** `polyomino restore <archive-path>`
+
+---
+
+### Case 6: Uninstallation & Restoring Backups
+
+To remove symlinks and restore your original pre-installation configurations:
+
+```bash
+polyomino uninstall
+```
+
+---
+
+## Building & Developing Locally
+
+To develop, run tests, or compile from source:
+
+```bash
+cd ~/polyomino.dotfiles
+
+# Run test suite (101+ unit tests)
 sbt test
 
-# Compile GraalVM Native Image binary
+# Compile GraalVM Native Image
 sbt nativeImage
 
-# Run installation from source
-./target/native-image/polyomino install
-
-# Or test interactive installer
-./target/native-image/polyomino install --help
+# Install compiled binary
+cp target/native-image/polyomino ~/.local/bin/polyomino
 ```
-
----
-
-## Automated Deployment (GitHub Actions)
-
-Version tags are created automatically. After CI passes on `master`,
-[`.github/workflows/auto-tag.yml`](.github/workflows/auto-tag.yml) reads the
-[Conventional Commit](https://www.conventionalcommits.org/) subjects since the last tag and
-bumps [SemVer](https://semver.org/) accordingly:
-
-| Commit marker since the last tag | Bump |
-|---|---|
-| `type!:` / `type(scope)!:`, or `BREAKING CHANGE:` in the body | major (`v3.3.2` → `v4.0.0`) |
-| `feat:` / `feature:` | minor (`v3.3.2` → `v3.4.0`) |
-| `fix:` / `perf:` / `refactor:` / `revert:` | patch (`v3.3.2` → `v3.3.3`) |
-| only `docs` / `chore` / `ci` / `style` / `test` / `build`, or unconventional | no tag, no release |
-
-The highest-precedence marker in the range wins. Add `[skip release]` to a commit subject to
-suppress it. To release out of band, push a tag by hand:
-
-```bash
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-Either path runs [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml), which publishes
-to **Maven Central** and **GitHub Releases** and performs:
-1. Code checkout and GraalVM JDK 21 setup.
-2. Maven Central release publication (`sbt ci-release`).
-3. GraalVM Native Image compilation (`sbt nativeImage`).
-4. GitHub Release creation with the `polyomino` native binary attached.
-
----
-
-## Commands & Subcommands
-
-All desktop automation, installers, maintenance, and system utilities are built inside a single binary (`polyomino`) with subcommand symlinks in `~/.local/bin/polyomino-*`:
-
-| Command | Description |
-|---|---|
-| `polyomino install` | Deploy configs, run system package installer (`bootstrap.sh`), and execute `healthcheck` |
-| `polyomino healthcheck` | Read-only sanity check of all symlinks, binaries, fonts, and PATH configurations |
-| `polyomino theme` | Select desktop theme (custom palettes) & wallpaper mode |
-| `polyomino wallpaper` | Swap the wallpaper within the active flavor (`next`/`prev`/`random`/`list`/`<name>`) — does not re-theme |
-| `polyomino-theme-picker` | Wofi GUI picker for desktop theme selection (`Mod+Shift+T`) |
-| `polyomino-wallpaper` | Wofi GUI picker for the active flavor's wallpapers (`Mod+Shift+P`) |
-| `polyomino-whichkey` | Wofi cheatsheet of Sway keybindings (`Mod+Shift+?`) |
-| `polyomino lock` | Screen lock styled to active theme (`Mod+Escape`) |
-| `polyomino idle` | Swayidle daemon management (auto-lock, DPMS, suspend) |
-| `polyomino screenshot` | Screen capture helper (`full`, `region`, `window`) |
-| `polyomino autotiling` | Fibonacci spiral autotiling daemon for Sway |
-| `polyomino backup` | Snapshot managed configs to a timestamped tarball |
-| `polyomino restore` | Restore a configuration snapshot |
-| `polyomino update` | Pull latest git changes and re-run installer |
-| `polyomino sdd` | Spec-driven development framework CLI |
-| `polyomino install-deps` | Install system & build dependencies (sbt, gcc, git, etc.) |
-| `polyomino install-brew` | Install Homebrew package manager |
-| `polyomino install-gh` | Install GitHub CLI (`gh`) |
-| `polyomino install-coursier` | Install Coursier (`cs`) Scala application launcher |
-| `polyomino install-tools` | Install TUI tools (spotify_player, bluetui, aerc) |
-| `polyomino full-install` | Install system dependencies, Homebrew, gh, Coursier, apps, fonts, and tooling |
 
 ---
 
@@ -205,23 +176,24 @@ All desktop automation, installers, maintenance, and system utilities are built 
 
 `$mod` = Mod4 (Super/Windows key). Full list available live via `polyomino-whichkey` (`Mod+Shift+?`).
 
-| Keys | Action |
-|---|---|
-| `Mod+Return` | Open terminal (kitty) |
-| `Mod+D` | App launcher (wofi drun) |
-| `Mod+Shift+F` | File manager TUI (`yazi`) |
-| `Mod+Shift+M` | Spotify player TUI (`spotify_player`) |
-| `Mod+Shift+U` | Bluetooth manager TUI (`bluetui`) |
-| `Mod+Shift+A` | Email client TUI (`aerc`) |
-| `Mod+Shift+T` | Theme picker GUI (`polyomino-theme-picker`) |
-| `Mod+Shift+P` | Wallpaper picker GUI for the active flavor (`polyomino-wallpaper`) |
-| `Mod+F6` | Cycle to the next wallpaper in the active flavor |
-| `Mod+F1`–`Mod+F4` | Apply flavor matriz / encruza / caravela / aruanda |
-| `Mod+F5` | Cycle desktop flavor |
-| `Mod+Shift+?` | Which-key cheatsheet (`polyomino-whichkey`) |
-| `Mod+Shift+Q` | Kill focused window |
-| `Mod+Shift+C` | Reload Sway config |
-| `Mod+Escape` | Lock screen (`polyomino lock`) |
-| `Print` | Screenshot — full screen |
-| `Mod+Print` | Screenshot — select region |
-| `Mod+Shift+Print` | Screenshot — focused window |
+| Keys                    | Action                    | Description                                                |
+| ----------------------- | ------------------------- | ---------------------------------------------------------- |
+| `Mod+Return`            | Open standard terminal    | Plain Kitty terminal in active workspace                   |
+| `Mod+P`                 | **Neovim Project Picker** | Search `~/Projects` and open in dedicated Workspace 2      |
+| `Mod+D`                 | App launcher              | Wofi application launcher                                  |
+| `Mod+Shift+Return`      | Floating terminal         | Floating centered terminal                                 |
+| `Mod+Shift+F`           | File manager TUI          | `yazi` file manager                                        |
+| `Mod+Shift+M`           | Spotify player TUI        | `spotify_player`                                           |
+| `Mod+Shift+U`           | Bluetooth manager TUI     | `bluetui`                                                  |
+| `Mod+Shift+A`           | Email client TUI          | `aerc`                                                     |
+| `Mod+Shift+T`           | Theme picker GUI          | `polyomino-theme-picker`                                   |
+| `Mod+Shift+P`           | Wallpaper picker GUI      | `polyomino-wallpaper`                                      |
+| `Mod+F6`                | Next wallpaper            | Cycle next wallpaper in active theme                       |
+| `Mod+F5`                | Cycle desktop flavor      | Cycle theme flavor (matriz / encruza / caravela / aruanda) |
+| `Mod+Shift+?` / `Mod+/` | Which-key cheatsheet      | `polyomino-whichkey` live Sway shortcuts                   |
+| `Mod+Shift+Q`           | Kill window               | Close focused window                                       |
+| `Mod+Shift+C`           | Reload Sway config        | Re-read Sway configuration (`swaymsg reload`)              |
+| `Mod+Escape`            | Lock screen               | 3D Rubik's Cube lockscreen (`polyomino lock`)              |
+| `Print`                 | Full screenshot           | Capture full screen                                        |
+| `Mod+Print`             | Region screenshot         | Interactive rectangle selection screenshot                 |
+| `Mod+Shift+Print`       | Window screenshot         | Capture active window                                      |

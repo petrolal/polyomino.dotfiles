@@ -229,8 +229,7 @@ assign [class="[sS]potify.*"] $ws8
 for_window [app_id="spotify_player"] move to workspace $ws8
 for_window [app_id="kitty" title="^spotify$"] move to workspace $ws8
 
-# 3: term
-assign [app_id="kitty"] $ws3
+# 3: term (unassigned so default terminal launches open in active workspace)
 
 # 4: containers
 assign [app_id="docker-desktop"] $ws4
@@ -332,6 +331,7 @@ bindsym $mod+apostrophe [app_id="kitty" title="aerc"] scratchpad show
 bindsym $mod+r mode "resize"
 
 # Cheatsheet & Pickers
+bindsym $mod+p exec ~/.local/bin/sway-project-launcher
 bindsym $mod+slash exec ~/.local/bin/polyomino-whichkey
 bindsym $mod+question exec ~/.local/bin/polyomino-whichkey
 bindsym $mod+Shift+d exec wdisplays

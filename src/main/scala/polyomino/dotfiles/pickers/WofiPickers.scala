@@ -438,6 +438,7 @@ object WofiPickers:
 
   private def friendlyAction(action: String): String =
     action match
+      case a if a.contains("sway-project-launcher") => "Project picker launcher (Neovim)"
       case a if a.contains("polyomino-whichkey") => "Keybindings cheatsheet"
       case a if a.contains("polyomino-theme-picker") => "Theme and wallpaper picker"
       case a if a.contains("wallpaper next") || a.contains("wallpaper cycle") => "Next wallpaper (active theme)"

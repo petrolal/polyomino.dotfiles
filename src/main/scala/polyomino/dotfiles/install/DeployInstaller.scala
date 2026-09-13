@@ -65,9 +65,45 @@ object DeployInstaller:
 
     var manifestEntries = List.empty[ManifestEntry]
 
+    // Ensure ~/Projects workspace directory exists
+    os.makeDir.all(ctx.home / "Projects")
+
+    // Ensure Tetravim Neovim distribution is cloned and symlinked
+    val tetravimDir = ctx.home / "tetravim.nvim"
+    val nvimConfigDir = ctx.configDir / "nvim"
+    if !ctx.isTest && !os.exists(tetravimDir) then
+      try
+        println(s"\u001b[1;36m[polyomino install]\u001b[0m Cloning Tetravim Neovim distribution...")
+        val res = os.proc("git", "clone", "git@github.com:petrolal/tetravim.nvim.git", tetravimDir.toString).call(check = false)
+        if res.exitCode != 0 then
+          println(s"  \u001b[33m[WARN]\u001b[0m SSH clone failed; falling back to HTTPS...")
+          os.proc("git", "clone", "https://github.com/petrolal/tetravim.nvim.git", tetravimDir.toString).call(check = false)
+      catch
+        case e: Exception => println(s"  \u001b[33m[NOTE]\u001b[0m Tetravim clone skipped: ${e.getMessage}")
+
     // 1. Clean & deploy dotfile configuration symlinks from scratch
     val timestamp = System.currentTimeMillis()
     val backupBaseDir = ctx.home / ".polyomino_backup" / timestamp.toString
+
+    if os.exists(tetravimDir) then
+      try
+        if os.exists(nvimConfigDir) && !os.isLink(nvimConfigDir) then
+          val backupTarget = backupBaseDir / "nvim"
+          os.makeDir.all(backupBaseDir)
+          os.copy(nvimConfigDir, backupTarget)
+          os.remove.all(nvimConfigDir)
+        else if os.isLink(nvimConfigDir) then
+          os.remove(nvimConfigDir)
+        os.makeDir.all(ctx.configDir)
+        os.proc("ln", "-s", tetravimDir.toString, nvimConfigDir.toString).call()
+        manifestEntries = manifestEntries :+ ManifestEntry(
+          sourcePath = tetravimDir.toString,
+          targetPath = nvimConfigDir.toString,
+          backupPath = None
+        )
+        println(s"  \u001b[32m[OK]\u001b[0m Symlinked $nvimConfigDir -> $tetravimDir")
+      catch
+        case e: Exception => println(s"  \u001b[33m[NOTE]\u001b[0m Tetravim symlink skipped: ${e.getMessage}")
 
     val configMappings = Seq(
       (ctx.home / ".zshrc", ctx.dotfilesDir / "zsh" / ".zshrc"),
