@@ -77,6 +77,10 @@ for_window [app_id="polyomino-lock-preview"] floating enable, border pixel 2, re
 # Polyomino tile menus (theme-picker, wallpaper-picker, menu, whichkey, projects)
 # — one shared GTK grid window, borderless with a glass-blur backdrop
 for_window [app_id="polyomino-tilemenu"] floating enable, border none, move position center, blur enable
+for_window [app_id="wofi"] floating enable, border none, move position center
+for_window [app_id="rofi"] floating enable, border none, move position center
+for_window [class="Rofi"] floating enable, border none, move position center
+for_window [app_id="fuzzel"] border none
 
 # Quick system-status & TUI popups (bluetooth, audio mixer, network)
 for_window [app_id="kitty" title="(?i).*(wiremix|pulsemixer|ncpamixer).*"] floating enable, border pixel 2, resize set 900 550, move position center

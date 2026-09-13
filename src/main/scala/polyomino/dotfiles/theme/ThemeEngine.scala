@@ -502,7 +502,7 @@ object ThemeEngine:
          |    background-color: rgba(15, 17, 26, 0.85);
          |    color: ${palette.text};
          |    border: 1px solid rgba(139, 92, 246, 0.35);
-         |    border-radius: 0px;
+         |    border-radius: 8px;
          |    font-family: "JetBrainsMono Nerd Font", "JetBrains Mono", monospace;
          |    font-size: 12px;
          |    padding: 14px;
@@ -511,7 +511,7 @@ object ThemeEngine:
          |    background-color: ${palette.mantle};
          |    color: ${palette.text};
          |    border: 1px solid rgba(139, 92, 246, 0.35);
-         |    border-radius: 0px;
+         |    border-radius: 4px;
          |    padding: 8px 12px;
          |    margin: 4px 4px 10px 4px;
          |    outline: none;
@@ -666,7 +666,7 @@ object ThemeEngine:
          |    text-color:       @fg-primary;
          |    border:           1px;
          |    border-color:     @border-subtle;
-         |    border-radius:    0px;
+         |    border-radius:    8px;
          |    padding:          16px;
          |    width:            980px;
          |    location:         center;
@@ -885,7 +885,7 @@ object ThemeEngine:
          |    text-color:       @fg-primary;
          |    border:           1px;
          |    border-color:     @border-subtle;
-         |    border-radius:    0px;
+         |    border-radius:    8px;
          |    padding:          16px;
          |    width:            980px;
          |    location:         center;

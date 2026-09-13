@@ -423,7 +423,7 @@ object CalendarPopup:
       |    win.set_name("calendar-window")
       |    win.set_title("Polyomino Calendar")
       |    win.set_resizable(False)
-      |    win.set_size_request(340, 430)
+      |    win.set_size_request(360, 430)
       |    # Without an RGBA visual the GTK toplevel paints an opaque (theme-default,
       |    # usually white) background, which shows through at the four corners left
       |    # bare by the card's rounded border. Give the window a real alpha channel
@@ -461,7 +461,7 @@ object CalendarPopup:
       |
       |    popup_card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
       |    popup_card.set_name("calendar-card")
-      |    popup_card.set_size_request(340, 430)
+      |    popup_card.set_size_request(360, 430)
       |    win.add(popup_card)
       |
       |    header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
@@ -509,7 +509,7 @@ object CalendarPopup:
       |    #calendar-card {{
       |        background-color: {cad_bg};
       |        border: 1px solid {cad_violet};
-      |        border-radius: 0px;
+      |        border-radius: 8px;
       |        padding: 12px 14px;
       |        min-width: 360px;
       |        min-height: 430px;

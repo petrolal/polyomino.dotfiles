@@ -108,7 +108,7 @@ def build_css(p):
         background-color: transparent;
         color: {p['text']};
         border: none;
-        border-radius: 0px;
+        border-radius: 8px;
     }}
     scrolledwindow, scrolledwindow viewport, viewport, flowbox {{
         background-color: transparent;
@@ -133,7 +133,7 @@ def build_css(p):
     .menu-window {{
         background-color: alpha({p['base']}, 0.88);
         border: 1px solid alpha({p['accent']}, 0.35);
-        border-radius: 0px;
+        border-radius: 8px;
     }}
 
     /* 1. Header Row */
@@ -141,6 +141,8 @@ def build_css(p):
         padding: 14px 16px 10px 16px;
         background-color: {p['mantle']};
         border-bottom: 1px solid alpha({p['accent']}, 0.2);
+        border-top-left-radius: 8px;
+        border-top-right-radius: 8px;
     }}
     .header-glyph-box {{
         background-color: {p['surface0']};
@@ -178,7 +180,7 @@ def build_css(p):
         margin: 10px 16px 8px 16px;
         background-color: {p['mantle']};
         border: 1px solid alpha({p['accent']}, 0.35);
-        border-radius: 0px;
+        border-radius: 2px;
         padding: 4px 8px;
     }}
     .search-prompt {{
@@ -245,7 +247,8 @@ def build_css(p):
     .footer-bar {{
         background-color: {p['mantle']};
         border-top: 1px solid alpha({p['accent']}, 0.3);
-        border-radius: 0px;
+        border-bottom-left-radius: 8px;
+        border-bottom-right-radius: 8px;
         padding: 6px 14px;
     }}
     .mode-badge-normal {{
