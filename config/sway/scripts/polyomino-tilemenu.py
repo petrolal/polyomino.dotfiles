@@ -215,6 +215,10 @@ def build_css(p):
     button.polyomino-tile.tile-card {{
         min-height: 48px;
     }}
+    button.polyomino-tile.tile-drun {{
+        min-height: 38px;
+        padding: 5px 8px;
+    }}
     button.polyomino-tile.tile-square {{
         min-height: 44px;
         padding: 8px 10px;
@@ -605,11 +609,7 @@ class BentoTileMenu(Gtk.Window):
     def on_map(self, widget, event):
         self.init_items_list()
         self.apply_filter()
-        if self.is_drun:
-            self.search_entry.grab_focus()
-            self.set_insert_mode()
-        else:
-            self.set_normal_mode()
+        self.set_normal_mode()
 
     def apply_css(self):
         provider = Gtk.CssProvider()
@@ -630,12 +630,15 @@ class BentoTileMenu(Gtk.Window):
         btn._tile_data = t
         btn.get_style_context().add_class("polyomino-tile")
         btn.get_style_context().add_class(f"tile-{accent}")
-        if variant == "square":
+        if self.is_drun:
+            btn.get_style_context().add_class("tile-drun")
+        elif variant == "square":
             btn.get_style_context().add_class("tile-square")
         else:
             btn.get_style_context().add_class("tile-card")
 
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        box_spacing = 2 if self.is_drun else 4
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=box_spacing)
         box.set_hexpand(True)
         box.set_vexpand(True)
 
@@ -645,14 +648,19 @@ class BentoTileMenu(Gtk.Window):
         gicon = t.get("gicon")
         icon_name = t.get("icon_name", "")
         icon_text = t.get("icon", "")
+        icon_size = Gtk.IconSize.LARGE_TOOLBAR if self.is_drun else Gtk.IconSize.DND
 
         if gicon:
-            img = Gtk.Image.new_from_gicon(gicon, Gtk.IconSize.DND)
+            img = Gtk.Image.new_from_gicon(gicon, icon_size)
+            if self.is_drun:
+                img.set_pixel_size(24)
             top_row.pack_start(img, False, False, 0)
         elif icon_name:
             theme = Gtk.IconTheme.get_default()
             if theme.has_icon(icon_name):
-                img = Gtk.Image.new_from_icon_name(icon_name, Gtk.IconSize.DND)
+                img = Gtk.Image.new_from_icon_name(icon_name, icon_size)
+                if self.is_drun:
+                    img.set_pixel_size(24)
                 top_row.pack_start(img, False, False, 0)
             elif icon_text:
                 icon_lbl = Gtk.Label(label=icon_text)
@@ -687,12 +695,13 @@ class BentoTileMenu(Gtk.Window):
             desc_lbl.get_style_context().add_class("tile-desc")
             box.pack_start(desc_lbl, True, True, 0)
 
-        # Bottom Row: Subtle Action Arrow
-        action_hint = t.get("action_hint", "Launch" if self.is_drun else "Execute")
-        hint_lbl = Gtk.Label(label=f"{action_hint}  →", xalign=0)
-        hint_lbl.get_style_context().add_class("tile-action-hint")
-        hint_lbl.get_style_context().add_class(f"tile-action-hint-{accent}")
-        box.pack_end(hint_lbl, False, False, 0)
+        # Bottom Row: Subtle Action Arrow (only on generic pickers, hidden on drun to minimize height)
+        if not self.is_drun:
+            action_hint = t.get("action_hint", "Execute")
+            hint_lbl = Gtk.Label(label=f"{action_hint}  →", xalign=0)
+            hint_lbl.get_style_context().add_class("tile-action-hint")
+            hint_lbl.get_style_context().add_class(f"tile-action-hint-{accent}")
+            box.pack_end(hint_lbl, False, False, 0)
 
         btn.add(box)
         btn.connect("clicked", lambda b: self.select_item(t))
@@ -813,12 +822,24 @@ def main():
     args = parser.parse_args()
 
     # Toggle behavior: if already running, close existing and exit
+    def is_running_instance(pid_str):
+        try:
+            pid = int(pid_str)
+            if pid in (os.getpid(), os.getppid()):
+                return False
+            with open(f"/proc/{pid}/comm", "r") as f:
+                comm = f.read().strip()
+                if not comm.startswith("python"):
+                    return False
+            return True
+        except Exception:
+            return False
+
     try:
-        current_pid = str(os.getpid())
-        check_pattern = "polyomino-tilemenu.*--drun" if args.drun else "polyomino-tilemenu"
+        check_pattern = "polyomino-tilemenu.*--drun" if args.drun else f"polyomino-tilemenu.*{re.escape(args.title)}"
         check_res = subprocess.run(["pgrep", "-f", check_pattern], capture_output=True, text=True)
         if check_res.returncode == 0:
-            pids = [p for p in check_res.stdout.strip().split() if p and p != current_pid]
+            pids = [p for p in check_res.stdout.strip().split() if is_running_instance(p)]
             if pids:
                 for pid in pids:
                     try:

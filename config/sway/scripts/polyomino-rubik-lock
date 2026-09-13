@@ -762,7 +762,7 @@ def render_rubik_lockscreen(cr, width, height, engine, preview_mode=False):
     cr.restore()
 
     # 4. Render 3D Rubik's Cube with True Isometric CAD & ANSI Block Styling
-    scale = min(vp_w, vp_h) * 0.115
+    scale = min(vp_w, vp_h) * 0.115 * engine.ambient_scale
     cube_cx = cx
     cube_cy = cy
 
@@ -1078,6 +1078,12 @@ class PolyominoRubikLockApp:
         self.tick_callback_id = None
         self.last_frame_time = None
 
+        # Idle-screensaver detection: a cheap always-on poll independent of
+        # the frame clock above (which stops ticking once the scene is at
+        # rest, so it can't by itself notice "no input for N seconds").
+        self.last_input_time = time.monotonic()
+        GLib.timeout_add(500, self._check_idle)
+
         display = Gdk.Display.get_default()
         if display:
             keymap = Gdk.Keymap.get_for_display(display)
@@ -1116,9 +1122,10 @@ class PolyominoRubikLockApp:
             win.set_title("Polyomino Rubik Lock")
             win.set_app_paintable(True)
             win.set_can_focus(True)
-            win.add_events(Gdk.EventMask.KEY_PRESS_MASK | Gdk.EventMask.KEY_RELEASE_MASK | Gdk.EventMask.BUTTON_PRESS_MASK)
+            win.add_events(Gdk.EventMask.KEY_PRESS_MASK | Gdk.EventMask.KEY_RELEASE_MASK | Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.POINTER_MOTION_MASK)
             win.connect("key-press-event", self.on_key_press)
             win.connect("button-press-event", self.on_button_press)
+            win.connect("motion-notify-event", self.on_motion)
 
             darea = Gtk.DrawingArea()
             darea.connect("draw", self.on_draw)
@@ -1146,9 +1153,10 @@ class PolyominoRubikLockApp:
             win.set_title("Polyomino Rubik Lock")
             win.set_app_paintable(True)
             win.set_can_focus(True)
-            win.add_events(Gdk.EventMask.KEY_PRESS_MASK | Gdk.EventMask.KEY_RELEASE_MASK | Gdk.EventMask.BUTTON_PRESS_MASK)
+            win.add_events(Gdk.EventMask.KEY_PRESS_MASK | Gdk.EventMask.KEY_RELEASE_MASK | Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.POINTER_MOTION_MASK)
             win.connect("key-press-event", self.on_key_press)
             win.connect("button-press-event", self.on_button_press)
+            win.connect("motion-notify-event", self.on_motion)
 
             darea = Gtk.DrawingArea()
             darea.connect("draw", self.on_draw)
@@ -1182,9 +1190,10 @@ class PolyominoRubikLockApp:
             win.set_can_focus(True)
             win.set_decorated(False)
             win.set_keep_above(True)
-            win.add_events(Gdk.EventMask.KEY_PRESS_MASK | Gdk.EventMask.KEY_RELEASE_MASK | Gdk.EventMask.BUTTON_PRESS_MASK)
+            win.add_events(Gdk.EventMask.KEY_PRESS_MASK | Gdk.EventMask.KEY_RELEASE_MASK | Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.POINTER_MOTION_MASK)
             win.connect("key-press-event", self.on_key_press)
             win.connect("button-press-event", self.on_button_press)
+            win.connect("motion-notify-event", self.on_motion)
 
             darea = Gtk.DrawingArea()
             darea.connect("draw", self.on_draw)
@@ -1214,9 +1223,10 @@ class PolyominoRubikLockApp:
         win.set_title("Polyomino Rubik Lock [PREVIEW MODE — Press ESC to Exit]")
         win.set_app_paintable(True)
         win.set_can_focus(True)
-        win.add_events(Gdk.EventMask.KEY_PRESS_MASK | Gdk.EventMask.KEY_RELEASE_MASK | Gdk.EventMask.BUTTON_PRESS_MASK)
+        win.add_events(Gdk.EventMask.KEY_PRESS_MASK | Gdk.EventMask.KEY_RELEASE_MASK | Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.POINTER_MOTION_MASK)
         win.connect("key-press-event", self.on_key_press)
         win.connect("button-press-event", self.on_button_press)
+        win.connect("motion-notify-event", self.on_motion)
         win.connect("destroy", lambda w: Gtk.main_quit())
 
         darea = Gtk.DrawingArea()
@@ -1235,13 +1245,40 @@ class PolyominoRubikLockApp:
 
     def on_button_press(self, widget, event):
         widget.grab_focus()
+        self.register_input()
         return False
+
+    def on_motion(self, widget, event):
+        self.register_input()
+        return False
+
+    def register_input(self):
+        """Any keypress/click/pointer-motion resets the idle clock and, if
+        the ambient screensaver is currently running, kicks off the
+        ease-out wake transition back to canonical password entry."""
+        self.last_input_time = time.monotonic()
+        if self.engine.screensaver:
+            self.engine.begin_wake()
+            self._start_ticking()
+            self.queue_redraw_all()
+
+    def _check_idle(self):
+        # Runs independently of the frame clock (which stops itself once
+        # the scene is at rest) so the idle timeout still fires even when
+        # nothing has been animating for a while.
+        if not self.engine.screensaver and not self.engine.waking and not self.engine.is_checking:
+            if time.monotonic() - self.last_input_time >= IDLE_TIMEOUT_SECONDS:
+                self.engine.enter_screensaver()
+                self._start_ticking()
+                self.queue_redraw_all()
+        return True  # GLib.SOURCE_CONTINUE
 
     def on_key_press(self, widget, event):
         # Any keypress can start a new slice-turn/checking animation; make
         # sure the frame clock is actively ticking (it stops itself once
         # the scene settles — see _on_frame_tick).
         self._start_ticking()
+        self.register_input()
 
         keyval = event.keyval
         state = event.state
