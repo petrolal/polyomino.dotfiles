@@ -50,14 +50,68 @@ collect_projects() {
   printf "%s\n" "${found_dirs[@]}" | sort -u
 }
 
-# 2. Select project with installed launcher (Wofi / Rofi / Fzf)
-choose_project() {
-  local project_list
-  project_list=$(collect_projects)
+DOTFILES_DIR="${POLYOMINO_DOTFILES_DIR:-$HOME/polyomino.dotfiles}"
+TILEMENU_SCRIPT="$DOTFILES_DIR/config/sway/scripts/polyomino-tilemenu.py"
+[ -f "$TILEMENU_SCRIPT" ] || TILEMENU_SCRIPT="${XDG_CONFIG_HOME:-$HOME/.config}/sway/scripts/polyomino-tilemenu.py"
 
-  [ -z "$project_list" ] && exit 0
+# 2a. Preferred picker: the shared glass-blur GTK tile grid
+choose_project_tilemenu() {
+  local project_list="$1"
 
-  # Pretty display with ~
+  # Toggle: a second invocation while the grid is open closes it instead of
+  # opening a second one, matching the other tile-menu pickers.
+  local pids
+  pids=$(pgrep -f "polyomino-tilemenu.*PROJECTS" || true)
+  if [ -n "$pids" ]; then
+    kill $pids 2>/dev/null || true
+    exit 0
+  fi
+
+  local selected_path
+  selected_path=$(
+    HOME="$HOME" python3 - "$project_list" <<'PYEOF'
+import json
+import os
+import subprocess
+import sys
+
+paths = [p for p in sys.argv[1].splitlines() if p]
+home = os.environ["HOME"]
+
+accents = ["blue", "teal", "green", "peach", "mauve", "sapphire", "sky", "yellow"]
+tiles = []
+for i, path in enumerate(paths):
+    display = path.replace(home, "~", 1) if path.startswith(home) else path
+    tiles.append({
+        "id": path,
+        "icon": "",
+        "title": os.path.basename(path.rstrip("/")) or display,
+        "desc": display,
+        "accent": accents[i % len(accents)],
+    })
+
+proc = subprocess.run(
+    ["python3", os.environ.get("POLYOMINO_TILEMENU_SCRIPT", ""), "--title", "[ ⊞ ] PROJECTS",
+     "--columns", "3", "--width", "760", "--height", "520"],
+    input=json.dumps(tiles), capture_output=True, text=True,
+)
+sys.stdout.write(proc.stdout.strip())
+PYEOF
+  )
+
+  [ -z "$selected_path" ] && exit 0
+
+  if [ -d "$selected_path" ]; then
+    exec kitty --class nvim-project -d "$selected_path" nvim .
+  fi
+  exit 0
+}
+
+# 2b. Fallback picker chain (Wofi / Rofi / Fzf) for environments without
+# python3/GTK available
+choose_project_fallback() {
+  local project_list="$1"
+
   local display_list
   display_list=$(echo "$project_list" | sed "s|^$HOME|~|")
 
@@ -93,6 +147,20 @@ choose_project() {
 
   if [ -d "$selected_path" ]; then
     exec kitty --class nvim-project -d "$selected_path" nvim .
+  fi
+}
+
+# 3. Select project
+choose_project() {
+  local project_list
+  project_list=$(collect_projects)
+
+  [ -z "$project_list" ] && exit 0
+
+  if command -v python3 >/dev/null 2>&1 && [ -f "$TILEMENU_SCRIPT" ] && python3 -c "import gi; gi.require_version('Gtk', '3.0'); from gi.repository import Gtk" >/dev/null 2>&1; then
+    POLYOMINO_TILEMENU_SCRIPT="$TILEMENU_SCRIPT" choose_project_tilemenu "$project_list"
+  else
+    choose_project_fallback "$project_list"
   fi
 }
 

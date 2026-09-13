@@ -550,21 +550,23 @@ object ThemeEngine:
          |    padding: 10px 14px;
          |    margin: 3px 6px;
          |    border-radius: 0px;
-         |    background-color: ${palette.base};
+         |    background-color: transparent;
          |    color: ${palette.text};
          |    border-left: 3px solid transparent;
+         |    border-bottom: 2px solid transparent;
          |    min-height: 36px;
          |}
          |#entry:selected {
-         |    background-color: ${palette.accent};
-         |    color: ${palette.base};
+         |    background-color: transparent;
+         |    color: ${palette.accent};
          |    border-radius: 0px;
          |    outline: none;
-         |    border-left: 3px solid ${palette.text};
+         |    border-left: 3px solid ${palette.accent};
+         |    border-bottom: 2px solid ${palette.accent};
          |}
          |#entry:selected #text,
          |#text:selected {
-         |    color: ${palette.base};
+         |    color: ${palette.accent};
          |    font-weight: bold;
          |}
          |#img,

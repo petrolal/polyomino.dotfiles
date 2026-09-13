@@ -57,21 +57,23 @@ window {
     padding: 10px 14px;
     margin: 3px 6px;
     border-radius: 0px;
-    background-color: #0D1117;
+    background-color: transparent;
     color: #F0F6FC;
     border-left: 3px solid transparent;
+    border-bottom: 2px solid transparent;
     min-height: 36px;
 }
 #entry:selected {
-    background-color: #8B5CF6;
-    color: #0D1117;
+    background-color: transparent;
+    color: #8B5CF6;
     border-radius: 0px;
     outline: none;
-    border-left: 3px solid #F0F6FC;
+    border-left: 3px solid #8B5CF6;
+    border-bottom: 2px solid #8B5CF6;
 }
 #entry:selected #text,
 #text:selected {
-    color: #0D1117;
+    color: #8B5CF6;
     font-weight: bold;
 }
 #img,

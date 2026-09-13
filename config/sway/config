@@ -74,6 +74,10 @@ for_window [class="(?i).*pinentry.*"] floating enable, border pixel 2, move posi
 for_window [app_id="polyomino-welcome"] floating enable, border pixel 2, resize set 840 620, move position center
 for_window [app_id="polyomino-lock-preview"] floating enable, border pixel 2, resize set 1024 720, move position center
 
+# Polyomino tile menus (theme-picker, wallpaper-picker, menu, whichkey, projects)
+# — one shared GTK grid window, borderless with a glass-blur backdrop
+for_window [app_id="polyomino-tilemenu"] floating enable, border none, move position center, blur enable
+
 # Quick system-status & TUI popups (bluetooth, audio mixer, network)
 for_window [app_id="kitty" title="(?i).*(wiremix|pulsemixer|ncpamixer).*"] floating enable, border pixel 2, resize set 900 550, move position center
 for_window [app_id="kitty" title="(?i).*(impala|wifui|nmtui|bluetui).*"] floating enable, border pixel 2, resize set 900 550, move position center
@@ -256,8 +260,8 @@ assign [app_id="mpv"] $ws4
 assign [class="mpv"] $ws4
 assign [app_id="vlc"] $ws4
 assign [class="vlc"] $ws4
-assign [app_id="Steam"] $ws4
-assign [class="^Steam$"] $ws4
+assign [app_id="(?i)^steam$"] $ws4
+assign [class="(?i)^steam$"] $ws4
 assign [class="^heroic$"] $ws4
 assign [class="^lutris$"] $ws4
 assign [app_id="gamescope"] $ws4
