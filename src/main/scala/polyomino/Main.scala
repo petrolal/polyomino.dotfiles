@@ -65,6 +65,7 @@ object Main:
       case "theme-picker" => polyomino.dotfiles.pickers.WofiPickers.runThemePicker(ctx, args)
       case "wallpaper-picker" => polyomino.dotfiles.pickers.WofiPickers.runWallpaperPicker(ctx, args)
       case "whichkey" | "wichkey" => polyomino.dotfiles.pickers.WofiPickers.runWhichkey(ctx, args)
+      case "launcher" | "app-launcher" | "drun" => polyomino.dotfiles.pickers.WofiPickers.runLauncher(ctx, args)
       case "menu" => polyomino.dotfiles.pickers.WofiPickers.runMenu(ctx, args)
       case "backup" => polyomino.dotfiles.maintenance.Maintenance.runBackup(ctx, args)
       case "restore" => polyomino.dotfiles.maintenance.Maintenance.runRestore(ctx, args)
