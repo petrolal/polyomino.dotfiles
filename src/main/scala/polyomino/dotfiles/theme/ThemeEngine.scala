@@ -327,14 +327,14 @@ object ThemeEngine:
         |    font-size: 13px;
         |}
         |
-        |/* ── left anchor: polyomino launcher pill ──────────────────────────── */
+        |/* ── left anchor: polyomino launcher, accent underline ─────────────── */
         |#custom-polyomino {
-        |    background: @accent;
-        |    color: @base;
+        |    background: transparent;
+        |    color: @accent;
         |    font-weight: bold;
         |    padding: 2px 10px;
         |    margin: 3px 6px 3px 4px;
-        |    border-radius: 2px;
+        |    border-bottom: 2px solid @accent;
         |}
         |
         |/* ── workspaces: minimal underline vector ──────────────────────────── */
@@ -397,7 +397,7 @@ object ThemeEngine:
         |    margin: 0;
         |}
         |
-        |/* ── right cluster: one connected flat instrument strip ────────────── */
+        |/* ── right cluster: flat modules, colored underline per icon ───────── */
         |.modules-right {
         |    margin: 0;
         |    padding: 0;
@@ -409,63 +409,63 @@ object ThemeEngine:
         |
         |.modules-right > widget > * {
         |    padding: 2px 8px;
-        |    margin: 3px 0;
-        |    background: @mantle;
-        |    color: @subtext0;
-        |    border-top: 1px solid @surface1;
-        |    border-bottom: 1px solid @surface1;
-        |    border-right: 1px solid @surface1;
+        |    margin: 3px 2px;
+        |    background: transparent;
+        |    border-bottom: 2px solid transparent;
         |}
         |
-        |.modules-right > widget:first-child > * {
-        |    border-left: 1px solid @surface1;
-        |    border-top-left-radius: 4px;
-        |    border-bottom-left-radius: 4px;
-        |}
-        |
-        |.modules-right > widget:last-child > * {
-        |    border-top-right-radius: 4px;
-        |    border-bottom-right-radius: 4px;
+        |#tray {
+        |    border-bottom: 2px solid @subtext0;
         |}
         |
         |#pulseaudio {
         |    color: @green;
+        |    border-bottom: 2px solid @green;
         |}
         |
         |#bluetooth {
         |    color: @sapphire;
+        |    border-bottom: 2px solid @sapphire;
         |}
         |
         |#network {
-        |    color: @subtext0;
+        |    color: @teal;
+        |    border-bottom: 2px solid @teal;
         |}
         |
         |#network.disconnected {
         |    color: @red;
+        |    border-bottom: 2px solid @red;
         |}
         |
         |#cpu {
-        |    color: @yellow;
+        |    color: @peach;
+        |    border-bottom: 2px solid @peach;
         |}
         |
         |#memory {
         |    color: @mauve;
+        |    border-bottom: 2px solid @mauve;
         |}
         |
         |#battery {
         |    color: @sapphire;
+        |    border-bottom: 2px solid @sapphire;
         |}
         |
         |#battery.warning {
         |    color: @yellow;
+        |    border-bottom: 2px solid @yellow;
         |}
         |
         |#battery.critical {
         |    color: @red;
+        |    border-bottom: 2px solid @red;
         |}
         |
         |#custom-notification {
         |    color: @subtext0;
+        |    border-bottom: 2px solid @subtext0;
         |}
         |
         |#custom-notification.notification,
@@ -473,11 +473,13 @@ object ThemeEngine:
         |#custom-notification.inhibited-notification,
         |#custom-notification.dnd-inhibited-notification {
         |    color: @red;
+        |    border-bottom: 2px solid @red;
         |}
         |
         |#clock {
         |    color: @text;
         |    font-weight: bold;
+        |    border-bottom: 2px solid @accent;
         |}
         |""".stripMargin
     os.write.over(waybarStyleFile, waybarStyleContent)

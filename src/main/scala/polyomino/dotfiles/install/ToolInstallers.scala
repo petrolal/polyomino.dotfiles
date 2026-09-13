@@ -1022,10 +1022,15 @@ object ToolInstallers:
         println("  \u001b[32m[OK]\u001b[0m multilib repository is already enabled.")
       else
         println("  \u001b[36m[INFO]\u001b[0m Enabling multilib repository for lib32 packages...")
-        // Uncomment both the [multilib] header and its Include line
-        val updated = content
-          .replaceAll("(?m)^#\\s*\\[multilib\\]", "[multilib]")
-          .replaceAll("(?m)^#\\s*(Include\\s*=\\s*/etc/pacman\\.d/mirrorlist)", "$1")
+        // Uncomment only the [multilib] header and the Include line directly beneath it.
+        // A blanket regex over every commented "Include = .../mirrorlist" line would also
+        // uncomment the ones under #[core-testing]/#[extra-testing]/#[multilib-testing],
+        // leaving orphan Include lines that fall under [options] and make pacman warn
+        // "directive 'Server' in section 'options' not recognized".
+        val updated = content.replaceAll(
+          "(?m)^#\\s*\\[multilib\\]\\r?\\n#\\s*(Include\\s*=\\s*/etc/pacman\\.d/mirrorlist)",
+          "[multilib]\n$1"
+        )
         os.proc("sudo", "tee", confPath)
           .call(stdin = updated, stdout = os.Pipe, check = false)
         val syncRes = os.proc("sudo", "pacman", "-Sy").call(
