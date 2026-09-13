@@ -107,14 +107,25 @@ for_window [class="^lutris$"] floating enable
 for_window [app_id="mpv"] fullscreen enable
 
 # Bento-card power / exit modal (polyomino power-menu)
-for_window [app_id="polyomino-power"] floating enable, border pixel 1, resize set 800 900, move position center, blur enable, shadow enable
-for_window [app_id="polyomino-power-menu"] floating enable, border pixel 1, resize set 800 900, move position center, blur enable, shadow enable
-for_window [class="polyomino-power-menu"] floating enable, border pixel 1, resize set 800 900, move position center, blur enable, shadow enable
-for_window [app_id="kitty" title="(?i).*polyomino.*power-menu.*"] floating enable, border pixel 1, resize set 800 900, move position center, blur enable, shadow enable
+for_window [app_id="polyomino-power"] floating enable, border pixel 1, resize set 860 880, move position center, blur enable, shadow enable
+for_window [class="polyomino-power"] floating enable, border pixel 1, resize set 860 880, move position center, blur enable, shadow enable
+for_window [app_id="polyomino-power-menu"] floating enable, border pixel 1, resize set 860 880, move position center, blur enable, shadow enable
+for_window [class="polyomino-power-menu"] floating enable, border pixel 1, resize set 860 880, move position center, blur enable, shadow enable
+for_window [app_id="kitty" title="(?i).*polyomino.*power-menu.*"] floating enable, border pixel 1, resize set 860 880, move position center, blur enable, shadow enable
 
 # Puzzle Micro-Utilities (Bento Floating Modals)
-for_window [app_id="polyomino-puzzle-*"] floating enable, border pixel 1, resize set 820 780, move position center, blur enable, shadow enable
-for_window [class="polyomino-puzzle-*"] floating enable, border pixel 1, resize set 820 780, move position center, blur enable, shadow enable
+for_window [app_id="(?i).*polyomino-puzzle.*"] floating enable, border pixel 1, resize set 860 800, move position center, blur enable, shadow enable
+for_window [class="(?i).*polyomino-puzzle.*"] floating enable, border pixel 1, resize set 860 800, move position center, blur enable, shadow enable
+for_window [app_id="polyomino-puzzle-sokoban"] floating enable, border pixel 1, resize set 860 800, move position center, blur enable, shadow enable
+for_window [class="polyomino-puzzle-sokoban"] floating enable, border pixel 1, resize set 860 800, move position center, blur enable, shadow enable
+for_window [app_id="polyomino-puzzle-2048"] floating enable, border pixel 1, resize set 860 800, move position center, blur enable, shadow enable
+for_window [class="polyomino-puzzle-2048"] floating enable, border pixel 1, resize set 860 800, move position center, blur enable, shadow enable
+for_window [app_id="polyomino-puzzle-sweeper"] floating enable, border pixel 1, resize set 860 800, move position center, blur enable, shadow enable
+for_window [class="polyomino-puzzle-sweeper"] floating enable, border pixel 1, resize set 860 800, move position center, blur enable, shadow enable
+for_window [app_id="polyomino-puzzle-lightsout"] floating enable, border pixel 1, resize set 860 800, move position center, blur enable, shadow enable
+for_window [class="polyomino-puzzle-lightsout"] floating enable, border pixel 1, resize set 860 800, move position center, blur enable, shadow enable
+for_window [app_id="polyomino-puzzle-nonogram"] floating enable, border pixel 1, resize set 860 800, move position center, blur enable, shadow enable
+for_window [class="polyomino-puzzle-nonogram"] floating enable, border pixel 1, resize set 860 800, move position center, blur enable, shadow enable
 
 # System tray helper for network/VPN status
 exec nm-applet --indicator
