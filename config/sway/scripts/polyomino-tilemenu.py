@@ -10,10 +10,11 @@ Reads a JSON array of tiles from stdin:
       "accent": "violet|blue|teal|green|yellow|peach|red|mauve|sapphire|...",
       "badge": "...", "variant": "card|square"}, ...]
 
-"variant": "square" renders a compact tile with the icon centered above the
-title only (no badge/desc row) — used by the App Launcher's 4-column grid.
-The default "card" variant keeps the badge-upper-right / icon+title/desc
-layout used by the Which-Key and Theme Selector grids.
+"variant": "square" renders a low-profile horizontal strip — icon on the
+left, name (+ optional subtext) to its right — used by the App Launcher's
+3-column grid. The default "card" variant is also a low-profile horizontal
+strip: icon + title on the left, an optional hotkey badge pinned to the
+right; used by the Which-Key and Theme Selector grids.
 
 Prints the selected tile's id to stdout and exits 0. Prints nothing and
 exits 1 if the window is closed/cancelled (Esc). With --info, tiles are
@@ -33,7 +34,7 @@ from pathlib import Path
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, Gdk, GLib
+from gi.repository import Gtk, Gdk, GLib, Pango
 
 GLib.set_prgname("polyomino-tilemenu")
 
@@ -79,7 +80,11 @@ def build_css(p):
             background-color: alpha(#FFFFFF, 0.05);
         }}
         button.tile-{name}:active {{ background-color: alpha({hexval}, 0.12); }}
-        .tile-badge-{name} {{ background-color: alpha({hexval}, 0.18); color: {hexval}; }}
+        .tile-badge-{name} {{
+            background-color: alpha({hexval}, 0.15);
+            border: 1px solid alpha({hexval}, 0.4);
+            color: {hexval};
+        }}
         .tile-icon-{name} {{ color: {hexval}; }}
         """)
 
@@ -100,9 +105,9 @@ def build_css(p):
         border: none;
     }}
     .menu-window {{
-        background-color: alpha({p['base']}, 0.78);
+        background-color: alpha({p['base']}, 0.8);
         border: 1px solid alpha({p['accent']}, 0.4);
-        border-radius: 4px;
+        border-radius: 3px;
     }}
     .menu-title {{
         font-size: 13px;
@@ -113,37 +118,41 @@ def build_css(p):
     button.polyomino-tile {{
         background-color: {p['surface0']};
         background-image: none;
-        border-radius: 4px;
-        padding: 12px;
+        border-radius: 3px;
+        padding: 8px 12px;
         box-shadow: none;
         text-shadow: none;
         transition: all 100ms ease-in-out;
     }}
+    button.polyomino-tile.tile-card {{
+        min-height: 34px;
+    }}
     button.polyomino-tile.tile-square {{
-        padding: 14px 8px;
+        min-height: 38px;
+        padding: 8px 10px;
     }}
     .tile-icon {{
-        font-size: 20px;
+        font-size: 15px;
     }}
     .tile-square .tile-icon {{
-        font-size: 26px;
+        font-size: 22px;
     }}
     .tile-badge {{
-        font-size: 9px;
+        font-size: 10px;
         font-weight: 700;
-        padding: 2px 7px;
-        border-radius: 4px;
+        padding: 3px 8px;
+        border-radius: 3px;
     }}
     .tile-title {{
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 700;
         color: {p['text']};
     }}
     .tile-square .tile-title {{
-        font-size: 11px;
+        font-size: 12px;
     }}
     .tile-desc {{
-        font-size: 10px;
+        font-size: 9px;
         color: {p['subtext0']};
     }}
     scrollbar {{ background-color: transparent; }}
@@ -196,8 +205,8 @@ class TileMenu(Gtk.Window):
         flow.set_max_children_per_line(columns)
         flow.set_min_children_per_line(1)
         flow.set_selection_mode(Gtk.SelectionMode.NONE)
-        flow.set_row_spacing(10)
-        flow.set_column_spacing(10)
+        flow.set_row_spacing(9)
+        flow.set_column_spacing(9)
         flow.set_homogeneous(True)
         flow.set_margin_start(14)
         flow.set_margin_end(14)
@@ -241,53 +250,66 @@ class TileMenu(Gtk.Window):
         btn.get_style_context().add_class(f"tile-{accent}")
         if variant == "square":
             btn.get_style_context().add_class("tile-square")
+        else:
+            btn.get_style_context().add_class("tile-card")
 
         icon_text = t.get("icon", "")
 
         if variant == "square":
-            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-            box.set_halign(Gtk.Align.CENTER)
+            # App Launcher: low-profile horizontal strip — icon left,
+            # name (+ optional subtext) stacked to its right.
+            box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
             box.set_valign(Gtk.Align.CENTER)
 
             if icon_text:
                 icon = Gtk.Label(label=icon_text)
+                icon.set_valign(Gtk.Align.CENTER)
                 icon.get_style_context().add_class("tile-icon")
                 icon.get_style_context().add_class(f"tile-icon-{accent}")
                 box.pack_start(icon, False, False, 0)
 
-            title_lbl = Gtk.Label(label=t.get("title", ""), xalign=0.5, justify=Gtk.Justification.CENTER)
-            title_lbl.set_line_wrap(True)
-            title_lbl.get_style_context().add_class("tile-title")
-            box.pack_start(title_lbl, False, False, 0)
-        else:
-            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-
-            top = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-            if icon_text:
-                icon = Gtk.Label(label=icon_text)
-                icon.get_style_context().add_class("tile-icon")
-                icon.get_style_context().add_class(f"tile-icon-{accent}")
-                top.pack_start(icon, False, False, 0)
-
-            if t.get("badge"):
-                badge = Gtk.Label(label=t["badge"])
-                badge.get_style_context().add_class("tile-badge")
-                badge.get_style_context().add_class(f"tile-badge-{accent}")
-                top.pack_end(badge, False, False, 0)
-
-            box.pack_start(top, False, False, 0)
+            text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1)
+            text_box.set_valign(Gtk.Align.CENTER)
 
             title_lbl = Gtk.Label(label=t.get("title", ""), xalign=0)
-            title_lbl.set_line_wrap(True)
-            title_lbl.set_max_width_chars(28)
+            title_lbl.set_ellipsize(Pango.EllipsizeMode.END)
+            title_lbl.set_hexpand(True)
             title_lbl.get_style_context().add_class("tile-title")
-            box.pack_start(title_lbl, False, False, 0)
+            text_box.pack_start(title_lbl, False, False, 0)
 
             if t.get("desc"):
                 desc_lbl = Gtk.Label(label=t["desc"], xalign=0)
-                desc_lbl.set_line_wrap(True)
+                desc_lbl.set_ellipsize(Pango.EllipsizeMode.END)
                 desc_lbl.get_style_context().add_class("tile-desc")
-                box.pack_start(desc_lbl, False, False, 0)
+                text_box.pack_start(desc_lbl, False, False, 0)
+
+            box.pack_start(text_box, True, True, 0)
+        else:
+            # Which-Key style: low-profile horizontal strip — icon + title
+            # on the left, hotkey badge pinned to the right.
+            box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+            box.set_valign(Gtk.Align.CENTER)
+
+            if icon_text:
+                icon = Gtk.Label(label=icon_text)
+                icon.set_valign(Gtk.Align.CENTER)
+                icon.get_style_context().add_class("tile-icon")
+                icon.get_style_context().add_class(f"tile-icon-{accent}")
+                box.pack_start(icon, False, False, 0)
+
+            title_lbl = Gtk.Label(label=t.get("title", ""), xalign=0)
+            title_lbl.set_ellipsize(Pango.EllipsizeMode.END)
+            title_lbl.set_hexpand(True)
+            title_lbl.set_valign(Gtk.Align.CENTER)
+            title_lbl.get_style_context().add_class("tile-title")
+            box.pack_start(title_lbl, True, True, 0)
+
+            if t.get("badge"):
+                badge = Gtk.Label(label=t["badge"])
+                badge.set_valign(Gtk.Align.CENTER)
+                badge.get_style_context().add_class("tile-badge")
+                badge.get_style_context().add_class(f"tile-badge-{accent}")
+                box.pack_end(badge, False, False, 0)
 
         btn.add(box)
         tid = t.get("id")

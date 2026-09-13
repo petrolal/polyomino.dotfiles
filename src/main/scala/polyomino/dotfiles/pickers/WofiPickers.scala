@@ -193,7 +193,7 @@ object WofiPickers:
       os.proc(shellable*).spawn(stdout = os.Inherit, stderr = os.Inherit)
 
     try
-      tilePick(ctx, "[ ⊞ ] polyomino", entries, columns = 4, width = 760, height = 340) match
+      tilePick(ctx, "[ ⊞ ] polyomino", entries, columns = 3, width = 640, height = 300) match
         case "" => Right(())
         case "welcome" =>
           spawn(Seq((binDir / "polyomino-welcome").toString))

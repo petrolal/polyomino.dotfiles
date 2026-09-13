@@ -125,6 +125,13 @@ class WelcomeWindow(Gtk.Window):
         custom_css = f"""
         * {{
             font-family: 'JetBrainsMono Nerd Font', 'JetBrains Mono', 'FiraCode Nerd Font', monospace;
+            outline: none;
+            box-shadow: none;
+            -gtk-outline-radius: 0;
+        }}
+        *:focus {{
+            outline: none;
+            box-shadow: none;
         }}
         window,
         window.background,
@@ -139,13 +146,14 @@ class WelcomeWindow(Gtk.Window):
             background-color: {p['bg_base']};
             color: {p['text_primary']};
             border: none;
+            box-shadow: none;
         }}
 
         /* Header Bar */
         .header-box {{
             background-color: {p['bg_mantle']};
-            border-bottom: 1px solid {p['border_subtle']};
-            padding: 16px 24px;
+            border: none;
+            padding: 16px 24px 0 24px;
         }}
         .header-icon {{
             color: {p['accent_violet']};
@@ -172,41 +180,60 @@ class WelcomeWindow(Gtk.Window):
             font-weight: 600;
         }}
 
-        /* Notebook & Tabs */
+        /* Notebook & Tabs — clean underline style, no boxed borders */
         notebook, .content-notebook {{
             background-color: {p['bg_base']};
             border: none;
+            box-shadow: none;
         }}
-        notebook header {{
+        notebook > header {{
             background-color: {p['bg_mantle']};
-            border-bottom: 1px solid {p['border_subtle']};
-            padding: 0 16px;
+            border: none;
+            box-shadow: none;
+            padding: 0 24px;
+        }}
+        notebook > header > tabs {{
+            background-color: transparent;
+            border: none;
+            box-shadow: none;
         }}
         notebook tab {{
             background-color: transparent;
+            background-image: none;
             color: {p['text_secondary']};
-            padding: 10px 20px;
+            opacity: 0.5;
+            padding: 12px 4px;
+            margin: 0 16px 0 0;
             border: none;
             border-bottom: 2px solid transparent;
+            box-shadow: none;
             font-weight: 600;
             font-size: 13px;
-            transition: all 120ms ease-in-out;
+            transition: opacity 120ms ease-in-out, color 120ms ease-in-out, border-color 120ms ease-in-out;
         }}
         notebook tab:hover {{
-            background-color: {p['bg_surface']};
+            background-color: transparent;
             color: {p['text_primary']};
+            opacity: 0.75;
         }}
         notebook tab:checked {{
-            background-color: {p['bg_surface']};
-            color: {p['text_primary']};
+            background-color: transparent;
+            color: #ffffff;
+            opacity: 1;
+            border: none;
             border-bottom: 2px solid {p['accent_violet']};
+            box-shadow: none;
+        }}
+        notebook tab:focus {{
+            outline: none;
+            box-shadow: none;
         }}
         notebook tab label {{
             color: inherit;
             font-weight: 600;
         }}
         .tab-label-box {{
-            padding: 2px 4px;
+            padding: 0;
         }}
 
         /* Polyomino Grid & Interactive Tiles */
