@@ -420,8 +420,8 @@ bindsym $mod+Shift+space floating toggle
 bindsym $mod+space focus mode_toggle
 bindsym $mod+a focus parent
 
-# Draw interactive floating window with slurp
-bindsym $mod+Shift+w exec ~/.local/bin/polyomino draw-window --spawn
+# Draw interactive floating window with slurp (current window reshape)
+bindsym $mod+Shift+w exec ~/.local/bin/polyomino draw-window --current
 
 # Scratchpads (Generic & Dedicated Shortcuts)
 bindsym $mod+Shift+minus move scratchpad, $send-notify 'Scratchpad'
