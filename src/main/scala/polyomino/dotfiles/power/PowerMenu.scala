@@ -411,16 +411,16 @@ object PowerMenu:
       )
 
   private final case class Geom(cols: Int, rows: Int):
-    val cardW      = math.min(cols, 78)
-    val cardH      = math.min(rows, math.max(24, rows - 2))
+    val cardW      = math.min(cols - 2, 76)
+    val cardH      = math.min(rows - 2, 34)
     val cardLeft   = math.max(0, (cols - cardW) / 2)
     val cardRight  = cardLeft + cardW - 1
     val cardTop    = math.max(0, (rows - cardH) / 2)
     val cardBottom = cardTop + cardH - 1
 
-    val laneCells = 4
-    val wellCols  = laneCells * 4 // 16 cells across 4 dedicated action chutes
-    val innerW    = wellCols * CellW // 32 chars
+    val laneCells = 8 // 8 cells per lane = 16 character cells per chute
+    val wellCols  = laneCells * 4 // 32 cells across 4 dedicated action chutes
+    val innerW    = wellCols * CellW // 64 chars
     val wellLeft  = cardLeft + math.max(1, (cardW - (innerW + 2)) / 2)
     val wellRight = wellLeft + innerW + 1
 
@@ -432,7 +432,8 @@ object PowerMenu:
     val wellH           = wellBottom - wellTop + 1
 
     def cellX(cx: Int): Int = wellLeft + 1 + cx * CellW
-    def laneCenterX(i: Int): Int = cellX(i * laneCells + laneCells / 2)
+    def chuteCenterX(i: Int): Int = wellLeft + 1 + i * (laneCells * CellW) + (laneCells * CellW) / 2
+    def laneCenterX(i: Int): Int = chuteCenterX(i)
 
     val topY: Int = interiorTopY
 
@@ -710,25 +711,19 @@ object PowerMenu:
         y += 1
 
     private def drawLanes(buf: Buf, g: Geom, th: Theme, laneIdx: Int): Unit =
-      // Dynamic Landing Target Wells directly under each chute
+      val padW = g.laneCells * CellW - 2
       for i <- 0 to 3 do
         val sel      = i == laneIdx
-        val w        = g.laneCells * CellW - 2
         val lane     = Lane.values(i)
         val padColor = if sel then th.laneColor(lane) else th.dim
-        buf.put(g.laneCenterX(i) - w / 2, g.wellBottom + 1,
-                (if sel then "▀" else "─") * w, padColor)
+        val cx       = g.chuteCenterX(i)
+        val padX     = cx - padW / 2
+        buf.put(padX, g.wellBottom + 1, (if sel then "▀" else "─") * padW, padColor)
 
-      // 4 Spaced Landing Target Well Badges with Glow Highlight
-      val quarter = math.max(1, (g.cardW - 4) / 4)
-      for i <- 0 to 3 do
-        val lane  = Lane.values(i)
-        val sel   = i == laneIdx
-        val label = s"[ ${i + 1}: ${lane.glyph} ${lane.label} ]"
-        val color = if sel then th.laneColor(lane) else th.dim
-        val cx    = g.cardLeft + 2 + quarter * i + quarter / 2
-        val lx    = math.max(g.cardLeft + 2, math.min(g.cardRight - label.length - 1, cx - label.length / 2))
-        buf.put(lx, g.wellBottom + 3, label, color)
+        val label = s"[ ${i + 1}: ${lane.label} ]"
+        val labelColor = if sel then th.laneColor(lane) else th.dim
+        val lx = cx - label.length / 2
+        buf.put(lx, g.wellBottom + 3, label, labelColor)
 
     private def drawGameOverModal(buf: Buf, g: Geom, th: Theme, lane: Lane, leftSec: Double): Unit =
       val modalW = 38

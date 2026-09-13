@@ -9,6 +9,8 @@ import os
 import subprocess
 import termios
 import tty
+import shutil
+import re
 
 ESC = "\033["
 RESET = f"{ESC}0m"
@@ -24,9 +26,22 @@ GREEN = f"{ESC}38;2;34;197;94m"
 RED = f"{ESC}38;2;239;68;68m"
 TEXT_WHITE = f"{ESC}38;2;248;250;252m"
 TEXT_DIM = f"{ESC}38;2;100;116;139m"
+WALL_COLOR = f"{ESC}38;2;51;65;85m"
 
 TOGGLE_ACTIVE_BG = f"{ESC}48;2;12;74;110m"
 TOGGLE_INACTIVE_BG = f"{ESC}48;2;30;41;59m"
+
+ANSI_RE = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]')
+
+def strip_ansi(s):
+    return ANSI_RE.sub('', s)
+
+def visible_len(s):
+    return len(strip_ansi(s))
+
+def get_term_size():
+    size = shutil.get_terminal_size(fallback=(80, 36))
+    return max(80, size.columns), max(30, size.lines)
 
 ITEMS = [
     {"id": "wifi", "name": "Wi-Fi Radio", "glyph": "󰖩", "check": "nmcli radio wifi", "on": "nmcli radio wifi on", "off": "nmcli radio wifi off"},
@@ -37,7 +52,7 @@ ITEMS = [
     {"id": "audio_mute", "name": "Audio Output", "glyph": "󰕾", "check": "wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null | grep -q MUTED && exit 1 || exit 0", "on": "wpctl set-mute @DEFAULT_AUDIO_SINK@ 0", "off": "wpctl set-mute @DEFAULT_AUDIO_SINK@ 1"},
     {"id": "mic_mute", "name": "Microphone", "glyph": "󰍬", "check": "wpctl get-volume @DEFAULT_AUDIO_SOURCE@ 2>/dev/null | grep -q MUTED && exit 1 || exit 0", "on": "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ 0", "off": "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ 1"},
     {"id": "autotiling", "name": "Autotiling", "glyph": "󰕰", "check": "pgrep -f 'polyomino.*autotiling'", "on": "polyomino autotiling &", "off": "pkill -f 'polyomino.*autotiling'"},
-    {"id": "stealth", "name": "Stealth Mode", "glyph": "󰌌", "check": "false", "on": "", "off": ""}
+    {"id": "stealth", "name": "Idle Inhibit", "glyph": "󰌌", "check": "pgrep -f 'swayidle.*polyomino'", "on": "pkill -f swayidle", "off": "polyomino idle &"}
 ]
 
 def probe_hardware_state():
@@ -69,13 +84,18 @@ class LightsOutGame:
         self.probe()
 
     def probe(self):
-        st = probe_hardware_state()
-        idx = 0
-        for r in range(3):
-            for c in range(3):
-                self.state[r][c] = st[idx]
-                self.original_state[r][c] = st[idx]
-                idx += 1
+        try:
+            st = probe_hardware_state()
+            idx = 0
+            for r in range(3):
+                for c in range(3):
+                    if idx < len(st):
+                        self.state[r][c] = st[idx]
+                        self.original_state[r][c] = st[idx]
+                    idx += 1
+        except Exception:
+            self.state = [[True, True, False], [False, False, True], [True, True, False]]
+            self.original_state = [[True, True, False], [False, False, True], [True, True, False]]
 
     def move(self, dr, dc):
         self.cursor = (max(0, min(2, self.cursor[0] + dr)), max(0, min(2, self.cursor[1] + dc)))
@@ -130,7 +150,7 @@ class LightsOutGame:
         print("\a", end="", flush=True)
 
     def render(self, term_w=80, term_h=36):
-        card_w = min(term_w - 2, 78)
+        card_w = min(term_w - 2, 76)
         card_h = min(term_h - 2, 34)
         left = max(0, (term_w - card_w) // 2)
         top = max(0, (term_h - card_h) // 2)
@@ -154,10 +174,11 @@ class LightsOutGame:
         header_title = f"{BORDER_VIOLET}[ ⮽ ] {CYAN}[ LIGHTS OUT // QUICK SETTINGS & PROFILE MATRIX ]"
         mode_tag = f"{AMBER}[ MODE: {mode_str} ]"
         buf.append(f"{ESC}{top+2};{left+3}H{header_title}")
-        buf.append(f"{ESC}{top+2};{right - len(mode_tag) - 1}H{mode_tag}")
+        tag_x = max(left + 3, right - visible_len(mode_tag) - 1)
+        buf.append(f"{ESC}{top+2};{tag_x}H{mode_tag}")
 
         # 3x3 Bento Tile Matrix
-        tile_w = 22
+        tile_w = 21
         tile_h = 5
         start_x = left + 4
         start_y = top + 5
@@ -178,9 +199,9 @@ class LightsOutGame:
 
                 t_span = "─" * (tile_w - 2)
                 buf.append(f"{ESC}{ty};{tx}H{border_col}┌{t_span}┐{RESET}{BG_DARK}")
-                buf.append(f"{ESC}{ty+1};{tx}H{border_col}│{bg_col}{BOLD}{item['glyph']} {item['name']:<14}{RESET}{BG_DARK}{border_col}│{RESET}{BG_DARK}")
+                buf.append(f"{ESC}{ty+1};{tx}H{border_col}│{bg_col}{BOLD}{item['glyph']} {item['name']:<13}{RESET}{BG_DARK}{border_col}│{RESET}{BG_DARK}")
                 buf.append(f"{ESC}{ty+2};{tx}H{border_col}│{bg_col}{state_lbl:<19}{RESET}{BG_DARK}{border_col}│{RESET}{BG_DARK}")
-                buf.append(f"{ESC}{ty+3};{tx}H{border_col}│{bg_col}{TEXT_DIM}[KEY: {idx+1}]{' '*12}{RESET}{BG_DARK}{border_col}│{RESET}{BG_DARK}")
+                buf.append(f"{ESC}{ty+3};{tx}H{border_col}│{bg_col}{TEXT_DIM}[KEY: {idx+1}]{' '*11}{RESET}{BG_DARK}{border_col}│{RESET}{BG_DARK}")
                 buf.append(f"{ESC}{ty+4};{tx}H{border_col}└{t_span}┘{RESET}{BG_DARK}")
 
         # Presets Bar
@@ -188,7 +209,8 @@ class LightsOutGame:
         buf.append(f"{ESC}{p_row};{left+4}H{VIOLET}{BOLD}[ PRESETS ]{RESET}{BG_DARK} {AMBER}[1]{TEXT_WHITE} Stealth  {AMBER}[2]{TEXT_WHITE} Gaming  {AMBER}[3]{TEXT_WHITE} Focus  {AMBER}[4]{TEXT_WHITE} Balanced")
 
         # Status Line
-        buf.append(f"{ESC}{bottom-3};{left+3}H{self.status_color}{self.status_msg[:card_w-6]:<{card_w-6}}{RESET}{BG_DARK}")
+        max_status_len = card_w - 6
+        buf.append(f"{ESC}{bottom-3};{left+3}H{self.status_color}{self.status_msg[:max_status_len]:<{max_status_len}}{RESET}{BG_DARK}")
 
         # Footer
         footer_badge = f"{CYAN}[ NORMAL ]{RESET}{BG_DARK}"
@@ -200,19 +222,20 @@ class LightsOutGame:
         sys.stdout.flush()
 
 def main():
-    old_settings = termios.tcgetattr(sys.stdin)
+    is_tty = sys.stdin.isatty()
+    old_settings = termios.tcgetattr(sys.stdin) if is_tty else None
     try:
-        tty.setraw(sys.stdin.fileno())
+        if is_tty:
+            tty.setraw(sys.stdin.fileno())
+        sys.stdout.write(f"{ESC}?1049h{ESC}?25l{ESC}2J")
+        sys.stdout.flush()
         game = LightsOutGame()
         while True:
-            try:
-                h, w = os.get_terminal_size()
-            except Exception:
-                w, h = 80, 36
+            w, h = get_term_size()
             game.render(w, h)
 
             ch = sys.stdin.read(1)
-            if ch in ('q', 'Q', '\x1b'):
+            if not ch or ch in ('q', 'Q', '\x1b'):
                 break
             elif ch in ('h', 'a'): game.move(0, -1)
             elif ch in ('l', 'd'): game.move(0, 1)
@@ -232,8 +255,9 @@ def main():
                 game.status_msg = "[REFRESH] Polled live hardware state."
                 game.status_color = CYAN
     finally:
-        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
-        sys.stdout.write(f"{ESC}?25h\n{RESET}")
+        if is_tty and old_settings:
+            termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+        sys.stdout.write(f"{ESC}?25h{ESC}?1049l{RESET}")
         sys.stdout.flush()
 
 if __name__ == "__main__":

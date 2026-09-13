@@ -10,7 +10,8 @@ import random
 import subprocess
 import termios
 import tty
-import time
+import shutil
+import re
 
 ESC = "\033["
 RESET = f"{ESC}0m"
@@ -26,6 +27,18 @@ GREEN = f"{ESC}38;2;34;197;94m"
 RED = f"{ESC}38;2;239;68;68m"
 TEXT_WHITE = f"{ESC}38;2;248;250;252m"
 TEXT_DIM = f"{ESC}38;2;100;116;139m"
+
+ANSI_RE = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]')
+
+def strip_ansi(s):
+    return ANSI_RE.sub('', s)
+
+def visible_len(s):
+    return len(strip_ansi(s))
+
+def get_term_size():
+    size = shutil.get_terminal_size(fallback=(80, 36))
+    return max(80, size.columns), max(30, size.lines)
 
 TIER_COLORS = {
     2: (f"{ESC}38;2;148;163;184m", f"{ESC}48;2;30;41;59m"),
@@ -119,36 +132,50 @@ class Game2048:
     def move_left(self):
         moved = False
         for r in range(4):
-            c1 = self.compress(self.grid[r])
-            m, merged = self.merge(c1)
-            c2 = self.compress(m)
-            if c2 != self.grid[r]:
+            c_row = self.compress(self.grid[r])
+            m_row, merged = self.merge(c_row)
+            f_row = self.compress(m_row)
+            if f_row != self.grid[r]:
                 moved = True
-                self.grid[r] = c2
+                self.grid[r] = f_row
         return moved
 
-    def rotate(self):
-        self.grid = [list(r) for r in zip(*self.grid[::-1])]
+    def rotate_cw(self):
+        self.grid = [list(x) for x in zip(*self.grid[::-1])]
 
     def move(self, direction):
         # 0: left, 1: down, 2: right, 3: up
         moved = False
-        for _ in range(direction):
-            self.rotate()
-        moved = self.move_left()
-        for _ in range((4 - direction) % 4):
-            self.rotate()
-        
+        if direction == 0:
+            moved = self.move_left()
+        elif direction == 1:
+            self.rotate_cw()
+            moved = self.move_left()
+            self.rotate_cw()
+            self.rotate_cw()
+            self.rotate_cw()
+        elif direction == 2:
+            self.rotate_cw()
+            self.rotate_cw()
+            moved = self.move_left()
+            self.rotate_cw()
+            self.rotate_cw()
+        elif direction == 3:
+            self.rotate_cw()
+            self.rotate_cw()
+            self.rotate_cw()
+            moved = self.move_left()
+            self.rotate_cw()
+
         if moved:
             self.spawn()
-            trigger_cache_sync()
-            self.mem = get_meminfo()
-            self.status_msg = f"[COMPACT] Reclaimed {self.reclaimed_mb} MB cache buffers • Sync executed."
-            self.status_color = GREEN
             print("\a", end="", flush=True)
+            self.status_msg = f"[PAGE COMPACT] Merged memory pages. Reclaimed ~{self.reclaimed_mb} MB."
+            self.status_color = GREEN
+            self.mem = get_meminfo()
 
     def render(self, term_w=80, term_h=36):
-        card_w = min(term_w - 2, 78)
+        card_w = min(term_w - 2, 76)
         card_h = min(term_h - 2, 34)
         left = max(0, (term_w - card_w) // 2)
         top = max(0, (term_h - card_h) // 2)
@@ -171,7 +198,8 @@ class Game2048:
         header_title = f"{BORDER_VIOLET}[ ⮽ ] {CYAN}[ 2048 // MEMORY & CACHE COMPACTION ]"
         score_tag = f"{AMBER}[ COMPACTED: {self.reclaimed_mb} MB ] [ SCORE: {self.score} ]"
         buf.append(f"{ESC}{top+2};{left+3}H{header_title}")
-        buf.append(f"{ESC}{top+2};{right - len(score_tag) - 1}H{score_tag}")
+        tag_x = max(left + 3, right - visible_len(score_tag) - 1)
+        buf.append(f"{ESC}{top+2};{tag_x}H{score_tag}")
 
         # Live RAM Telemetry Gauge (Left Panel)
         tl_left = left + 4
@@ -184,7 +212,7 @@ class Game2048:
         buf.append(f"{ESC}{tl_top+2};{tl_left}H{TEXT_DIM}RAM USED:    {TEXT_WHITE}{self.mem['used']} / {self.mem['total']} MB ({used_pct}%)")
         
         # RAM Bar
-        bar_len = 24
+        bar_len = 22
         used_bars = int(bar_len * (used_pct / 100.0))
         ram_bar = f"{RED}{'█'*used_bars}{TEXT_DIM}{'░'*(bar_len-used_bars)}{RESET}{BG_DARK}"
         buf.append(f"{ESC}{tl_top+3};{tl_left}H[{ram_bar}]")
@@ -198,7 +226,7 @@ class Game2048:
         buf.append(f"{ESC}{tl_top+9};{tl_left}H{TEXT_DIM}SWAP USED:   {TEXT_WHITE}{self.mem['swap_used']} / {self.mem['swap_total']} MB")
 
         # 2048 4x4 Tile Matrix (Right Panel)
-        grid_left = left + 34
+        grid_left = left + 32
         grid_top = top + 5
 
         for r in range(4):
@@ -218,11 +246,12 @@ class Game2048:
                     buf.append(f"{ESC}{ry+2};{rx}H{fg}└───────┘{RESET}{BG_DARK}")
 
         # Status Line
-        buf.append(f"{ESC}{bottom-3};{left+3}H{self.status_color}{self.status_msg[:card_w-6]:<{card_w-6}}{RESET}{BG_DARK}")
+        max_status_len = card_w - 6
+        buf.append(f"{ESC}{bottom-3};{left+3}H{self.status_color}{self.status_msg[:max_status_len]:<{max_status_len}}{RESET}{BG_DARK}")
 
         # Footer
         footer_badge = f"{CYAN}[ NORMAL ]{RESET}{BG_DARK}"
-        footer_keys = f"{TEXT_DIM}h/j/k/l (←/↓/↑/→) Slide • c Force Sync • r New Game • q/Esc Exit{RESET}{BG_DARK}"
+        footer_keys = f"{TEXT_DIM}h/j/k/l Slide • c Sync • r Reset • q/Esc Exit{RESET}{BG_DARK}"
         buf.append(f"{ESC}{bottom-1};{left+3}H{footer_badge}  {footer_keys}")
 
         buf.append(f"{ESC}{term_h};1H{RESET}")
@@ -230,25 +259,26 @@ class Game2048:
         sys.stdout.flush()
 
 def main():
-    old_settings = termios.tcgetattr(sys.stdin)
+    is_tty = sys.stdin.isatty()
+    old_settings = termios.tcgetattr(sys.stdin) if is_tty else None
     try:
-        tty.setraw(sys.stdin.fileno())
+        if is_tty:
+            tty.setraw(sys.stdin.fileno())
+        sys.stdout.write(f"{ESC}?1049h{ESC}?25l{ESC}2J")
+        sys.stdout.flush()
         game = Game2048()
         while True:
-            try:
-                h, w = os.get_terminal_size()
-            except Exception:
-                w, h = 80, 36
+            w, h = get_term_size()
             game.render(w, h)
 
             ch = sys.stdin.read(1)
-            if ch in ('q', 'Q', '\x1b'):
+            if not ch or ch in ('q', 'Q', '\x1b'):
                 break
             elif ch in ('h', 'a'): game.move(0)
             elif ch in ('j', 's'): game.move(1)
             elif ch in ('l', 'd'): game.move(2)
             elif ch in ('k', 'w'): game.move(3)
-            elif ch in ('c', 'C'):
+            elif ch in ('c', 'C', ' '):
                 trigger_cache_sync()
                 game.mem = get_meminfo()
                 game.status_msg = "[FLUSH] Forced kernel buffer sync completed."
@@ -256,8 +286,9 @@ def main():
             elif ch in ('r', 'R'):
                 game = Game2048()
     finally:
-        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
-        sys.stdout.write(f"{ESC}?25h\n{RESET}")
+        if is_tty and old_settings:
+            termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+        sys.stdout.write(f"{ESC}?25h{ESC}?1049l{RESET}")
         sys.stdout.flush()
 
 if __name__ == "__main__":

@@ -9,6 +9,8 @@ import os
 import subprocess
 import termios
 import tty
+import shutil
+import re
 
 ESC = "\033["
 RESET = f"{ESC}0m"
@@ -24,6 +26,18 @@ GREEN = f"{ESC}38;2;34;197;94m"
 RED = f"{ESC}38;2;239;68;68m"
 TEXT_WHITE = f"{ESC}38;2;248;250;252m"
 TEXT_DIM = f"{ESC}38;2;100;116;139m"
+
+ANSI_RE = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]')
+
+def strip_ansi(s):
+    return ANSI_RE.sub('', s)
+
+def visible_len(s):
+    return len(strip_ansi(s))
+
+def get_term_size():
+    size = shutil.get_terminal_size(fallback=(80, 36))
+    return max(80, size.columns), max(30, size.lines)
 
 FLAVORS = [
     {
@@ -46,7 +60,7 @@ FLAVORS = [
         "name": "ENCRUZA",
         "accent": "#a855f7",
         "accent_code": f"{ESC}38;2;168;85;247m",
-        "tagline": "Neo-Tokyo Crossroads & Night Glow",
+        "tagline": "Neo-Tokyo Crossroads Glow",
         "pattern": [
             [0, 0, 1, 1, 0, 0],
             [0, 0, 1, 1, 0, 0],
@@ -76,7 +90,7 @@ FLAVORS = [
         "name": "ARUANDA",
         "accent": "#38bdf8",
         "accent_code": f"{ESC}38;2;56;189;248m",
-        "tagline": "Celestial Sky & Deep Cyan Polyomino",
+        "tagline": "Celestial Sky & Cyan Polyomino",
         "pattern": [
             [0, 1, 1, 1, 1, 0],
             [1, 1, 0, 0, 1, 1],
@@ -140,7 +154,7 @@ class NonogramGame:
         self.cursor_r = 0
         self.cursor_c = 0
         self.solved = False
-        self.status_msg = f"Nonogram {self.flavor['name']} loaded. Fill cells with Space or press Enter to apply."
+        self.status_msg = f"Emblem loaded. Fill cells with Space or press Enter to quick apply."
         self.status_color = CYAN
 
     def move(self, dr, dc):
@@ -178,7 +192,7 @@ class NonogramGame:
         print("\a", end="", flush=True)
 
     def render(self, term_w=80, term_h=36):
-        card_w = min(term_w - 2, 78)
+        card_w = min(term_w - 2, 76)
         card_h = min(term_h - 2, 34)
         left = max(0, (term_w - card_w) // 2)
         top = max(0, (term_h - card_h) // 2)
@@ -198,12 +212,13 @@ class NonogramGame:
         buf.append(f"{ESC}{bottom+1};{left+1}H{BORDER_VIOLET}└{span}┘")
 
         # Header
-        header_title = f"{BORDER_VIOLET}[ ⮽ ] {CYAN}[ NONOGRAM // THEME & PALETTE SYNTHESIZER ]"
+        header_title = f"{BORDER_VIOLET}[ ⮽ ] {CYAN}[ NONOGRAM // THEME SYNTHESIZER ]"
         flavor_tag = f"{self.flavor['accent_code']}[ FLAVOR: {self.flavor['name']} ]"
         buf.append(f"{ESC}{top+2};{left+3}H{header_title}")
-        buf.append(f"{ESC}{top+2};{right - len(flavor_tag) - 1}H{flavor_tag}")
+        tag_x = max(left + 3, right - visible_len(flavor_tag) - 1)
+        buf.append(f"{ESC}{top+2};{tag_x}H{flavor_tag}")
 
-        # Left Info Panel: Theme Swatches & Tagline
+        # Left Info Panel: Theme Swatches & Controls
         il_left = left + 4
         il_top = top + 5
         buf.append(f"{ESC}{il_top};{il_left}H{VIOLET}{BOLD}[ THEME SPECIFICATION ]{RESET}{BG_DARK}")
@@ -220,7 +235,7 @@ class NonogramGame:
         buf.append(f"{ESC}{il_top+14};{il_left}H{TEXT_DIM}Tab   Cycle Theme")
 
         # Right Panel: Nonogram Grid with Clues
-        grid_left = left + 36
+        grid_left = left + 34
         grid_top = top + 5
 
         # Render Top Column Clues
@@ -263,11 +278,12 @@ class NonogramGame:
             buf.append(f"{ESC}{board_start_y + r * 2};{grid_left}H" + row_prefix + "".join(row_cells))
 
         # Status Line
-        buf.append(f"{ESC}{bottom-3};{left+3}H{self.status_color}{self.status_msg[:card_w-6]:<{card_w-6}}{RESET}{BG_DARK}")
+        max_status_len = card_w - 6
+        buf.append(f"{ESC}{bottom-3};{left+3}H{self.status_color}{self.status_msg[:max_status_len]:<{max_status_len}}{RESET}{BG_DARK}")
 
         # Footer
         footer_badge = f"{CYAN}[ NORMAL ]{RESET}{BG_DARK}"
-        footer_keys = f"{TEXT_DIM}h/j/k/l Move • Space Fill • x Cross • Tab Next Flavor • Enter Apply • q Exit{RESET}{BG_DARK}"
+        footer_keys = f"{TEXT_DIM}h/j/k/l Move • Space Fill • x Cross • Tab Next • Enter Apply • q Exit{RESET}{BG_DARK}"
         buf.append(f"{ESC}{bottom-1};{left+3}H{footer_badge}  {footer_keys}")
 
         buf.append(f"{ESC}{term_h};1H{RESET}")
@@ -275,19 +291,20 @@ class NonogramGame:
         sys.stdout.flush()
 
 def main():
-    old_settings = termios.tcgetattr(sys.stdin)
+    is_tty = sys.stdin.isatty()
+    old_settings = termios.tcgetattr(sys.stdin) if is_tty else None
     try:
-        tty.setraw(sys.stdin.fileno())
+        if is_tty:
+            tty.setraw(sys.stdin.fileno())
+        sys.stdout.write(f"{ESC}?1049h{ESC}?25l{ESC}2J")
+        sys.stdout.flush()
         game = NonogramGame()
         while True:
-            try:
-                h, w = os.get_terminal_size()
-            except Exception:
-                w, h = 80, 36
+            w, h = get_term_size()
             game.render(w, h)
 
             ch = sys.stdin.read(1)
-            if ch in ('q', 'Q', '\x1b'):
+            if not ch or ch in ('q', 'Q', '\x1b'):
                 break
             elif ch in ('h', 'a'): game.move(0, -1)
             elif ch in ('l', 'd'): game.move(0, 1)
@@ -302,8 +319,9 @@ def main():
             elif ch in ('r', 'R'):
                 game.load_flavor(game.flavor_idx)
     finally:
-        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
-        sys.stdout.write(f"{ESC}?25h\n{RESET}")
+        if is_tty and old_settings:
+            termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+        sys.stdout.write(f"{ESC}?25h{ESC}?1049l{RESET}")
         sys.stdout.flush()
 
 if __name__ == "__main__":

@@ -11,6 +11,8 @@ import subprocess
 import termios
 import tty
 import copy
+import shutil
+import re
 
 # ANSI Color Codes & Styles
 ESC = "\033["
@@ -30,6 +32,18 @@ TEXT_WHITE = f"{ESC}38;2;248;250;252m"
 TEXT_DIM = f"{ESC}38;2;100;116;139m"
 WALL_COLOR = f"{ESC}38;2;51;65;85m"
 GRID_COLOR = f"{ESC}38;2;30;41;59m"
+
+ANSI_RE = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]')
+
+def strip_ansi(s):
+    return ANSI_RE.sub('', s)
+
+def visible_len(s):
+    return len(strip_ansi(s))
+
+def get_term_size():
+    size = shutil.get_terminal_size(fallback=(80, 36))
+    return max(80, size.columns), max(30, size.lines)
 
 LEVELS = [
     {
@@ -86,7 +100,7 @@ def get_sway_windows():
         tree = json.loads(raw)
         windows = []
         def walk(node):
-            if node.get("type") in ("con", "floating_con") and node.get("name") and node.get("app_id") or node.get("window_properties"):
+            if node.get("type") in ("con", "floating_con") and (node.get("name") or node.get("app_id") or node.get("window_properties")):
                 app = node.get("app_id") or node.get("window_properties", {}).get("class", "app")
                 title = node.get("name", "Window")
                 con_id = node.get("id")
@@ -98,92 +112,98 @@ def get_sway_windows():
         return windows
     except Exception:
         return [
-            {"id": 101, "app": "kitty", "title": "zsh [master]", "focused": True},
-            {"id": 102, "app": "firefox", "title": "GitHub — polyomino", "focused": False},
-            {"id": 103, "app": "neovim", "title": "PowerMenu.scala", "focused": False},
-            {"id": 104, "app": "spotify", "title": "Spotify Premium", "focused": False},
-            {"id": 105, "app": "1password", "title": "Vault unlocked", "focused": False}
+            {"id": 101, "app": "kitty", "title": "kitty term", "focused": True},
+            {"id": 102, "app": "firefox", "title": "Firefox Browser", "focused": False},
+            {"id": 103, "app": "neovim", "title": "Main.scala", "focused": False},
+            {"id": 104, "app": "spotify", "title": "Spotify Music", "focused": False}
         ]
 
-def run_sway_cmd(con_id, cmd):
-    """Execute sway action safely."""
+def dispatch_sway_action(con_id, action_cmd):
+    """Dispatch real-time window management command via swaymsg."""
     try:
         if con_id:
-            subprocess.run(["swaymsg", f"[con_id={con_id}]", cmd], timeout=1, capture_output=True)
+            subprocess.run(["swaymsg", f"[con_id={con_id}] {action_cmd}"], timeout=1, capture_output=True)
         else:
-            subprocess.run(["swaymsg", cmd], timeout=1, capture_output=True)
+            subprocess.run(["swaymsg", action_cmd], timeout=1, capture_output=True)
     except Exception:
         pass
 
 class SokobanGame:
     def __init__(self, level_idx=0):
         self.level_idx = level_idx
-        self.windows = get_sway_windows()
         self.load_level(level_idx)
-        self.history = []
-        self.status_msg = "Warehouse initialized. Push window blocks to target pads."
-        self.status_color = CYAN
 
     def load_level(self, idx):
         self.level = LEVELS[idx % len(LEVELS)]
         self.map_lines = self.level["map"]
         self.height = len(self.map_lines)
-        self.width = max(len(l) for l in self.map_lines)
-        self.goals = copy.deepcopy(self.level["goals"])
+        self.width = max(len(line) for line in self.map_lines)
+        self.goals = dict(self.level["goals"])
         self.walls = set()
         self.crates = []
-        self.player = (0, 0)
-        
+        self.player = (1, 1)
+        self.windows = get_sway_windows()
+
+        crate_labels = ["A", "B", "C", "D", "E", "F", "G", "H"]
         crate_idx = 0
+
         for y, line in enumerate(self.map_lines):
             for x, ch in enumerate(line):
                 if ch == '#':
                     self.walls.add((x, y))
                 elif ch == '$':
-                    win = self.windows[crate_idx % len(self.windows)] if self.windows else {"id": None, "app": f"Win-{crate_idx+1}", "title": ""}
-                    self.crates.append({"pos": (x, y), "win": win, "id": win.get("id"), "label": chr(65 + crate_idx)})
+                    win = self.windows[crate_idx % len(self.windows)]
+                    lbl = crate_labels[crate_idx % len(crate_labels)]
+                    self.crates.append({"pos": (x, y), "win": win, "label": lbl})
                     crate_idx += 1
                 elif ch == '@':
                     self.player = (x, y)
                 elif ch == '.':
-                    pass
+                    if (x, y) not in self.goals:
+                        self.goals[(x, y)] = ("TARGET", 0, "move scratchpad")
 
-        # If player wasn't in map, find first empty cell
-        if self.player == (0, 0):
-            for y in range(self.height):
-                for x in range(self.width):
+        if not any(ch == '@' for line in self.map_lines for ch in line):
+            # Find an empty interior cell for player
+            for y in range(1, self.height - 1):
+                for x in range(1, self.width - 1):
                     if (x, y) not in self.walls and not any(c["pos"] == (x, y) for c in self.crates):
                         self.player = (x, y)
                         break
-                if self.player != (0, 0):
-                    break
+                if self.player != (1, 1): break
 
-    def push(self, dx, dy):
-        nx, ny = self.player[0] + dx, self.player[1] + dy
+        self.history = []
+        self.status_msg = f"Level {idx + 1} loaded. Push crates onto goal pads to route windows."
+        self.status_color = CYAN
+
+    def move_player(self, dx, dy):
+        px, py = self.player
+        nx, ny = px + dx, py + dy
+
         if (nx, ny) in self.walls:
             return
 
-        # Check crate collision
+        # Check crate push
         crate = next((c for c in self.crates if c["pos"] == (nx, ny)), None)
         if crate:
             nnx, nny = nx + dx, ny + dy
             if (nnx, nny) in self.walls or any(c["pos"] == (nnx, nny) for c in self.crates):
-                return # Blocked
+                return
             # Save history
             self.history.append((self.player, copy.deepcopy(self.crates)))
             crate["pos"] = (nnx, nny)
             self.player = (nx, ny)
+            print("\a", end="", flush=True)
 
             # Check if crate landed on goal pad
             if (nnx, nny) in self.goals:
-                g_label, g_val, g_cmd = self.goals[(nnx, nny)]
-                run_sway_cmd(crate["id"], g_cmd)
-                self.status_msg = f"[DISPATCH] Window [{crate['label']}] '{crate['win']['app']}' -> {g_label} ({g_cmd})"
+                goal_name, ws_num, cmd = self.goals[(nnx, nny)]
+                win = crate["win"]
+                dispatch_sway_action(win.get("id"), cmd)
+                self.status_msg = f"[DISPATCH] Window '{win['app']}' routed -> {goal_name} ({cmd})"
                 self.status_color = GREEN
-                print("\a", end="", flush=True) # Bell feedback
             else:
-                self.status_msg = f"Shifted [{crate['label']}] '{crate['win']['app']}' to ({nnx}, {nny})"
-                self.status_color = TEXT_WHITE
+                self.status_msg = f"Pushed window crate [{crate['label']}]"
+                self.status_color = AMBER
         else:
             self.history.append((self.player, copy.deepcopy(self.crates)))
             self.player = (nx, ny)
@@ -195,7 +215,7 @@ class SokobanGame:
             self.status_color = AMBER
 
     def render(self, term_w=80, term_h=36):
-        card_w = min(term_w - 2, 78)
+        card_w = min(term_w - 2, 76)
         card_h = min(term_h - 2, 34)
         left = max(0, (term_w - card_w) // 2)
         top = max(0, (term_h - card_h) // 2)
@@ -218,7 +238,8 @@ class SokobanGame:
         header_title = f"{BORDER_VIOLET}[ ⮽ ] {CYAN}[ SOKOBAN // {self.level['name']} ]"
         level_tag = f"{AMBER}[ LVL {self.level_idx + 1}/{len(LEVELS)} ]"
         buf.append(f"{ESC}{top+2};{left+3}H{header_title}")
-        buf.append(f"{ESC}{top+2};{right - len(level_tag) - 1}H{level_tag}")
+        tag_x = max(left + 3, right - visible_len(level_tag) - 1)
+        buf.append(f"{ESC}{top+2};{tag_x}H{level_tag}")
 
         # Render Sokoban Grid in Center
         grid_top = top + 5
@@ -244,7 +265,7 @@ class SokobanGame:
             buf.append(f"{ESC}{grid_top + y};{grid_left}H" + "".join(line_cells))
 
         # Side Telemetry: Active Window Assignment Queue
-        side_left = grid_left + (self.width * 2) + 4
+        side_left = grid_left + (self.width * 2) + 3
         buf.append(f"{ESC}{top+5};{side_left}H{VIOLET}{BOLD}[ MANAGED WINDOWS ]{RESET}{BG_DARK}")
         for i, c in enumerate(self.crates[:8]):
             win = c["win"]
@@ -255,11 +276,12 @@ class SokobanGame:
             buf.append(f"{ESC}{top + 7 + i};{side_left}H{line}")
 
         # Status Message Row
-        buf.append(f"{ESC}{bottom-3};{left+3}H{self.status_color}{self.status_msg[:card_w-6]:<{card_w-6}}{RESET}{BG_DARK}")
+        max_status_len = card_w - 6
+        buf.append(f"{ESC}{bottom-3};{left+3}H{self.status_color}{self.status_msg[:max_status_len]:<{max_status_len}}{RESET}{BG_DARK}")
 
         # Pinned Bottom Footer Strip
         footer_badge = f"{CYAN}[ NORMAL ]{RESET}{BG_DARK}"
-        footer_keys = f"{TEXT_DIM}h/j/k/l (←/↓/↑/→) Move • u Undo • r Rescan • Tab Next Level • q/Esc Exit{RESET}{BG_DARK}"
+        footer_keys = f"{TEXT_DIM}h/j/k/l Move • u Undo • Tab Next Level • r Reset • q/Esc Exit{RESET}{BG_DARK}"
         buf.append(f"{ESC}{bottom-1};{left+3}H{footer_badge}  {footer_keys}")
 
         buf.append(f"{ESC}{term_h};1H{RESET}")
@@ -267,42 +289,35 @@ class SokobanGame:
         sys.stdout.flush()
 
 def main():
-    old_settings = termios.tcgetattr(sys.stdin)
+    is_tty = sys.stdin.isatty()
+    old_settings = termios.tcgetattr(sys.stdin) if is_tty else None
     try:
-        tty.setraw(sys.stdin.fileno())
+        if is_tty:
+            tty.setraw(sys.stdin.fileno())
+        sys.stdout.write(f"{ESC}?1049h{ESC}?25l{ESC}2J")
+        sys.stdout.flush()
         game = SokobanGame()
-        
         while True:
-            try:
-                h, w = os.get_terminal_size()
-            except Exception:
-                w, h = 80, 36
+            w, h = get_term_size()
             game.render(w, h)
 
             ch = sys.stdin.read(1)
-            if ch in ('q', 'Q', '\x1b'):
-                # Check escape sequence
-                if ch == '\x1b':
-                    sys.stdin.read(0) # Non-blocking or check arrow
+            if not ch or ch in ('q', 'Q', '\x1b'):
                 break
-            elif ch in ('h', 'a'): game.push(-1, 0)
-            elif ch in ('l', 'd'): game.push(1, 0)
-            elif ch in ('k', 'w'): game.push(0, -1)
-            elif ch in ('j', 's'): game.push(0, 1)
+            elif ch in ('h', 'a'): game.move_player(-1, 0)
+            elif ch in ('l', 'd'): game.move_player(1, 0)
+            elif ch in ('k', 'w'): game.move_player(0, -1)
+            elif ch in ('j', 's'): game.move_player(0, 1)
             elif ch in ('u', 'U'): game.undo()
-            elif ch in ('r', 'R'):
-                game.windows = get_sway_windows()
-                game.load_level(game.level_idx)
-                game.status_msg = "[RESCAN] Refreshed windows from Sway."
-                game.status_color = CYAN
-            elif ch == '\t':
+            elif ch in ('\t', 'n', 'N'):
                 game.level_idx = (game.level_idx + 1) % len(LEVELS)
                 game.load_level(game.level_idx)
-                game.status_msg = f"Switched to Level {game.level_idx+1}"
-                game.status_color = VIOLET
+            elif ch in ('r', 'R'):
+                game.load_level(game.level_idx)
     finally:
-        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
-        sys.stdout.write(f"{ESC}?25h\n{RESET}")
+        if is_tty and old_settings:
+            termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+        sys.stdout.write(f"{ESC}?25h{ESC}?1049l{RESET}")
         sys.stdout.flush()
 
 if __name__ == "__main__":
